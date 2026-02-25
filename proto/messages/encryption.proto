@@ -1,0 +1,325 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "messages/metadata.proto";
+import "types/operation_params.proto";
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Encryption/Decryption Messages
+// ============================================================================
+
+message EncryptRequest {
+  string key_name = 1;
+  bytes plaintext = 2;
+  
+  // Scope-based operation parameters.
+  // REQUIRED: Always set one option to make intent explicit.
+  // The server validates that the chosen scope matches the key's algorithm.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 3;                        // Simple symmetric (AES-CBC, AES-CTR, ChaCha20, 3DES)
+    AeadEncryptParams aead_params = 4;             // AEAD scope (AES-GCM, AES-CCM, ChaCha20-Poly1305)
+    XtsEncryptParams xts_params = 5;               // Storage encryption scope (AES-XTS)
+    AsymmetricEncryptParams asymmetric_params = 6; // Asymmetric encryption scope (RSA-OAEP)
+    VendorEncryptionParams vendor_params = 7;      // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  // Carried through to OperationMetadata.user_context in the response.
+  map<string, string> user_context = 15;
+}
+
+message EncryptResponse {
+  bytes ciphertext = 1;
+  OperationMetadata metadata = 2;
+}
+
+message DecryptRequest {
+  string key_name = 1;
+  bytes ciphertext = 2;
+  // Operation metadata from encryption response.
+  // Contains key_version, template_id, algorithm_parameters, provider, and timestamp.
+  // The algorithm_parameters field within metadata includes IV/nonce needed for decryption.
+  OperationMetadata metadata = 3;
+  
+  // Scope-based operation parameters (must match encryption).
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 4;                        // Simple symmetric
+    AeadEncryptParams aead_params = 5;             // AAD must match for authentication verification
+    XtsEncryptParams xts_params = 6;               // Tweak must match for correct decryption
+    AsymmetricEncryptParams asymmetric_params = 7; // Label must match for OAEP decoding
+    VendorEncryptionParams vendor_params = 8;      // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DecryptResponse {
+  bytes plaintext = 1;
+  OperationMetadata metadata = 2;
+}
+
+// Multi-part encryption
+message EncryptInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Scope-based operation parameters.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 3;                        // Simple symmetric
+    AeadEncryptParams aead_params = 4;             // AEAD scope
+    XtsEncryptParams xts_params = 5;               // Storage encryption scope
+    AsymmetricEncryptParams asymmetric_params = 6; // Asymmetric encryption scope
+    VendorEncryptionParams vendor_params = 7;      // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message EncryptInitResponse {
+  bool success = 1;
+}
+
+message EncryptUpdateRequest {
+  string operation_id = 1;
+  bytes plaintext_chunk = 2;
+}
+
+message EncryptUpdateResponse {
+  bytes ciphertext_chunk = 1;
+}
+
+message EncryptFinalRequest {
+  string operation_id = 1;
+}
+
+message EncryptFinalResponse {
+  bytes ciphertext_final = 1;
+  OperationMetadata metadata = 2;
+}
+
+message DecryptInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Scope-based operation parameters (must match encryption).
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 3;                        // Simple symmetric
+    AeadEncryptParams aead_params = 4;             // AEAD scope
+    XtsEncryptParams xts_params = 5;               // Storage encryption scope
+    AsymmetricEncryptParams asymmetric_params = 6; // Asymmetric encryption scope
+    VendorEncryptionParams vendor_params = 7;      // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DecryptInitResponse {
+  bool success = 1;
+}
+
+message DecryptUpdateRequest {
+  string operation_id = 1;
+  bytes ciphertext_chunk = 2;
+}
+
+message DecryptUpdateResponse {
+  bytes plaintext_chunk = 1;
+}
+
+message DecryptFinalRequest {
+  string operation_id = 1;
+}
+
+message DecryptFinalResponse {
+  bytes plaintext_final = 1;
+  OperationMetadata metadata = 2;
+}
+
+// Message-based AEAD
+message EncryptMessageInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Scope-based operation parameters.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 3;
+    AeadEncryptParams aead_params = 4;
+    XtsEncryptParams xts_params = 5;
+    AsymmetricEncryptParams asymmetric_params = 6;
+    VendorEncryptionParams vendor_params = 7;
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message EncryptMessageInitResponse {
+  bool success = 1;
+}
+
+message EncryptMessageRequest {
+  string key_name = 1;
+  bytes associated_data = 2;
+  bytes plaintext = 3;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message EncryptMessageResponse {
+  bytes ciphertext = 1;
+  OperationMetadata metadata = 2;
+}
+
+message EncryptMessageBeginRequest {
+  string operation_id = 1;
+  bytes associated_data = 2;
+}
+
+message EncryptMessageBeginResponse {
+  bool success = 1;
+  // Partial metadata containing the generated IV/nonce.
+  // Full metadata is returned in EncryptMessageFinalResponse.
+  OperationMetadata partial_metadata = 2;
+}
+
+message EncryptMessageNextRequest {
+  string operation_id = 1;
+  bytes plaintext_chunk = 2;
+}
+
+message EncryptMessageNextResponse {
+  bytes ciphertext_chunk = 1;
+}
+
+message EncryptMessageFinalRequest {
+  string operation_id = 1;
+}
+
+message EncryptMessageFinalResponse {
+  bytes ciphertext_final = 1;
+  OperationMetadata metadata = 2;
+}
+
+message DecryptMessageInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Scope-based operation parameters (must match encryption).
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 3;
+    AeadEncryptParams aead_params = 4;
+    XtsEncryptParams xts_params = 5;
+    AsymmetricEncryptParams asymmetric_params = 6;
+    VendorEncryptionParams vendor_params = 7;
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DecryptMessageInitResponse {
+  bool success = 1;
+}
+
+message DecryptMessageRequest {
+  string key_name = 1;
+  bytes associated_data = 2;
+  bytes ciphertext = 3;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DecryptMessageResponse {
+  bytes plaintext = 1;
+  OperationMetadata metadata = 2;
+}
+
+message DecryptMessageBeginRequest {
+  string operation_id = 1;
+  bytes associated_data = 2;
+}
+
+message DecryptMessageBeginResponse {
+  bool success = 1;
+}
+
+message DecryptMessageNextRequest {
+  string operation_id = 1;
+  bytes ciphertext_chunk = 2;
+}
+
+message DecryptMessageNextResponse {
+  bytes plaintext_chunk = 1;
+}
+
+message DecryptMessageFinalRequest {
+  string operation_id = 1;
+}
+
+message DecryptMessageFinalResponse {
+  // Final plaintext chunk and authentication tag verification.
+  //
+  // IND-CCA2 SECURITY NOTE: Authentication failure MUST be reported as a
+  // gRPC error (CRYPTO_ERROR_AUTHENTICATION_FAILED), never as a boolean flag
+  // alongside plaintext. Returning plaintext with verified=false would violate
+  // IND-CCA2 security — an attacker could observe partial decryption results.
+  // If this response is returned, authentication has already succeeded.
+  bytes plaintext_final = 1;
+  OperationMetadata metadata = 2;
+}
+
+// Dual-function operations
+message DigestEncryptUpdateRequest {
+  string digest_operation_id = 1;
+  string encrypt_operation_id = 2;
+  bytes plaintext_chunk = 3;
+}
+
+message DigestEncryptUpdateResponse {
+  bytes ciphertext_chunk = 1;
+}
+
+message DecryptDigestUpdateRequest {
+  string decrypt_operation_id = 1;
+  string digest_operation_id = 2;
+  bytes ciphertext_chunk = 3;
+}
+
+message DecryptDigestUpdateResponse {
+  bytes plaintext_chunk = 1;
+}
+
+message SignEncryptUpdateRequest {
+  string sign_operation_id = 1;
+  string encrypt_operation_id = 2;
+  bytes plaintext_chunk = 3;
+}
+
+message SignEncryptUpdateResponse {
+  bytes ciphertext_chunk = 1;
+}
+
+message DecryptVerifyUpdateRequest {
+  string decrypt_operation_id = 1;
+  string verify_operation_id = 2;
+  bytes ciphertext_chunk = 3;
+}
+
+message DecryptVerifyUpdateResponse {
+  bytes plaintext_chunk = 1;
+}

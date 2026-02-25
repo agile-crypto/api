@@ -1,0 +1,173 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "messages/metadata.proto";
+import "messages/key_management.proto";
+import "types/operation_params.proto";
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Key Derivation Messages
+// ============================================================================
+
+// DeriveKeyRequest - Derive a new key from an existing base key
+//
+// 1. Most key derivations want the same policy as the base
+//    key. Making policy optional with inheritance as the default reduces friction
+//    for the common case (TLS session keys, hierarchical deterministic keys, etc.)
+//
+// 2. Derived keys are ALWAYS created in the same provider as the base key.
+//    This ensures key material never leaves its security domain (HSM).
+//    If cross-provider key transfer is needed, use WrapKey/UnwrapKey explicitly.
+//
+// 3. The base key's template specifies BOTH the KDF algorithm AND the output key type. We don't add scope/template_id
+//    here because that would create conflicts (e.g., KDF outputs 256 bits but
+//    template wants 128) and confusion about "who decides the output type."
+//
+// 4. Optional policy override supports enterprise scenarios
+//    where derived keys need different governance than their parent.
+//
+// ============================================================================
+//
+// Crypto-Agile Design:
+// The base key's template specifies BOTH the KDF algorithm AND the output key type.
+// Example templates:
+//   - "kdf-hkdf-sha256-aes256gcm" → HKDF-SHA256, produces AES-256-GCM keys
+//   - "kdf-pbkdf2-sha256-chacha20" → PBKDF2-SHA256, produces ChaCha20 keys
+//   - "kdf-hkdf-sha3-256-hmac256" → HKDF-SHA3-256, produces HMAC-SHA256 keys
+//
+// This ensures NO algorithm decisions are made at derive-time.
+// Policy controls algorithm selection at key creation via ScopeSpecification.kdf (KdfScope).
+//
+// Multiple Derived Keys:
+// Use the `info` parameter (in HKDF) or similar to derive multiple unique keys:
+//   - DeriveKey(master, hkdf_params.info="client-enc") → client encryption key
+//   - DeriveKey(master, hkdf_params.info="server-enc") → server encryption key
+// All derived keys have the same algorithm (determined by master's template).
+//
+// Different Key Types:
+// To derive keys of different types (e.g., encryption AND MAC keys), create
+// separate master keys with appropriate templates.
+//
+// Policy Inheritance:
+// - If `policy` is omitted: derived key inherits base key's policy
+// - If `policy` is specified: must be in base key policy's `allowed_derived_policies`
+//
+// Provider Inheritance (MANDATORY - not configurable):
+// - Derived key is ALWAYS created in the same provider as the base key
+// - This is a security requirement to keep key material in the same HSM/security domain
+// - For cross-provider scenarios, use WrapKey to export, then UnwrapKey to import
+message DeriveKeyRequest {
+  // Name of the base key to derive from.
+  // The base key's template defines the KDF algorithm and output key type.
+  // Base key must support CRYPTO_OPERATION_DERIVE_KEY.
+  string base_key_name = 1;
+
+  // Name for the newly derived key.
+  // Must be unique within the key namespace.
+  string derived_key_name = 2;
+
+  // Optional: Policy for the derived key.
+  // - If omitted: derived key inherits the base key's policy (recommended for most cases)
+  // - If specified: the policy must be allowed by the base key's policy
+  //   (i.e., listed in base key policy's `allowed_derived_policies`)
+  //
+  // Use cases for specifying policy:
+  // - Derived keys need more restrictive permissions than base key
+  // - Different audit/compliance requirements for derived keys
+  // - Multi-tenant scenarios where derived keys belong to different tenants
+  optional string policy = 3;
+
+
+  // KDF-specific user-provided operation parameters.
+  // REQUIRED: Set the one matching your base key's KDF algorithm.
+  // Each KDF params message contains only the fields relevant to that KDF.
+  oneof kdf_params {
+    option (buf.validate.oneof).required = true;
+    HkdfOperationParams hkdf_params = 5;           // For HKDF-SHA256, HKDF-SHA512, etc.
+    Pbkdf2OperationParams pbkdf2_params = 6;       // For PBKDF2-HMAC-SHA*
+    Argon2OperationParams argon2_params = 7;       // For Argon2id, Argon2i, Argon2d
+    EcdhOperationParams ecdh_params = 8;           // For ECDH, X25519, X448
+    X942DhOperationParams x942_dh_params = 9;      // For X9.42 DH
+    TlsPrfOperationParams tls_prf_params = 10;     // For TLS 1.0/1.1 PRF
+    Tls12KdfOperationParams tls12_kdf_params = 11; // For TLS 1.2 KDF
+    Sp800108OperationParams sp800_108_params = 12; // For NIST SP 800-108 KDF
+    GostKdfOperationParams gost_kdf_params = 13;   // For GOST key derivation
+    X3dhOperationParams x3dh_params = 14;          // For Signal X3DH protocol
+    VendorKdfParams vendor_params = 15;            // For custom/vendor KDF algorithms
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 20;
+}
+
+message DeriveKeyResponse {
+  bool success = 1;
+  string message = 2;
+  OperationMetadata metadata = 3;
+  // Metadata of the newly derived key.
+  // Consistent with CreateKeyResponse, ImportKeyResponse, TransformKeyResponse.
+  KeyMetadata key_metadata = 4;
+}
+
+// ============================================================================
+// Key Agreement Messages
+// ============================================================================
+//
+// Key agreement is distinct from key derivation:
+//   - KeyAgreement: Two parties each contribute a key (Diffie-Hellman model).
+//                   Both parties' public keys produce a shared secret.
+//   - DeriveKey:    One party derives a new key from existing key material + KDF params.
+//
+// The resulting shared secret is stored as a named key, governed by the
+// policy of the local private key.
+//
+// Supported protocols: ECDH (P-256/P-384/P-521), X25519, X448, X9.42 DH, X3DH
+
+// KeyAgreementRequest performs a key agreement and stores the resulting
+// shared secret as a named key in the same provider as the local private key.
+message KeyAgreementRequest {
+  // Local private key (our side of the agreement).
+  // Must support CRYPTO_OPERATION_KEY_AGREEMENT.
+  string private_key_name = 1;
+
+  // Peer's raw public key bytes (their side of the agreement).
+  // Encoding is algorithm-specific:
+  //   ECDH:  uncompressed point (04 || X || Y) or compressed (02/03 || X)
+  //   X25519/X448: raw 32/56-byte little-endian scalar
+  //   X9.42 DH: DER-encoded SubjectPublicKeyInfo
+  bytes peer_public_key = 2;
+
+  // Name for the resulting shared secret key.
+  // Must be unique within the key namespace.
+  string shared_secret_name = 3;
+
+  // Optional: Template for the resulting shared secret key.
+  // If omitted, the private key's policy selects the appropriate output template.
+  string shared_secret_template_id = 4;
+
+  // Algorithm-specific key agreement parameters.
+  // REQUIRED: Set the one matching the key agreement protocol.
+  oneof agreement_params {
+    option (buf.validate.oneof).required = true;
+    EcdhOperationParams ecdh_params = 5;        // For ECDH (P-256, P-384, P-521), X25519, X448
+    X942DhOperationParams x942_dh_params = 6;   // For X9.42 DH (MODP groups)
+    X3dhOperationParams x3dh_params = 7;        // For Signal X3DH protocol
+    VendorKdfParams vendor_params = 8;           // For vendor-specific KA algorithms
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message KeyAgreementResponse {
+  bool success = 1;
+  string message = 2;
+  OperationMetadata metadata = 3;
+  // Metadata of the newly created shared secret key.
+  // Consistent with CreateKeyResponse, ImportKeyResponse, TransformKeyResponse.
+  KeyMetadata key_metadata = 4;
+}

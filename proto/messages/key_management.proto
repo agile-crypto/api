@@ -1,0 +1,770 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "google/protobuf/timestamp.proto";
+import "types/common.proto";
+import "types/templates.proto";
+import "types/implementation.proto";
+import "types/providers.proto";
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Key Management Messages
+// ============================================================================
+
+// CreateKeyRequest - Create a new cryptographic key
+//
+// Policy-Driven Algorithm Selection:
+// The policy parameter specifies which security policy governs this key.
+// The policy determines:
+// - Which templates (algorithms) are allowed for the specified scope
+// - Security levels and requirements (FIPS compliance, key sizes, etc.)
+// - Which providers can operate on this key
+// - Default algorithm selection preferences
+//
+// Scope vs Template Selection:
+// - Scope-based: Client provides ScopeSpecification with typed properties
+//   → Example: scope_spec.aead { scope: AEAD_SCOPE_STANDARD, security: { security_strength_bits: 256 } }
+//   → Policy determines which template (e.g., "aes-256-gcm") to use
+//   → Properties in scope_spec filter among policy-allowed templates
+// - Template-based: Client explicitly specifies template_id (e.g., "ed25519")
+//   → Policy must allow this template for the operation to proceed
+//
+// Example 1: Scope-based with security preference
+//   CreateKeyRequest {
+//     name: "app-encryption-key"
+//     policy: "prod-encryption"
+//     scope_spec: {
+//       aead: {
+//         scope: AEAD_SCOPE_STANDARD,
+//         security: { security_strength_bits: 256, fips_approved: true }
+//       }
+//     }
+//   }
+//   → Policy allows: [aes-128-gcm, aes-256-gcm, chacha20-poly1305]
+//   → Filter by security_strength_bits=256: [aes-256-gcm, chacha20-poly1305]
+//   → Filter by fips_approved=true: [aes-256-gcm]
+//
+// Example 2: Post-quantum signature with non-malleability
+//   CreateKeyRequest {
+//     name: "signing-key"
+//     policy: "signing-policy"
+//     scope_spec: {
+//       signature: {
+//         scope: SIGNATURE_SCOPE_STANDARD,
+//         security: { quantum_safe: true },
+//         non_malleable: true
+//       }
+//     }
+//   }
+//   → Selects ML-DSA or SLH-DSA based on policy preferences
+//
+// Example 3: Explicit template selection
+//   CreateKeyRequest {
+//     name: "explicit-ed25519"
+//     policy: "signing-policy"
+//     template_id: "ed25519"
+//   }
+//   → Uses Ed25519 directly (policy must approve it)
+//
+// Example 4: Provider implementation requirements
+//   CreateKeyRequest {
+//     name: "high-assurance-key"
+//     policy: "high-security"
+//     scope_spec: { aead: { scope: AEAD_SCOPE_STANDARD } }
+//     provider_requirements: {
+//       fips_140_certified: true
+//       min_fips_level: FIPS_140_LEVEL_3
+//       constant_time: true
+//     }
+//   }
+//   → Selects a FIPS Level 3 certified provider with constant-time impl
+//
+// Example 5: Scope-based with preferred properties (soft hints)
+//   CreateKeyRequest {
+//     name: "pqc-ready-key"
+//     policy: "prod-encryption"
+//     scope_spec: { aead: { scope: AEAD_SCOPE_STANDARD } }
+//     preferred_properties: {"pqc_ready": "true", "key_size_bits": "256"}
+//   }
+//   → Policy allows: [aes-256-gcm, chacha20-poly1305]
+//   → preferred_properties: no PQC match → falls back to all candidates
+//   → Select aes-256-gcm (first by template ordering)
+message CreateKeyRequest {
+  string name = 1;
+  string policy = 2;            // Policy name for security governance
+  string provider_id = 3;       // Optional: preferred provider (otherwise auto-selected)
+  
+  // Optional: Ad-hoc provider-specific settings for this key creation only.
+  //
+  // PREFERRED: Use provider_requirements (field 7) for structured provider
+  // selection, or provider_id referencing a pre-registered ProviderInstance.
+  //
+  // This field exists for lightweight deployments without pre-registered
+  // provider instances. When both provider_id and provider_requirements are
+  // specified, the provider_id must satisfy the requirements or the request
+  // is rejected.
+  //
+  // NOTE: Ad-hoc configuration bypasses instance-level implementation property
+  // tracking, which means CBOM generation and compliance reporting may be
+  // incomplete. For production deployments, prefer pre-registered
+  // ProviderInstances (managed via ProviderService).
+  map<string, string> provider_configuration = 4;
+  
+  // Exactly one key specification method must be provided (enforced by oneof)
+  oneof key_specification {
+    option (buf.validate.oneof).required = true;
+    // Scope-based (recommended):
+    //   The policy determines which template to use based on the scope.
+    //   Example: scope_spec.aead.scope=AEAD_SCOPE_STANDARD, policy="prod-encryption"
+    //   → Policy selects from allowed templates (e.g., "aes-256-gcm")
+    //   → Properties in scope_spec filter among policy-allowed options
+    ScopeSpecification scope_spec = 5;
+    
+    // Template-based (explicit):
+    //   Specify the algorithm directly. Policy must allow this template.
+    //   Example: template_id="ed25519", policy="signing-policy"
+    //   → Uses Ed25519 directly (policy must approve it)
+    string template_id = 6;
+  }
+  
+  // Optional: Implementation requirements for provider selection.
+  // When specified, only providers meeting these requirements are considered.
+  // This filters providers AFTER template selection.
+  //
+  // Use cases:
+  // - Require FIPS 140-3 certified implementation for compliance
+  // - Require formally verified implementation for high-assurance
+  // - Require constant-time implementation for side-channel resistance
+  //
+  // If provider_id is also specified, that provider must meet these requirements.
+  ProviderRequirements provider_requirements = 7;
+  
+  // Optional: Soft preference hints for scope-based template selection.
+  //
+  // When scope_spec is used and multiple policy-allowed templates match,
+  // preferred_properties provides additional filtering against
+  // TemplateInfo.algorithm_properties to narrow the candidate set.
+  // Uses AND semantics: all specified properties must match.
+  //
+  // SOFT FILTER: If no candidates match all preferences, they are ignored
+  // and selection falls back to all scope-matching, policy-allowed templates.
+  // This ensures the request succeeds whenever a valid template exists.
+  //
+  // Ignored when template_id is specified (template is already explicit).
+  //
+  // Common keys (from TemplateInfo.algorithm_properties):
+  //   "algorithm_name": "AES"           - Prefer specific algorithm family
+  //   "key_size_bits": "256"            - Prefer specific key size
+  //   "pqc_ready": "true"              - Prefer post-quantum safe templates
+  //   "standard:FIPS-186-5": "true"    - Prefer FIPS-standardized algorithms
+  //
+  // Use DiscoveryService.ListTemplates to discover available property values.
+  map<string, string> preferred_properties = 8;
+}
+
+message CreateKeyResponse {
+  bool success = 1;
+  string message = 2;
+  KeyMetadata key_metadata = 3;
+  // Security guarantees from the selected template (for audit trail)
+  SecurityGuarantees security_guarantees = 4;
+  
+  // Implementation properties of the provider that created this key.
+  // This captures the actual implementation characteristics used,
+  // enabling accurate CBOM generation and compliance reporting.
+  //
+  // Example response:
+  //   implementation_properties {
+  //     fips_140 { certified: true, level: FIPS_140_LEVEL_3, certificate_number: "4282" }
+  //     constant_time: true
+  //     implementation_language: "C"
+  //   }
+  ImplementationProperties implementation_properties = 5;
+}
+
+message KeyMetadata {
+  string name = 1;
+  string template_id = 2;
+  // The scope specification used to create this key
+  ScopeSpecification scope_spec = 3;
+  string provider = 4;
+  int32 version = 5;
+  google.protobuf.Timestamp created_time = 6;
+  google.protobuf.Timestamp updated_time = 7;
+  string policy = 8;
+  map<string, string> provider_metadata = 9;
+  TemplateInfo template_info = 10;
+  // Implementation properties of the provider (denormalized for convenience)
+  ImplementationProperties implementation_properties = 11;
+  // Whether the key material can be extracted from its provider.
+  // False for non-extractable HSM keys.
+  // Determines feasibility of EXTRACT_AND_IMPORT migration strategy.
+  bool extractable = 12;
+  // Lifecycle state of the key (NIST SP 800-57, KMIP state machine).
+  KeyLifecycleState lifecycle_state = 13;
+}
+
+message ReadKeyRequest {
+  string name = 1;
+}
+
+message ReadKeyResponse {
+  KeyMetadata key_metadata = 1;
+}
+
+message ListKeysRequest {
+  // Optional: Filter by scope specification
+  ScopeSpecification scope_spec = 1;
+  string provider_id = 2;
+  string policy = 3;
+  // Optional: Filter by lifecycle state (e.g., only ACTIVE keys)
+  KeyLifecycleState lifecycle_state = 4;
+  // Pagination
+  int32 page_size = 10;   // Max results per page (0 = server default = return all)
+  string page_token = 11; // Opaque token from previous ListKeysResponse
+}
+
+message ListKeysResponse {
+  repeated KeyMetadata keys = 1;
+  // Opaque token for the next page. Empty if no more results.
+  string next_page_token = 2;
+}
+
+message DeleteKeyRequest {
+  string name = 1;
+}
+
+message DeleteKeyResponse {
+  bool success = 1;
+  string message = 2; // Status message (e.g., soft-delete confirmation, remaining reference warnings)
+}
+
+message RotateKeyRequest {
+  string name = 1;
+}
+
+message RotateKeyResponse {
+  bool success = 1;
+  string message = 2;
+  KeyMetadata new_key_metadata = 3;
+}
+
+// ExportKeyRequest - Export key material (if key's policy allows)
+//
+// SECURITY WARNING:
+// Key export is a sensitive operation controlled by the key's associated policy.
+// Exported keys leave the security boundary of the cryptographic service.
+//
+// Policy Governance:
+// The key's existing policy determines whether export is allowed and may impose:
+// - Export permission (allow_export: true/false)
+// - Required wrapping (must wrap with KEK before export)
+// - Allowed export formats
+// - Audit requirements
+//
+// Export Formats:
+// - RAW: Raw key bytes (highest risk, requires strict policy control)
+// - WRAPPED: Key wrapped with a Key Encryption Key (recommended)
+// - PKCS8: Standard PKCS#8 format for asymmetric keys
+// - JWK: JSON Web Key format
+message ExportKeyRequest {
+  string name = 1;                // Name of key to export (key's policy governs export)
+  KeyFormat format = 2;           // Export format
+  string wrapping_key_name = 3;   // Required if format=KEY_FORMAT_WRAPPED: KEK to wrap with
+}
+
+message ExportKeyResponse {
+  bytes key_material = 1;       // Exported key (raw or wrapped based on format)
+  KeyFormat format = 2;         // Format of exported key material
+  KeyMetadata key_metadata = 3; // Metadata of exported key
+}
+
+// ImportKeyRequest - Import key material into the service
+//
+// Policy Governance:
+// The policy_name specifies the policy to associate with the imported key.
+// This policy will govern all future operations on the imported key.
+// The policy may also impose import-time requirements:
+// - Specific import formats
+// - Key attestation verification
+// - Restrictions on imported key usage
+//
+// Key Specification:
+// The imported key's type/algorithm is determined via key_specification:
+// - Scope-based: Policy selects appropriate template for the scope
+// - Template-based: Explicit template_id (e.g., "aes-256-gcm")
+message ImportKeyRequest {
+  string name = 1;              // Name for the imported key
+  string policy_name = 2;       // Policy to associate with imported key
+  bytes key_material = 3;       // Key material to import (raw or wrapped)
+  KeyFormat format = 4;         // Import format
+  string unwrapping_key_name = 5; // Required if format=KEY_FORMAT_WRAPPED: KEK to unwrap with
+  string provider_id = 6;       // Optional: target provider for the key
+  map<string, string> provider_configuration = 7;
+  
+  // Key type specification
+  oneof key_specification {
+    option (buf.validate.oneof).required = true;
+    ScopeSpecification scope_spec = 8;  // Intent-based: policy selects template
+    string template_id = 9;             // Explicit: specific algorithm template
+  }
+  
+  // Optional: Soft preference hints for scope-based template selection.
+  // Same semantics as CreateKeyRequest.preferred_properties.
+  // Ignored when template_id is specified.
+  map<string, string> preferred_properties = 10;
+}
+
+message ImportKeyResponse {
+  bool success = 1;
+  string message = 2;
+  KeyMetadata key_metadata = 3;
+}
+
+// TransformKeyRequest - Change the template/algorithm of an existing key
+//
+// Policy-Driven Algorithm Selection:
+// When using scope-based selection, the current policy determines which templates are allowed.
+// Use preferred_properties to filter among policy-allowed options for the scope.
+//
+// Separate from UpdateKeyPolicy and MigrateKey to enable fine-grained access control:
+// - Grant transform-only access: IAM can call TransformKey but not UpdateKeyPolicy/MigrateKey
+// - This operation only changes the cryptographic template/scope, not governance or provider
+//
+// Key Retention:
+// Whether to retain the existing key bytes (true) or regenerate (false)
+// Use true when transforming only operation properties (e.g., signature hash algorithm)
+// Use false when changing fundamental key characteristics (e.g., key size, algorithm family)
+//
+// EXAMPLES:
+//   retain_key_bytes=true:
+//     - ecdsa-p256-sha256 → ecdsa-p256-sha512 (same key, different hash)
+//     - aes-128-cbc → aes-128-gcm (same key material, different mode)
+//     - rsa-pss-2048-sha256 → rsa-pss-2048-sha512 (same RSA key, different hash)
+//
+//   retain_key_bytes=false (DEFAULT):
+//     - aes-128-cbc → aes-256-gcm (different key size; must regenerate)
+//     - ecdsa-p256-sha256 → ed25519 (different curve; must regenerate)
+//     - ecdsa-p256 → ml-dsa-65 (different algorithm family; must regenerate)
+//
+// NOTE: If retain_key_bytes=true but transformation is incompatible with existing key,
+// the service MUST reject the request with an error. Examples of incompatible transforms:
+//   - Cannot retain bytes when key size changes (256-bit → 384-bit)
+//   - Cannot retain bytes when algorithm family incompatible (RSA → ECDSA)
+//   - Cannot retain bytes for different scopes requiring different key structures
+//
+// Example 1: Transform to higher security
+//   TransformKeyRequest {
+//     name: "legacy-signing-key"
+//     retain_key_bytes: false
+//     scope_spec: {
+//       signature: {
+//         scope: SIGNATURE_SCOPE_STANDARD,
+//         security: { security_strength_bits: 256, quantum_safe: true }
+//       }
+//     }
+//   }
+//   → Current policy allows: [ecdsa-p256-sha256, ml-dsa-65, ml-dsa-87]
+//   → Filter by security_strength_bits=256, quantum_safe=true
+//   → Select ml-dsa-87 (highest security)
+//
+// Example 2: Transform for performance (explicit template)
+//   TransformKeyRequest {
+//     name: "encryption-key"
+//     retain_key_bytes: false
+//     template_id: "chacha20-poly1305"
+//   }
+//   → Transform to chacha20-poly1305
+//
+// Example 3: Transform keeping key bytes
+//   TransformKeyRequest {
+//     name: "signing-key"
+//     retain_key_bytes: true
+//     template_id: "ecdsa-p256-sha512"
+//   }
+//   → Current policy must allow "ecdsa-p256-sha512"
+//   → Transform keeping existing key bytes
+//
+// Example 4: Transform with preferred properties
+//   TransformKeyRequest {
+//     name: "crypto-agile-key"
+//     retain_key_bytes: false
+//     scope_spec: { signature: { scope: SIGNATURE_SCOPE_STANDARD } }
+//     preferred_properties: {"pqc_ready": "true"}
+//   }
+//   → Prefers PQC-ready signing templates; falls back if unavailable
+message TransformKeyRequest {
+  string name = 1;
+  
+  // Whether to retain the existing key bytes (true) or regenerate (false)
+  bool retain_key_bytes = 2;
+  
+  // Exactly one key specification method must be provided (enforced by oneof)
+  oneof key_specification {
+    option (buf.validate.oneof).required = true;
+    // Scope-based (recommended):
+    //   The current policy determines which template to use based on the scope.
+    //   Example: scope_spec.signature { scope: SIGNATURE_SCOPE_STANDARD }
+    //   → Current policy selects from allowed templates
+    //   → Properties in scope_spec filter among policy-allowed options
+    //   → Note: Policy is NOT changed; use UpdateKeyPolicy for that
+    ScopeSpecification scope_spec = 3;
+    
+    // Template-based (explicit):
+    //   Specify the algorithm directly. Current policy must allow this template.
+    //   Example: template_id="ecdsa-p256-sha512"
+    //   → Uses ECDSA P-256 with SHA-512 (current policy must approve it)
+    //   → Note: Policy is NOT changed; use UpdateKeyPolicy for that
+    string template_id = 4;
+  }
+  
+  // Optional: Soft preference hints for scope-based template selection.
+  // Same semantics as CreateKeyRequest.preferred_properties.
+  // Ignored when template_id is specified.
+  map<string, string> preferred_properties = 5;
+}
+
+message TransformKeyResponse {
+  bool success = 1;
+  string message = 2;
+  KeyMetadata key_metadata = 3;
+}
+
+// UpdateKeyPolicyRequest - Change policy for an existing key
+// Separate from TransformKey to enable fine-grained access control:
+// - Grant transform-only access: IAM can call TransformKey but not UpdateKeyPolicy
+// - Grant policy-only access: Admins can call UpdateKeyPolicy for governance
+//
+// SECURITY NOTE:
+// Changing policy may affect:
+//   - Which templates are allowed for future transforms
+//   - Which providers can operate on this key
+//   - Compliance and security requirements
+// This operation typically requires elevated privileges or admin approval.
+message UpdateKeyPolicyRequest {
+  string name = 1;
+  string new_policy = 2;  // Policy name to assign to this key
+}
+
+message UpdateKeyPolicyResponse {
+  bool success = 1;
+  string message = 2;
+  KeyMetadata key_metadata = 3;
+}
+
+// ============================================================================
+// Key Migration Messages
+// ============================================================================
+
+// MigrationStrategy - Explicit strategy for provider migration
+//
+// User must explicitly choose a strategy based on:
+// - Source and target provider types (software vs HSM)
+// - Whether key bytes must be preserved
+// - Security requirements for key transfer
+// - Whether old key is needed for decryption
+//
+// See docs/TRANSFORM_KEY_PROVIDER_DESIGN.md for detailed decision tree.
+enum MigrationStrategy {
+  MIGRATION_STRATEGY_UNSPECIFIED = 0;
+  
+  // PROVIDER_SWITCH: Software-to-software only (metadata change)
+  //
+  // Use when: Both source and target are software providers
+  // What happens: Only provider_id metadata is updated
+  // Security: No key movement, trivial operation
+  // Feasibility: Always works for SW→SW
+  //
+  // Example: go-crypto → openssl3 for FIPS compliance
+  MIGRATION_STRATEGY_PROVIDER_SWITCH = 1;
+  
+  // EXTRACT_AND_IMPORT: Key crosses security boundary
+  //
+  // Use when: Moving between different security domains
+  // What happens: Key bytes extracted from source, imported to target
+  // Security: Key material temporarily in application memory
+  // Feasibility: Requires source key to be extractable (E-YES)
+  //
+  // Examples:
+  //   - Software → HSM (import to hardware)
+  //   - HSM → Software (extract from hardware)
+  //   - HSM → HSM (when wrapping not available)
+  MIGRATION_STRATEGY_EXTRACT_AND_IMPORT = 2;
+  
+  // WRAPPED_TRANSFER: HSM-to-HSM with maximum security
+  //
+  // Use when: Moving between HSMs, maximum security required
+  // What happens: Key wrapped by source HSM, unwrapped by target HSM
+  // Security: Key never leaves HSM boundary in plaintext
+  // Feasibility: Requires compatible HSMs with shared wrapping key
+  //
+  // Example: Production HSM → DR site HSM
+  MIGRATION_STRATEGY_WRAPPED_TRANSFER = 3;
+  
+  // REKEY_AND_ARCHIVE: Generate new key, keep old for decryption
+  //
+  // Use when: Key rotation with backward compatibility needed
+  // What happens: New key generated on target, old key archived
+  // Security: Old key restricted to decrypt-only operations
+  // Feasibility: ALWAYS works (universal fallback)
+  //
+  // Example: Post-quantum migration with existing ciphertexts
+  MIGRATION_STRATEGY_REKEY_AND_ARCHIVE = 4;
+  
+  // REKEY_AND_DESTROY: Generate new key, destroy old key
+  //
+  // Use when: Clean break, no backward compatibility needed
+  // What happens: New key generated on target, old key destroyed
+  // Security: Old ciphertexts become unrecoverable
+  // Feasibility: ALWAYS works
+  //
+  // WARNING: Use only after re-encrypting all data with new key!
+  // Example: Decommissioning old provider completely
+  MIGRATION_STRATEGY_REKEY_AND_DESTROY = 5;
+}
+
+// MigrateKeyRequest - Move key to different provider with explicit strategy
+//
+// Moves a key to a different provider with explicit migration strategy.
+// User must choose how key material is handled during migration.
+//
+// Design Rationale (from TRANSFORM_KEY_PROVIDER_DESIGN.md):
+// - Implicit provider switch assumes key bytes can be retained
+// - This assumption fails for non-extractable HSM keys
+// - Explicit strategy makes user acknowledge security implications
+// - Separate from TransformKey to enable fine-grained IAM control
+//
+// Strategy Selection Guide:
+// ┌─────────────────┬─────────────────┬────────────────────────┐
+// │ Source Provider │ Target Provider │ Recommended Strategy   │
+// ├─────────────────┼─────────────────┼────────────────────────┤
+// │ Software        │ Software        │ PROVIDER_SWITCH        │
+// │ Software        │ HSM             │ EXTRACT_AND_IMPORT     │
+// │ HSM (extract)   │ Software        │ EXTRACT_AND_IMPORT     │
+// │ HSM (no extract)│ Software        │ REKEY_AND_ARCHIVE      │
+// │ HSM             │ HSM (compat)    │ WRAPPED_TRANSFER       │
+// │ HSM             │ HSM (incompat)  │ EXTRACT_AND_IMPORT     │
+// └─────────────────┴─────────────────┴────────────────────────┘
+//
+// Example 1: Software to software (FIPS compliance)
+//   MigrateKeyRequest {
+//     name: "encryption-key"
+//     target_instance_id: "openssl3-fips-default"
+//     strategy: MIGRATION_STRATEGY_PROVIDER_SWITCH
+//   }
+//
+// Example 2: Software to HSM (security upgrade)
+//   MigrateKeyRequest {
+//     name: "signing-key"
+//     target_instance_id: "hsm-prod-slot5"
+//     strategy: MIGRATION_STRATEGY_EXTRACT_AND_IMPORT
+//   }
+//
+// Example 3: HSM to HSM with maximum security
+//   MigrateKeyRequest {
+//     name: "root-key"
+//     target_instance_id: "hsm-dr-site"
+//     strategy: MIGRATION_STRATEGY_WRAPPED_TRANSFER
+//   }
+//
+// Example 4: Migration with algorithm upgrade
+//   MigrateKeyRequest {
+//     name: "legacy-key"
+//     target_instance_id: "new-provider"
+//     strategy: MIGRATION_STRATEGY_REKEY_AND_ARCHIVE
+//     template_id: "ml-dsa-65"  // Upgrade to post-quantum
+//   }
+message MigrateKeyRequest {
+  // Name of the key to migrate
+  string name = 1;
+  
+  // Target provider specification (exactly one required)
+  oneof target {
+    option (buf.validate.oneof).required = true;
+    // Recommended: Use pre-configured ProviderInstance
+    // Instance contains provider_id + configuration (library_path, slot, etc.)
+    string target_instance_id = 2;
+    
+    // Alternative: Specify provider directly with configuration
+    ProviderTarget provider_target = 3;
+  }
+  
+  // REQUIRED: Explicit migration strategy
+  // User must acknowledge how key material will be handled
+  MigrationStrategy strategy = 4;
+  
+  // Optional: Also change algorithm during migration
+  // If not specified, attempts to keep same template on target provider
+  oneof key_specification {
+    // Scope-based: Let policy select appropriate template on target
+    ScopeSpecification scope_spec = 5;
+    
+    // Template-based: Explicit algorithm for target provider
+    string template_id = 6;
+  }
+}
+
+// ProviderTarget - Direct provider specification for migration
+//
+// Use when target provider is not pre-registered as a ProviderInstance.
+// Prefer using target_instance_id when provider is already configured.
+message ProviderTarget {
+  // Provider identifier (e.g., "pkcs11", "openssl3", "go-crypto")
+  string provider_id = 1;
+  
+  // Provider-specific configuration
+  // Examples:
+  //   - PKCS#11: {"library_path": "/usr/lib/softhsm2.so", "slot_id": "0"}
+  //   - Cloud KMS: {"project": "my-project", "location": "us-east1"}
+  map<string, string> configuration = 2;
+}
+
+// MigrateKeyResponse - Result of key migration operation
+message MigrateKeyResponse {
+  bool success = 1;
+  string message = 2;
+  
+  // Metadata of the key on the new provider
+  KeyMetadata key_metadata = 3;
+  
+  // For REKEY_AND_ARCHIVE: Information about the archived key
+  // The archived key has restricted permissions (decrypt-only)
+  ArchivedKeyInfo archived_key_info = 4;
+  
+  // Details about what actually happened during migration
+  MigrationResult result = 5;
+}
+
+// ArchivedKeyInfo - Information about an archived key after REKEY_AND_ARCHIVE
+message ArchivedKeyInfo {
+  // Name of the archived key (typically original_name + "_archived_" + timestamp)
+  string archived_key_name = 1;
+  
+  // Original provider where archived key remains
+  string provider_id = 2;
+  
+  // Restricted operations allowed on archived key
+  repeated CryptoOperation allowed_operations = 3;  // e.g., [DECRYPT, UNWRAP_KEY]
+  
+  // When the archived key will be automatically deleted (null = never)
+  google.protobuf.Timestamp expiration_time = 4;
+}
+
+// MigrationResult - Details of what happened during migration
+message MigrationResult {
+  // Strategy that was executed
+  MigrationStrategy strategy_used = 1;
+  
+  // Whether original key bytes were preserved
+  bool key_bytes_preserved = 2;
+  
+  // Source provider information (for audit)
+  string source_provider_id = 3;
+  string source_instance_id = 4;
+  
+  // Target provider information (for audit)
+  string target_provider_id = 5;
+  string target_instance_id = 6;
+  
+  // Implementation properties of new location
+  ImplementationProperties target_implementation = 7;
+  
+  // For WRAPPED_TRANSFER: wrapping key used
+  string wrapping_key_name = 8;
+}
+
+// ============================================================================
+// Key Operation Validation Messages
+// ============================================================================
+
+// ValidateKeyOperationRequest - Check feasibility before committing
+//
+// Returns which operations/strategies are possible for a given key.
+// Use this to:
+// - Show users available options before they choose
+// - Pre-validate operations in complex workflows
+// - Build UIs with disabled/enabled options
+message ValidateKeyOperationRequest {
+  // Key to validate operations for
+  string name = 1;
+  
+  // What the user wants to achieve
+  oneof intent {
+    option (buf.validate.oneof).required = true;
+    ValidateTransformIntent transform = 2;
+    ValidateMigrateIntent migrate = 3;
+  }
+}
+
+// ValidateTransformIntent - Check transform feasibility
+message ValidateTransformIntent {
+  oneof key_specification {
+    ScopeSpecification scope_spec = 1;
+    string template_id = 2;
+  }
+  
+  // Whether user prefers to retain key bytes
+  bool prefer_retain_bytes = 3;
+}
+
+// ValidateMigrateIntent - Check migration feasibility
+message ValidateMigrateIntent {
+  // Target provider to validate against
+  oneof target {
+    string target_instance_id = 1;
+    string target_provider_id = 2;
+  }
+  
+  // Optional: specific strategy to validate
+  MigrationStrategy preferred_strategy = 3;
+}
+
+// ValidateKeyOperationResponse - Feasibility report
+message ValidateKeyOperationResponse {
+  // Current key state (for user's information)
+  KeyState current_state = 1;
+  
+  // Available strategies with feasibility assessment
+  repeated StrategyOption options = 2;
+  
+  // Recommended strategy based on current state
+  MigrationStrategy recommended_strategy = 3;
+  
+  // Human-readable explanation of recommendation
+  string recommendation_reason = 4;
+}
+
+// KeyState - Current state of a key for validation
+message KeyState {
+  string template_id = 1;
+  string provider_id = 2;
+  string instance_id = 3;
+  bool extractable = 4;
+  
+  // Provider type classification
+  ProviderType provider_type = 5;
+  
+  // Implementation properties
+  ImplementationProperties implementation = 6;
+}
+
+// StrategyOption - Feasibility of a specific strategy
+message StrategyOption {
+  MigrationStrategy strategy = 1;
+  
+  // Is this strategy feasible?
+  bool feasible = 2;
+  
+  // If not feasible, why?
+  string infeasibility_reason = 3;
+  
+  // Security implications of using this strategy
+  repeated string security_notes = 4;
+  
+  // Complexity/risk level (1-5, 1=trivial, 5=complex)
+  int32 complexity_level = 5;
+}

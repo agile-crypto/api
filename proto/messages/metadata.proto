@@ -1,0 +1,283 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+// ============================================================================
+// Serialization Metadata
+// ============================================================================
+
+// OperationMetadata captures key version and algorithm-specific serialization information
+// This enables proper deserialization and key lifecycle tracking across all operations
+//
+// ARCHITECTURE NOTE: Protobuf API vs Cryptographic Artifacts
+// ===========================================================
+// This specification defines the RPC API using Protobuf, but cryptographic artifacts
+// (keys, signatures, encrypted data) may use different encodings for interoperability:
+//
+// - Protobuf: Used for RPC messages
+// - Cryptographic Artifacts: May use ASN.1/DER, JWS, CBOR, or raw formats for:
+//   * Compatibility with existing PKI infrastructure (X.509 certs)
+//   * Interoperability across different implementations
+//   * Long-term storage or cross-system exchange
+//
+// The algorithm_parameters map documents which encoding is used for each artifact.
+//
+// SECURITY NOTE: Metadata Does NOT Require Signing
+// ================================================
+// The metadata fields are NOT cryptographic inputs and do NOT require authentication:
+//
+// 1. Algorithm Parameters (IV, nonce, encoding info):
+//    - These are embedded in and authenticated by the AEAD authentication tag
+//    - Changing any parameter invalidates the authentication tag
+//    - AEAD modes guarantee: if any parameter changes, decryption fails or tag verification fails
+//
+// 2. Key Version:
+//    - If wrong version specified, decryption produces wrong plaintext
+//    - For verification: wrong key version produces garbage or signature fails
+//    - Using a different key_version is cryptographically equivalent to using a different key
+//
+// 3. Template ID:
+//    - Intentionally excluded from OperationMetadata (unsigned → tamperable)
+//    - If wrong template assumed: plaintext garbage or verification fails
+//    - Clients retrieve template via ReadKey → key_metadata.template_id
+//
+// Threat Model:
+//    - Attacker can tamper with metadata
+//    - Result: Wrong IV + wrong ciphertext (simultaneous tampering)
+//    - AEAD authentication still fails (tag was computed with original IV)
+//    - OR: Wrong IV + same ciphertext = garbage plaintext or tag fails
+//    - OR: For signing: wrong key_version doesn't affect signature validity
+//
+// Conclusion: The cryptographic authentication (AEAD tag, signature) is sufficient.
+// Signing metadata would be redundant and provide zero additional security guarantees.
+//
+// For audit trail integrity (if needed for compliance): Sign the audit log entry
+// that contains both the cryptographic result and this metadata, not the metadata alone.
+//
+// CRYPTOGRAPHIC ARTIFACT ENCODING GUIDANCE
+// ==========================================
+//
+// The algorithm_parameters map documents encoding and format information for artifacts.
+// Different implementations may use different encodings; the spec accommodates both.
+//
+// ENCRYPTION ARTIFACTS:
+// =====================
+// For AEAD operations (AES-GCM, ChaCha20-Poly1305, etc.):
+//   Format: IV || Ciphertext || AuthenticationTag (concatenated)
+//   algorithm_parameters: {
+//     "iv": <generated_iv_bytes>,     // MUST be included for decryption
+//     "tag_length_bytes": "16",       // Tag length (usually 16 for 128-bit)
+//     "encoding": "raw"               // No wrapper encoding
+//   }
+//
+// For RSA-OAEP encryption:
+//   Format: Raw OAEP ciphertext or ASN.1-wrapped
+//   algorithm_parameters: {
+//     "encoding": "raw",              // Or "der" if ASN.1-wrapped
+//     "hash_algorithm": "sha256"      // Hash used in OAEP padding
+//   }
+//
+// For custom symmetric ciphers with IV/nonce:
+//   algorithm_parameters: {
+//     "iv": <nonce>,
+//     "mode": "cbc",
+//     "padding": "pkcs7",
+//     "encoding": "raw"
+//   }
+//
+// SIGNATURE ARTIFACTS:
+// ====================
+// For ECDSA/EdDSA signatures:
+//   Format: Raw (r || s) or ASN.1/DER encoded
+//   algorithm_parameters: {
+//     "encoding": "raw",    // (r || s concatenated) OR
+//     "encoding": "der",    // ASN.1 DER: SEQUENCE { r INTEGER, s INTEGER }
+//     "hash_algorithm": "sha256"
+//   }
+//
+// For RSA-PSS signatures:
+//   Format: Raw or ASN.1-wrapped
+//   algorithm_parameters: {
+//     "encoding": "raw",    // Raw signature OR
+//     "encoding": "der",    // ASN.1 DER
+//     "hash_algorithm": "sha256",
+//     "salt_length_bytes": "32"
+//   }
+//
+// For post-quantum signatures (ML-DSA, SLH-DSA):
+//   Format: Raw or vendor-specific encoding
+//   algorithm_parameters: {
+//     "encoding": "raw",    // Native format (most efficient)
+//     "signature_length_bytes": "2420",  // For ML-DSA-65
+//     "public_key_length_bytes": "1952"
+//   }
+//
+// For hybrid signatures (ML-DSA+ECDSA):
+//   Format: Component signatures concatenated or structured
+//   algorithm_parameters: {
+//     "encoding": "concatenated",  // ml_dsa_sig || ecdsa_sig
+//     "component_1": "ml-dsa-65",
+//     "component_1_length": "2420",
+//     "component_2": "ecdsa-p256-sha256",
+//     "component_2_encoding": "der"
+//   }
+//
+// KEY DERIVATION ARTIFACTS:
+// ==========================
+// DeriveKeyResponse includes derived key metadata (not the key material itself):
+//   algorithm_parameters: {
+//     "salt": <derived_salt>,         // If applicable
+//     "iterations": "600000",         // PBKDF2 iterations
+//     "memory_mb": "256",             // Argon2 memory
+//     "hash_algorithm": "sha256"
+//   }
+//
+// KEY WRAPPING ARTIFACTS:
+// =======================
+// For RFC 3394 AES-KW:
+//   Format: Raw wrapped key
+//   algorithm_parameters: {
+//     "wrapping_key_template": "aes-256-kw",
+//     "original_key_length": "32",
+//     "encoding": "raw"
+//   }
+//
+// For RSA-OAEP key wrapping:
+//   algorithm_parameters: {
+//     "wrapping_key_template": "rsa-oaep-4096-sha256",
+//     "encoding": "raw"
+//   }
+//
+// INTEROPERABILITY PATTERNS:
+// ===========================
+//
+// Pattern 1: Standard Format (ASN.1/DER for X.509 compatibility)
+//   Use when integrating with existing PKI infrastructure.
+//   Services SHOULD support DER encoding for public operations.
+//   algorithm_parameters: { "encoding": "der" }
+//
+// Pattern 2: Raw Format (Most efficient, vendor-specific)
+//   Use for high-performance internal operations.
+//   algorithm_parameters: { "encoding": "raw" }
+//
+// Pattern 3: JSON Web Format (JWS/JOSE for REST APIs)
+//   Use for REST/OpenAPI endpoints.
+//   algorithm_parameters: { "encoding": "jws" }
+//
+// Pattern 4: CBOR (For mobile/IoT constraints)
+//   Use for bandwidth-constrained environments.
+//   algorithm_parameters: { "encoding": "cbor" }
+//
+// IMPLEMENTATION GUIDANCE:
+// ========================
+//
+// 1. DISCOVER SUPPORTED ENCODINGS:
+//    - Query TemplateInfo.algorithm_properties for encoding options
+//    - Each template documents supported formats via properties
+//    - Example: algorithm_properties: { "encodings": "raw,der,jws" }
+//
+// 2. REQUEST SPECIFIC ENCODING:
+//    - Use preferred_properties in CreateKeyRequest/TransformKeyRequest
+//    - Example: preferred_properties: { "encoding": "der" }
+//    - Service selects templates supporting requested encoding
+//
+// 3. PARSE BASED ON METADATA:
+//    - Always use algorithm_parameters["encoding"] to parse artifacts
+//    - Never assume encoding based on template_id alone
+//    - Different providers may use different encodings for same template
+//
+// 4. STORE WITH METADATA:
+//    - Store artifacts alongside OperationMetadata
+//    - Include algorithm_parameters with artifact for future parsing
+//    - Enables graceful migration if encoding changes
+//
+// EXAMPLE: Complete Encryption/Decryption Round-trip
+// ====================================================
+//
+// ENCRYPTION:
+//   EncryptRequest { key_name: "my-key", plaintext: <data> }
+//   ↓
+//   EncryptResponse {
+//     ciphertext: <IV || encrypted_data || tag>,
+//     metadata: OperationMetadata {
+//       api_version: "1.0",
+//       key_version: 2,
+//       algorithm_parameters: {
+//         "iv": <12-byte nonce>,
+//         "tag_length_bytes": "16",
+//         "encoding": "raw"
+//       }
+//     }
+//   }
+//   ↓
+//   STORAGE: Store (ciphertext, metadata) pair
+//
+// DECRYPTION (Later):
+//   1. Load (ciphertext, metadata) from storage
+//   2. DecryptRequest {
+//        key_name: "my-key",
+//        ciphertext: <ciphertext>,
+//        metadata: <stored OperationMetadata>,  // Pass the entire metadata object
+//        aead_params: { aad: <same_aad> }       // Must match encryption scope_params
+//      }
+//   3. Service extracts IV from metadata.algorithm_parameters["iv"]
+//   4. Service uses metadata.key_version to get correct decryption key
+//   5. Service decrypts and returns plaintext
+//
+// NOTE: OperationMetadata intentionally contains ONLY key_version,
+// algorithm_parameters, api_version, and user_context. Fields such as
+// template_id, provider_id, timestamp, and used_hash_algorithm are NOT
+// present because this message is NOT signed.
+// Without signing, those values are tamper-able without detection:
+//   - Forged template_id misleads the parser but AEAD tag still fails
+//   - Forged provider_id/timestamp produces false audit evidence with no
+//     cryptographic enforcement
+// The algorithm_parameters entries (IV, tag length, encoding) are implicitly
+// protected by the AEAD authentication tag — wrong IV causes decryption failure.
+// user_context is also NOT cryptographically authenticated — it is for
+// audit/logging only (see field-level comment).
+// For tamper-evident audit trails, sign the audit log entry separately.
+message OperationMetadata {
+  // Key version that was used for this operation.
+  // Critical for backward compatibility as keys are rotated.
+  // NOTE: Using wrong version results in decryption failure or garbage plaintext.
+  int32 key_version = 1;
+  
+  // Algorithm-specific serialization parameters.
+  // For AES-GCM/ChaCha20: contains 'iv' field with the nonce
+  // For AES-CCM: contains 'nonce' and 'tag_length' fields
+  // For RSA-OAEP: typically empty
+  // For custom algorithms: implementation-specific fields
+  //
+  // NOTE: These parameters are authenticated by the AEAD authentication tag
+  // or embedded in the signature. Tampering is detected during cryptographic verification.
+  map<string, bytes> algorithm_parameters = 2;
+  
+  // API version that produced this metadata.
+  // Format: "major.minor" (e.g., "1.0", "1.1", "2.0")
+  //
+  // CRITICAL for long-lived artifacts:
+  //   - Ciphertext stored for years may outlive API versions
+  //   - Clients parsing metadata need to know which version produced it
+  //   - Migration tooling can identify artifacts needing upgrade
+  //   - Backward compatibility logic can branch on this field
+  //
+  // Versioning Policy:
+  //   - Minor version bump: additive changes (new fields, new enum values)
+  //   - Major version bump: breaking changes (field semantics change, removals)
+  //
+  // If empty/missing, assume "1.0" (initial version).
+  string api_version = 3;
+  
+  // User-provided context passed through from the request.
+  // Carried in the metadata for audit trail enrichment.
+  // Examples: {"tenant_id": "acme", "classification": "pci", "request_id": "abc-123"}
+  //
+  // This field is NOT cryptographically authenticated — it is for audit/logging only.
+  // For application-level authenticated data, use AEAD's associated_data field.
+  map<string, string> user_context = 4;
+
+
+}

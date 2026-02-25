@@ -1,0 +1,20 @@
+version: v1
+plugins:
+  - plugin: buf.build/protocolbuffers/go
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+  - plugin: buf.build/grpc/go
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+  - plugin: buf.build/grpc-ecosystem/gateway:v2.26.0
+    out: ../gen/go
+    opt:
+      - paths=source_relative
+      - generate_unbound_methods=true
+  - plugin: buf.build/grpc-ecosystem/openapiv2
+    out: ../gen/openapi
+    opt:
+      - allow_merge=true
+      - merge_file_name=crypto_service

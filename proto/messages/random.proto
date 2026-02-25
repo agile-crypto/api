@@ -1,0 +1,90 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "messages/metadata.proto";
+
+// ============================================================================
+// Random Number Generation
+// ============================================================================
+
+// GenerateRandomRequest - Generate cryptographically secure random bytes
+//
+// Design Notes:
+// - Random generation is stateless and doesn't use templates or keys
+// - Provider selection is explicit via provider_id (e.g., "software", "hsm")
+// - Policy enforcement is optional for access control and validation
+//
+// Provider Selection:
+// Different providers may use different RNG implementations:
+// - Software: NIST SP 800-90A DRBG, ChaCha20-based RNG
+// - HSM: Hardware RNG with FIPS 140-2/3 certification
+// - Cloud KMS: Cloud provider's managed RNG service
+//
+// Policy Governance:
+// If policy_name is provided, the policy validates:
+// - Whether random generation is allowed
+// - Which providers are permitted
+// - Minimum RNG quality requirements (e.g., hardware RNG only)
+message GenerateRandomRequest {
+  // Required: Number of random bytes to generate (max: implementation-defined)
+  uint32 num_bytes = 1;
+  
+  // Optional: Specific RNG provider (e.g., "software", "hsm", "cloud-kms")
+  // If not specified, uses the default provider
+  string provider_id = 2;
+  
+  // Optional: Policy name for validation and enforcement
+  // If provided, validates whether this operation and provider are allowed
+  // Does NOT select the provider - only validates the choice
+  string policy_name = 3;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message GenerateRandomResponse {
+  bytes random_bytes = 1;
+  string provider_id = 2;       // Provider that generated the random bytes
+  // Operation metadata for audit trail consistency.
+  // Contains api_version and provider details.
+  OperationMetadata metadata = 3;
+}
+
+// SeedRandomRequest - Provide additional entropy to the RNG
+//
+// Note: Most cryptographic providers manage their own entropy pools.
+// This operation may be rejected or ignored by providers that don't
+// support user-provided entropy mixing.
+//
+// SECURITY WARNING:
+// User-provided seed material is MIXED with existing entropy, never used as
+// the sole source. Implementations MUST NOT allow user seeds to reduce entropy.
+// Per NIST SP 800-90A §8.7.2, additional input must be processed through the
+// DRBG's mixing function, not used directly as state.
+//
+// Threat: An attacker providing predictable seeds to a DRBG without proper
+// mixing could bias the output. Implementations MUST reject seeds from
+// untrusted sources or ensure proper entropy mixing.
+//
+// PKCS#11 Reference: C_SeedRandom — "mixes additional seed material into the
+// token's random number generator" (emphasis on mixing, not replacing).
+message SeedRandomRequest {
+  bytes seed = 1;
+  string provider_id = 2;       // Optional: specific RNG provider to seed
+
+  // Optional: Policy name for validation and enforcement.
+  // Seeding is a security-sensitive operation (potential entropy injection vector);
+  // policy can control which principals and providers are allowed.
+  string policy_name = 3;
+
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message SeedRandomResponse {
+  bool success = 1;
+  string message = 2;           // Status message if seeding was ignored/rejected
+}

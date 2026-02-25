@@ -1,0 +1,229 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "types/common.proto";
+import "google/protobuf/timestamp.proto";
+
+// ============================================================================
+// Policy Management Messages
+// ============================================================================
+
+message CreateCryptoPolicyRequest {
+  string name = 1;
+  string policy_document = 2;
+}
+
+message CreateCryptoPolicyResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReadCryptoPolicyRequest {
+  string name = 1;
+}
+
+message ReadCryptoPolicyResponse {
+  string name = 1;
+  string policy_document = 2;
+}
+
+message DeleteCryptoPolicyRequest {
+  string name = 1;
+}
+
+message DeleteCryptoPolicyResponse {
+  bool success = 1;
+}
+
+message UpdateCryptoPolicyRequest {
+  // Name of the policy to update.
+  string name = 1;
+  // New policy document content. Replaces the existing document entirely.
+  string policy_document = 2;
+}
+
+message UpdateCryptoPolicyResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ListCryptoPoliciesRequest {
+  // Optional: filter by policy name prefix.
+  // If empty, all policies are returned.
+  string name_prefix = 1;
+
+  // Pagination
+  int32 page_size = 10;   // Max results per page (0 = server default = return all)
+  string page_token = 11; // Opaque token from previous ListCryptoPoliciesResponse
+}
+
+message ListCryptoPoliciesResponse {
+  repeated PolicySummary policies = 1;
+  // Opaque token for the next page. Empty if no more results.
+  string next_page_token = 2;
+}
+
+// PolicySummary is a lightweight view of a policy for listing purposes.
+// Use ReadCryptoPolicy to retrieve the full policy_document.
+message PolicySummary {
+  string name = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+// ============================================================================
+// Policy Evaluation API
+// ============================================================================
+// Allows clients to check policy decisions without performing the operation.
+//
+// Use cases:
+//   - Pre-flight authorization checks (can I encrypt with this key?)
+//   - UI enablement (should the "Sign" button be enabled?)
+//   - Template discovery with policy filtering
+//   - Audit/compliance queries
+//   - Access control integration (check before granting access)
+
+// EvaluatePolicyRequest checks if an operation is allowed by policy.
+//
+// Evaluation Logic:
+//   1. Load the specified policy
+//   2. Check if operation is in policy's allowed_operations
+//   3. If key_name provided: validate key's template against policy
+//   4. If template_id provided: validate template is allowed by policy
+//   5. If scope provided: validate scope is allowed by policy
+//   6. Return detailed result with reasoning
+message EvaluatePolicyRequest {
+  // Policy to evaluate against. Required.
+  string policy_name = 1;
+  
+  // Operation being evaluated. Required.
+  CryptoOperation operation = 2;
+  
+  // ========================================================================
+  // Context: At least one of these should be provided for meaningful evaluation
+  // ========================================================================
+  
+  // Key context (for key-bound operations like encrypt, sign)
+  // If provided, the key's associated template and scope are used for validation.
+  string key_name = 10;
+  
+  // Template context (for checking if template is policy-allowed)
+  // Useful for pre-flight checks before key creation.
+  string template_id = 11;
+  
+  // Scope context (for checking if scope is policy-allowed)
+  // Useful for discovering what operations are available for a given intent.
+  ScopeSpecification scope_spec = 12;
+  
+  // Provider context (for checking if provider is policy-allowed)
+  string provider_id = 13;
+  
+  // ========================================================================
+  // Additional context for fine-grained evaluation
+  // ========================================================================
+  
+  // Properties to validate against policy requirements.
+  // Example: {"security_level": "256-bit", "pqc_ready": "true"}
+  map<string, string> properties = 20;
+}
+
+message EvaluatePolicyResponse {
+  // Whether the operation is allowed
+  bool allowed = 1;
+  
+  // Detailed reason for denied operations
+  PolicyDenialReason denial_reason = 2;
+  
+  // Human-readable explanation of the decision
+  string message = 3;
+  
+  // Policy details that led to this decision (for audit)
+  PolicyDecisionDetails details = 4;
+}
+
+// PolicyDenialReason categorizes why a policy denied an operation.
+// Provides machine-readable reason codes for programmatic handling.
+enum PolicyDenialReason {
+  POLICY_DENIAL_REASON_UNSPECIFIED = 0;
+  
+  // Policy lookup failed
+  POLICY_DENIAL_REASON_POLICY_NOT_FOUND = 1;
+  
+  // Operation not in policy's allowed_operations list
+  POLICY_DENIAL_REASON_OPERATION_NOT_ALLOWED = 2;
+  
+  // Template not in policy's allowed_templates list
+  POLICY_DENIAL_REASON_TEMPLATE_NOT_ALLOWED = 3;
+  
+  // Scope not in policy's allowed_scopes list
+  POLICY_DENIAL_REASON_SCOPE_NOT_ALLOWED = 4;
+  
+  // Provider not in policy's allowed_providers list
+  POLICY_DENIAL_REASON_PROVIDER_NOT_ALLOWED = 5;
+  
+  // Key lookup failed (for key-bound operations)
+  POLICY_DENIAL_REASON_KEY_NOT_FOUND = 6;
+  
+  // Required properties not satisfied
+  POLICY_DENIAL_REASON_PROPERTY_MISMATCH = 7;
+  
+  // Security level requirement not met
+  POLICY_DENIAL_REASON_SECURITY_LEVEL_INSUFFICIENT = 8;
+  
+  // Algorithm is deprecated and policy disallows deprecated algorithms
+  POLICY_DENIAL_REASON_ALGORITHM_DEPRECATED = 9;
+  
+  // Post-quantum requirement not satisfied
+  POLICY_DENIAL_REASON_PQC_REQUIRED = 10;
+}
+
+// PolicyDecisionDetails provides audit information about the policy decision.
+// Useful for debugging, compliance reporting, and understanding policy behavior.
+message PolicyDecisionDetails {
+  // The policy that was evaluated
+  string policy_name = 1;
+  
+  // Policy version (if versioned policies are supported)
+  string policy_version = 2;
+  
+  // Timestamp of evaluation
+  google.protobuf.Timestamp evaluation_timestamp = 3;
+  
+  // List of checks that were performed
+  repeated string checks_performed = 4;
+  
+  // Which check failed (if denied)
+  string failed_check = 5;
+  
+  // ========================================================================
+  // Helpful alternatives (for denied operations)
+  // ========================================================================
+  
+  // Templates that would be allowed for this operation
+  repeated string allowed_templates = 10;
+  
+  // Operations that would be allowed for this context
+  repeated CryptoOperation allowed_operations = 11;
+  
+  // Scopes that would be allowed by this policy
+  repeated ScopeSpecification allowed_scopes = 12;
+}
+
+// BatchEvaluatePolicyRequest evaluates multiple policy decisions in one call.
+// Useful for checking multiple operations/keys at once (e.g., UI initialization).
+message BatchEvaluatePolicyRequest {
+  // List of policy evaluations to perform
+  repeated EvaluatePolicyRequest evaluations = 1;
+}
+
+message BatchEvaluatePolicyResponse {
+  // Results in the same order as the requests
+  repeated EvaluatePolicyResponse results = 1;
+  
+  // Summary: number of allowed vs denied
+  int32 allowed_count = 2;
+  int32 denied_count = 3;
+}

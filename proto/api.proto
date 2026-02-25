@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/api;api";
+
+// ============================================================================
+// Abstract Cryptographic API Specification
+// Version: 0.1.0
+//
+// A transport-agnostic, cryptography-provider-agnostic, policy-driven, 
+// abstract cryptographic API specification with:
+// - Extensibility for future algorithms and algorithm-specific serialization metadata
+// - Fine-grained access control via policy enforcement
+// - Support for hybrid/composite cryptographic algorithms
+// ============================================================================
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+import "types/common.proto";
+import "types/templates.proto";
+import "types/providers.proto";
+
+// ============================================================================
+// Message Definitions
+// ============================================================================
+import "messages/metadata.proto";
+import "messages/key_management.proto";
+import "messages/encryption.proto";
+import "messages/signing.proto";
+import "messages/digest.proto";
+import "messages/key_derivation.proto";
+import "messages/key_encapsulation.proto";
+import "messages/key_wrapping.proto";
+import "messages/mac.proto";
+import "messages/random.proto";
+import "messages/policy.proto";
+
+// ============================================================================
+// Service Definitions
+// ============================================================================
+import "services/crypto_service.proto";
+import "services/provider_service.proto";
+import "services/discovery_service.proto";

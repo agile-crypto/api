@@ -1,0 +1,242 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/services;services";
+
+import "google/api/annotations.proto";
+import "types/providers.proto";
+import "types/implementation.proto";
+
+// ============================================================================
+// Provider Service - Provider Discovery and Instance Management
+// ============================================================================
+//
+// This service provides two main capabilities:
+//
+// 1. Provider Capabilities (static catalog):
+//    - ListProviders / GetProvider: Query the provider type catalog
+//    - ProviderInfo describes what each provider TYPE can do (algorithms, properties)
+//    - Data comes from JSON files shipped with the service
+//
+// 2. Provider Instances (runtime configuration):
+//    - RegisterProviderInstance / UpdateProviderInstance / DeleteProviderInstance
+//    - ProviderInstance represents a CONFIGURED, READY-TO-USE provider
+//    - Multiple instances can exist per provider type (e.g., different HSM slots)
+//    - Instances are stored in Vault/storage, not in files
+//
+// Example workflow:
+//   1. Admin queries ListProviders to see available provider types
+//   2. Admin registers instance: { provider_id: "pkcs11", instance_id: "hsm-payments", config: {...} }
+//   3. User creates key: { provider_requirements: { fips_140_certified: true } }
+//   4. System matches requirements to instances, selects "hsm-payments"
+//
+// See: docs/PROVIDER_CAPABILITIES_DESIGN.md for full design rationale
+
+service ProviderService {
+  // ========================================
+  // Provider Capabilities (static catalog)
+  // ========================================
+  
+  // List available provider types and their capabilities.
+  // Returns ProviderInfo entries from the provider catalog.
+  rpc ListProviders(ListProvidersRequest) returns (ListProvidersResponse) {
+    option (google.api.http) = {
+      get: "/v1/providers"
+    };
+  }
+
+  // Get details about a specific provider type.
+  rpc GetProvider(GetProviderRequest) returns (GetProviderResponse) {
+    option (google.api.http) = {
+      get: "/v1/providers/{provider_id}"
+    };
+  }
+  
+  // ========================================
+  // Provider Instances (runtime configuration)
+  // ========================================
+  
+  // Register a new provider instance with configuration.
+  // The instance's provider_id must reference a valid ProviderInfo.
+  // Configuration is validated against the provider's configuration_schema.
+  rpc RegisterProviderInstance(RegisterProviderInstanceRequest) returns (RegisterProviderInstanceResponse) {
+    option (google.api.http) = {
+      post: "/v1/provider-instances"
+      body: "*"
+    };
+  }
+  
+  // List registered provider instances.
+  // Can filter by provider type, requirements, or enabled status.
+  rpc ListProviderInstances(ListProviderInstancesRequest) returns (ListProviderInstancesResponse) {
+    option (google.api.http) = {
+      get: "/v1/provider-instances"
+    };
+  }
+  
+  // Get a specific provider instance by ID.
+  rpc GetProviderInstance(GetProviderInstanceRequest) returns (GetProviderInstanceResponse) {
+    option (google.api.http) = {
+      get: "/v1/provider-instances/{instance_id}"
+    };
+  }
+  
+  // Update a provider instance's configuration or properties.
+  rpc UpdateProviderInstance(UpdateProviderInstanceRequest) returns (UpdateProviderInstanceResponse) {
+    option (google.api.http) = {
+      put: "/v1/provider-instances/{instance.instance_id}"
+      body: "*"
+    };
+  }
+  
+  // Delete a provider instance.
+  // Fails if keys still reference this instance.
+  rpc DeleteProviderInstance(DeleteProviderInstanceRequest) returns (DeleteProviderInstanceResponse) {
+    option (google.api.http) = {
+      delete: "/v1/provider-instances/{instance_id}"
+    };
+  }
+  
+  // ========================================
+  // Provider Matching
+  // ========================================
+  
+  // Find provider instances matching specific requirements.
+  // Returns instances sorted by match score (best matches first).
+  rpc MatchProviders(MatchProvidersRequest) returns (MatchProvidersResponse) {
+    option (google.api.http) = {
+      post: "/v1/providers:match"
+      body: "*"
+    };
+  }
+}
+
+// ============================================================================
+// Provider Capabilities Messages (static catalog)
+// ============================================================================
+
+message ListProvidersRequest {
+  // Optional: Filter to providers supporting this template
+  string template_id = 1;
+  
+  // Optional: Filter to providers meeting these implementation requirements
+  ProviderRequirements requirements = 2;
+
+  // Pagination
+  int32 page_size = 10;   // Max results per page (0 = server default = return all)
+  string page_token = 11; // Opaque token from previous ListProvidersResponse
+}
+
+message ListProvidersResponse {
+  repeated ProviderInfo providers = 1;
+  // Opaque token for the next page. Empty if no more results.
+  string next_page_token = 2;
+}
+
+message GetProviderRequest {
+  string provider_id = 1;
+}
+
+message GetProviderResponse {
+  ProviderInfo provider = 1;
+}
+
+// ============================================================================
+// Provider Instance Messages (runtime configuration)
+// ============================================================================
+
+message RegisterProviderInstanceRequest {
+  // The instance to register
+  ProviderInstance instance = 1;
+}
+
+message RegisterProviderInstanceResponse {
+  bool success = 1;
+  string message = 2;
+  // The registered instance (with any defaults applied)
+  ProviderInstance instance = 3;
+}
+
+message ListProviderInstancesRequest {
+  // Optional: Filter by provider type (e.g., "pkcs11")
+  string provider_id = 1;
+  
+  // Optional: Filter by implementation requirements
+  ProviderRequirements requirements = 2;
+  
+  // Optional: Only return enabled instances (default: false = return all)
+  bool enabled_only = 3;
+
+  // Pagination
+  int32 page_size = 10;   // Max results per page (0 = server default = return all)
+  string page_token = 11; // Opaque token from previous ListProviderInstancesResponse
+}
+
+message ListProviderInstancesResponse {
+  repeated ProviderInstance instances = 1;
+  // Opaque token for the next page. Empty if no more results.
+  string next_page_token = 2;
+}
+
+message GetProviderInstanceRequest {
+  string instance_id = 1;
+}
+
+message GetProviderInstanceResponse {
+  ProviderInstance instance = 1;
+}
+
+message UpdateProviderInstanceRequest {
+  // The instance with updated fields
+  ProviderInstance instance = 1;
+}
+
+message UpdateProviderInstanceResponse {
+  bool success = 1;
+  string message = 2;
+  ProviderInstance instance = 3;
+}
+
+message DeleteProviderInstanceRequest {
+  string instance_id = 1;
+}
+
+message DeleteProviderInstanceResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ============================================================================
+// Provider Matching Messages
+// ============================================================================
+
+message MatchProvidersRequest {
+  // Required: Template for the operation (e.g., "aes-256-gcm-96-128")
+  string template_id = 1;
+  
+  // Optional: Implementation requirements to filter by
+  ProviderRequirements requirements = 2;
+  
+  // Optional: Only return enabled instances (default: true)
+  bool enabled_only = 3;
+}
+
+message MatchProvidersResponse {
+  // Matching instances sorted by match_score (highest first)
+  repeated MatchedProvider matches = 1;
+}
+
+// MatchedProvider represents a provider instance that matches the requirements.
+message MatchedProvider {
+  // The matching instance
+  ProviderInstance instance = 1;
+  
+  // Resolved implementation properties (ProviderInfo defaults + instance overrides merged)
+  ImplementationProperties resolved_implementation = 2;
+  
+  // Score indicating how well this provider matches (higher = better)
+  // Used for ranking when multiple providers match
+  // Factors: FIPS level, formal verification, constant-time, etc.
+  int32 match_score = 3;
+}

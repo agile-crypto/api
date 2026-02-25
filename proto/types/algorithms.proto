@@ -1,0 +1,113 @@
+// Copyright 2024 CaaS Authors
+// SPDX-License-Identifier: Apache-2.0
+
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/types;types";
+
+import "google/protobuf/timestamp.proto";
+import "types/templates.proto";
+
+// ============================================================================
+// STANDARD ALGORITHM CATALOG
+// ============================================================================
+//
+// The StandardAlgorithmCatalog provides a container for shipping standard
+// algorithm definitions as part of the API specification. This enables:
+//
+// 1. Machine-readable standard algorithm definitions (proto/standard_algorithms.json)
+// 2. Versioned algorithm specifications
+// 3. Client-side validation against known-good configurations
+// 4. Automatic seeding of compliant template registries
+//
+// DESIGN RATIONALE:
+// -----------------
+// All algorithm identifiers, parameters, and properties use STRING types
+// intentionally. This provides:
+//
+// - Forward Compatibility: New algorithms (e.g., future NIST standards) can be
+//   added to standard_algorithms.json without proto schema changes
+// - Extensible Parameters: New algorithm parameters can be captured without
+//   modifying AlgorithmDetails or TemplateInfo messages
+// - No Code Regeneration: Adding algorithms doesn't require regenerating
+//   gRPC stubs or client libraries
+//
+// The standard_algorithms.json file serves as the canonical source of valid
+// algorithm names, parameters, and configurations. Implementations validate
+// against the catalog at runtime rather than compile-time enum checks.
+//
+// USAGE:
+// ------
+// - Load proto/standard_algorithms.json at startup
+// - Unmarshal into StandardAlgorithmCatalog
+// - Use templates map to seed TemplateRegistry
+// - Use families for discovery/grouping UI
+//
+// VERSIONING:
+// -----------
+// - version: Semantic version of the catalog (e.g., "1.0.0")
+// - last_updated: ISO 8601 timestamp of last modification
+// - Implementations SHOULD check version compatibility
+//
+// ALIGNMENT:
+// ----------
+// Algorithm definitions align with:
+// - CycloneDX v1.7 Cryptography Registry
+// - NIST FIPS 197, 198, 202, 203, 204, 205
+// - IETF RFCs (8439, 7748, 8032, 5869, etc.)
+//
+// ============================================================================
+
+// StandardAlgorithmCatalog contains all standard algorithm definitions.
+// This message is populated from the standard_algorithms.json spec file.
+message StandardAlgorithmCatalog {
+  // Catalog version (semantic versioning)
+  string version = 1;
+  
+  // Last updated timestamp
+  google.protobuf.Timestamp last_updated = 2;
+  
+  // Description of this catalog
+  string description = 3;
+  
+  // Standard algorithm templates, keyed by template_id for fast lookup.
+  // Keys match TemplateInfo.template_id (e.g., "aes-256-gcm", "ml-kem-768")
+  map<string, TemplateInfo> templates = 4;
+  
+  // Algorithm families with their standard configurations.
+  // Provides grouped view for discovery and UI presentation.
+  repeated AlgorithmFamilySpec families = 5;
+}
+
+// AlgorithmFamilySpec groups related algorithm templates by family.
+// This provides a structured view of algorithm variants for discovery.
+message AlgorithmFamilySpec {
+  // Algorithm family identifier (e.g., "AES", "ML-KEM", "ECDSA")
+  string family = 1;
+  
+  // Human-readable family name (e.g., "Advanced Encryption Standard")
+  string display_name = 2;
+  
+  // Family description
+  string description = 3;
+  
+  // Cryptographic primitive type (e.g., "ae", "signature", "kem", "kdf")
+  string primitive = 4;
+  
+  // Standards references (FIPS, RFC, NIST SP, etc.)
+  repeated string standards = 5;
+  
+  // Template IDs belonging to this family
+  repeated string template_ids = 6;
+  
+  // Default template ID for this family (recommended configuration)
+  string default_template_id = 7;
+  
+  // Whether any variants in this family are post-quantum
+  bool has_pqc_variants = 8;
+  
+  // Minimum recommended security level in bits
+  uint32 min_security_level = 9;
+}

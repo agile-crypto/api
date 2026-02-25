@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/types;types";
+
+import "types/implementation.proto";
+
+// ============================================================================
+// Provider Type Classification
+// ============================================================================
+
+// ProviderType classifies the deployment model of a cryptographic provider.
+// Used for:
+//   - Migration strategy selection (see MigrationStrategy in key_management.proto)
+//   - ProviderInfo.provider_type for discovery and filtering
+//   - KeyState.provider_type for tracking where a key currently resides
+//
+// PKCS#11 analogy:
+//   SOFTWARE  → software token (CKF_SOFTWARE_SLOT)
+//   HSM       → hardware token (CKF_HW_SLOT, CKF_REMOVABLE_DEVICE)
+//   CLOUD_KMS → remote token accessed via vendor API
+//   REMOTE    → remote token accessed via standard protocol (e.g., gRPC, KMIP)
+enum ProviderType {
+  PROVIDER_TYPE_UNSPECIFIED = 0;
+  PROVIDER_TYPE_SOFTWARE = 1;    // In-process software (go-crypto, OpenSSL, BouncyCastle, etc.)
+  PROVIDER_TYPE_HSM = 2;         // Hardware Security Module (PKCS#11 hardware token)
+  PROVIDER_TYPE_CLOUD_KMS = 3;   // Cloud-managed KMS (AWS KMS, Google Cloud KMS, Azure Key Vault)
+  PROVIDER_TYPE_REMOTE = 4;      // Remote/networked crypto service (KMIP, Vault, CaaS peer)
+}
+
+// ============================================================================
+// Provider Information and Discovery
+// ============================================================================
+
+// ProviderInfo describes a cryptographic provider's capabilities and
+// implementation characteristics.
+//
+// The provider model separates:
+// - Algorithm properties (in TemplateInfo): Universal, mathematical truths about algorithms
+// - Implementation properties (here): Deployment-specific characteristics
+//
+// This enables:
+// - Standard algorithm catalogs that can be shipped without modification
+// - Provider-specific properties declared at deployment time
+// - Independent update cycles for algorithms and implementations
+// - Clean CBOM generation for compliance reporting
+message ProviderInfo {
+  // Unique identifier for this provider (e.g., "go-crypto", "openssl3-fips", "pkcs11")
+  string provider_id = 1;
+  
+  // Human-readable name (e.g., "Go Cryptography (stdlib + x/crypto)")
+  string display_name = 2;
+  
+  // Description of the provider
+  string description = 3;
+  
+  // General capabilities as key-value pairs (for flexibility)
+  // Examples: {"key_storage": "software", "max_key_size": "4096"}
+  map<string, string> capabilities = 5;
+  
+  // Configuration schema for this provider
+  // Describes what configuration parameters can be passed to the provider
+  map<string, ConfigurationParameter> configuration_schema = 6;
+  
+  // ========================================
+  // Implementation Properties (NEW)
+  // ========================================
+  
+  // Provider-wide default implementation properties.
+  // These apply to ALL supported templates unless overridden in template_support.
+  // 
+  // Example: An HSM provider might set:
+  //   default_implementation {
+  //     fips_140 { certified: true, level: FIPS_140_LEVEL_3 }
+  //     constant_time: true
+  //     side_channel_hardened: true
+  //   }
+  ImplementationProperties default_implementation = 10;
+  
+  // Per-template support declarations with optional property overrides.
+  // Each entry declares that this provider supports a specific template.
+  //
+  // Template IDs MUST match valid TemplateInfo.template_id values.
+  // Validation rejects unknown template IDs at registration time.
+  //
+  // If a template's implementation field is omitted or partial,
+  // it inherits from default_implementation.
+  //
+  // Example:
+  //   template_support: [
+  //     { template_id: "aes-256-gcm-96-128", enabled: true },
+  //     { template_id: "ml-kem-768", implementation: { fips_140: { certified: false } } }
+  //   ]
+  repeated ProviderTemplateSupport template_support = 11;
+
+  // Provider type classification.
+  // Used for migration strategy selection and provider-type filtering.
+  // Example: An HSM provider sets PROVIDER_TYPE_HSM; the migration logic
+  // uses this to recommend WRAPPED_TRANSFER for HSM→HSM migrations.
+  ProviderType provider_type = 12;
+}
+
+// ConfigurationParameter describes a configuration option for a provider.
+message ConfigurationParameter {
+  // Parameter name (e.g., "pkcs11_library_path")
+  string name = 1;
+  
+  // Parameter type (e.g., "string", "int", "bool")
+  string type = 2;
+  
+  // Human-readable description of the parameter
+  string description = 3;
+  
+  // Whether this parameter is required
+  bool required = 4;
+  
+  // Default value if not specified
+  string default_value = 5;
+}

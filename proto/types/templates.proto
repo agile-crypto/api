@@ -1,0 +1,539 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/types;types";
+
+import "buf/validate/validate.proto";
+import "types/common.proto";
+import "types/algorithm_params.proto";
+
+// ============================================================================
+// Template Status and Algorithm Details
+// ============================================================================
+
+enum TemplateStatus {
+  TEMPLATE_STATUS_UNSPECIFIED = 0;
+  TEMPLATE_STATUS_ACTIVE = 1;
+  TEMPLATE_STATUS_ACCEPTABLE = 2;
+  TEMPLATE_STATUS_DEPRECATED = 3;
+  TEMPLATE_STATUS_FORBIDDEN = 4;
+  TEMPLATE_STATUS_EXPERIMENTAL = 5;
+}
+
+// AlgorithmDetails specifies cryptographic algorithm configuration.
+//
+// DESIGN: The `oneof algorithm` is the SINGLE SOURCE OF TRUTH.
+// All algorithm metadata (name, variant, key size, key type) is derived from
+// the specific parameter message selected in the oneof.
+//
+// This follows CycloneDX naming patterns where a variant like "AES-256-GCM-128-96"
+// encodes all parameters. Our typed messages do the same.
+//
+// DERIVATION RULES (implemented in algorithm_metadata.go helper functions):
+//   aes_gcm     → name="AES-GCM", key_type=SYMMETRIC, key_size=params.key_size_bits
+//   ecdsa       → name="ECDSA", key_type=EC, key_size=curve_bits
+//   ed25519     → name="Ed25519", key_type=ED25519, key_size=256
+//   ml_dsa      → name="ML-DSA", key_type=ML_DSA, key_size from parameter_set
+//   ml_kem      → name="ML-KEM", key_type=ML_KEM, key_size from parameter_set
+//   custom      → name/key_type/key_size from CustomAlgorithm message
+//
+// See algorithm_params.proto for individual parameter message definitions.
+//
+message AlgorithmDetails {
+  // Algorithm Object Identifier (OID) for X.509/PKCS interoperability.
+  // Optional. Examples:
+  //   - AES-256-GCM: "2.16.840.1.101.3.4.1.46"
+  //   - Ed25519: "1.3.101.112"
+  //   - ECDSA with P-256: "1.2.840.10045.4.3.2"
+  //   - ML-DSA-65: "2.16.840.1.101.3.4.3.17"
+  string oid = 1 [(buf.validate.field).string.max_len = 128];
+  
+  // Cryptographic primitive type (CycloneDX-aligned).
+  // Optional - can be derived from the oneof algorithm field.
+  // Explicit setting allows override for edge cases (e.g., custom algorithms).
+  CryptoPrimitive primitive = 2;
+  
+  // Algorithm-specific parameters with type safety.
+  // This is the SINGLE SOURCE OF TRUTH for algorithm configuration.
+  // Each message is SELF-CONTAINED per CycloneDX naming patterns.
+  oneof algorithm {
+    // ========================================================================
+    // Symmetric Encryption (AEAD and non-AEAD)
+    // ========================================================================
+    AesGcmParams aes_gcm = 20;              // AES-{128,192,256}-GCM
+    AesCbcParams aes_cbc = 21;              // AES-{128,192,256}-CBC
+    AesCtrParams aes_ctr = 22;              // AES-{128,192,256}-CTR
+    ChaCha20Poly1305Params chacha20_poly1305 = 23;  // ChaCha20-Poly1305 / XChaCha20-Poly1305
+    AesCcmParams aes_ccm = 24;              // AES-{128,192,256}-CCM
+    AesXtsParams aes_xts = 25;              // AES-{128,256}-XTS (disk encryption)
+    // Field 26 reserved: poly1305 moved to MAC section (field 74)
+    
+    // ========================================================================
+    // Symmetric Encryption (Legacy - NOT RECOMMENDED for new applications)
+    // ========================================================================
+    TripleDesParams triple_des = 27 [deprecated = true];  // 3DES-{EDE2,EDE3}
+    BlowfishParams blowfish = 28 [deprecated = true];     // Blowfish-{32..448}
+    TwofishParams twofish = 29 [deprecated = true];       // Twofish-{128,192,256}
+    
+    // ========================================================================
+    // Digital Signatures (Classical)
+    // ========================================================================
+    EcdsaParams ecdsa = 30;                 // ECDSA-{P-256,P-384,P-521,secp256k1}
+    Ed25519Params ed25519 = 31;             // Ed25519[-ph|-ctx]
+    Ed448Params ed448 = 32;                 // Ed448[-ph|-ctx]
+    RsaPssParams rsa_pss = 33;              // RSA-PSS-{2048,3072,4096}
+    RsaPkcs1v15Params rsa_pkcs1v15 = 34;    // RSA-PKCS1-1.5-{2048,3072,4096}
+    DsaParams dsa = 35 [deprecated = true]; // DSA-{1024,2048,3072} (legacy, prefer ECDSA)
+    
+    // ========================================================================
+    // Digital Signatures (Post-Quantum)
+    // ========================================================================
+    MlDsaParams ml_dsa = 40;                // ML-DSA-{44,65,87}
+    SlhDsaParams slh_dsa = 41;              // SLH-DSA-{SHA2,SHAKE}-{128s,128f,...}
+    Gost3410Params gost3410 = 42;           // GOST R 34.10-2012 (Russian standard)
+    
+    // ========================================================================
+    // Key Encapsulation Mechanisms
+    // ========================================================================
+    MlKemParams ml_kem = 50;                // ML-KEM-{512,768,1024}
+    RsaOaepParams rsa_oaep = 51;            // RSA-OAEP-{2048,3072,4096}
+    
+    // ========================================================================
+    // Key Derivation Functions
+    // ========================================================================
+    HkdfParams hkdf = 60;                   // HKDF-{SHA-256,SHA-384,SHA-512}
+    Pbkdf2Params pbkdf2 = 61;               // PBKDF2-{SHA-256,...}
+    Argon2Params argon2 = 62;               // Argon2{i,d,id}
+    Sp800108KdfParams sp800_108_kdf = 63;   // NIST SP 800-108 (Counter/Feedback/Pipeline)
+    Tls12Params tls12 = 64;                 // TLS 1.2 PRF
+    
+    // ========================================================================
+    // Message Authentication Codes
+    // ========================================================================
+    HmacParams hmac = 70;                   // HMAC-{SHA-256,SHA-384,SHA-512}
+    KmacParams kmac = 71;                   // KMAC-{128,256}
+    CmacParams cmac = 72;                   // CMAC-{AES,3DES}
+    Gost3411Params gost3411 = 73;           // GOST R 34.11-2012 (Streebog)
+    Poly1305Params poly1305 = 74;           // Poly1305 (standalone MAC/one-time authenticator)
+    
+    // ========================================================================
+    // Key Wrapping
+    // ========================================================================
+    AesKeyWrapParams aes_key_wrap = 80;     // AES-{128,192,256}-Wrap[-PAD]
+    
+    // ========================================================================
+    // Key Agreement
+    // ========================================================================
+    EcdhParams ecdh = 90;                   // ECDH-{P-256,P-384,P-521}
+    X25519Params x25519 = 91;               // X25519
+    X448Params x448 = 92;                   // X448
+    DiffieHellmanParams diffie_hellman = 93; // Classic DH (MODP groups)
+    X3dhParams x3dh = 94;                   // X3DH (Signal Protocol key agreement)
+    
+    // ========================================================================
+    // Regional/National Standard Ciphers
+    // ========================================================================
+    CamelliaParams camellia = 110;          // Camellia-{128,192,256} (Japan/ISO)
+    AriaParams aria = 111;                  // ARIA-{128,192,256} (Korea)
+    SeedParams seed = 112;                  // SEED-128 (Korea)
+    Gost28147Params gost28147 = 113;        // GOST 28147-89 (Russia)
+    
+    // ========================================================================
+    // One-Time Password (OTP) Algorithms
+    // ========================================================================
+    HotpParams hotp = 120;                  // HOTP (RFC 4226)
+    TotpParams totp = 121;                  // TOTP (RFC 6238)
+    
+    // ========================================================================
+    // Extensibility: Vendor-specific or future algorithms
+    // ========================================================================
+    CustomAlgorithm custom = 100;
+
+    // ========================================================================
+    // Hybrid / Composite Algorithms
+    // ========================================================================
+    HybridAlgorithmParams hybrid = 130;
+  }
+}
+
+// HybridAlgorithmParams defines parameters for composite/hybrid algorithms.
+// Hybrid algorithms combine two or more component algorithms for defense-in-depth,
+// typically pairing a classical algorithm with a post-quantum algorithm.
+//
+// Combiner strategies:
+// - CONCATENATION:    Independent component operations; outputs concatenated
+// - NESTING:          Output of first component fed as input to second
+// - KDF_COMBINATION:  Component outputs combined via KDF (e.g., X-Wing)
+//
+// Example: ML-DSA-65 + ECDSA-P256 hybrid signature
+//   HybridAlgorithmParams {
+//     combiner_strategy: COMBINER_CONCATENATION
+//     components: [
+//       { algorithm: { ml_dsa: { parameter_set: ML_DSA_65 } }, label: "pqc",       order: 1 },
+//       { algorithm: { ecdsa: { curve: P256, hash: SHA256 } }, label: "classical", order: 2 }
+//     ]
+//   }
+message HybridAlgorithmParams {
+  // Strategy for combining component algorithm outputs.
+  enum CombinerStrategy {
+    COMBINER_UNSPECIFIED = 0;
+    COMBINER_CONCATENATION = 1;   // Independent operations; outputs concatenated
+    COMBINER_NESTING = 2;         // Nested composition; output of first fed into second
+    COMBINER_KDF_COMBINATION = 3; // Component outputs combined via a KDF (e.g., X-Wing)
+  }
+  CombinerStrategy combiner_strategy = 1;
+
+  // Component algorithms. Minimum 2 required for a hybrid.
+  // Ordering is determined by HybridComponent.order.
+  repeated HybridComponent components = 2;
+
+  // Combined key size in bits.
+  // Interpretation depends on combiner_strategy:
+  // - CONCATENATION:   sum of component key sizes
+  // - NESTING / KDF_COMBINATION: output key size of the combining step
+  uint32 total_key_size_bits = 3;
+}
+
+// HybridComponent defines one algorithm in a hybrid/composite construction.
+message HybridComponent {
+  // Algorithm parameters for this component.
+  AlgorithmDetails algorithm = 1;
+
+  // Human-readable role label for this component.
+  // Conventional values: "classical", "pqc", "kdf"
+  string label = 2;
+
+  // 1-based position in the composition (determines input/output ordering).
+  uint32 order = 3;
+}
+
+// ============================================================================
+// Scoped Capabilities (Per-Scope Bundled Properties)
+// ============================================================================
+
+// ScopedCapabilities bundles a scope with its associated operations and properties.
+// This represents one "capability mode" of a template.
+//
+// DESIGN RATIONALE:
+// Operations are scope-dependent. For example:
+//   - SIGNATURE_SCOPE_STANDARD → [SIGN, VERIFY]
+//   - SIGNATURE_SCOPE_PREHASHED → [DIGEST_SIGN, DIGEST_VERIFY]
+//   - KEM_SCOPE_HYBRID → [ENCAPSULATE, DECAPSULATE]
+//   - KEY_AGREEMENT_SCOPE_HYBRID → [KEY_AGREEMENT]
+//
+// Bundling operations with scopes eliminates ambiguity in multi-scope templates
+// (e.g., hybrids, prehashed signatures) where different scopes have different operations.
+message ScopedCapabilities {
+  // REQUIRED: The scope this capability applies to.
+  // Contains scope enum + filter properties (security_strength_bits, fips_approved, etc.)
+  ScopeSpecification scope = 1;
+  
+  // Operations supported FOR THIS SCOPE. Required, min 1.
+  // Examples:
+  //   - SIGNATURE_SCOPE_STANDARD → [SIGN, VERIFY]
+  //   - SIGNATURE_SCOPE_PREHASHED → [DIGEST_SIGN, DIGEST_VERIFY]
+  //   - KEM_SCOPE_STANDARD → [ENCAPSULATE, DECAPSULATE]
+  repeated CryptoOperation operations = 2 [(buf.validate.field).repeated.min_items = 1];
+  
+  // Security guarantees FOR THIS SCOPE. Optional.
+  // Allows per-scope formal/practical guarantees (e.g., forward_secrecy for KA only).
+  // If not set, falls back to TemplateInfo.security_guarantees.
+  //
+  // INFORMATIONAL PROPERTY - NOT used for template matching/filtering during key generation.
+  // Used by: Audit trails, CBOM generation, response metadata, documentation.
+  SecurityGuarantees security_guarantees = 3;
+  
+  // Per-scope capabilities. Optional.
+  // Allows scope-specific capability flags.
+  // Overrides TemplateInfo.capabilities for matching keys.
+  map<string, string> capabilities = 4;
+}
+
+// ============================================================================
+// Template Information (Main Template Definition)
+// ============================================================================
+
+// Template information with properties for discovery.
+//
+// DESIGN: Template = Algorithm + Configuration
+// A template like "ecdsa-p256-sha256-der" has ONE algorithm configuration.
+// Scopes define operational interfaces (API), not algorithm parameters.
+// See SCOPED_CAPABILITIES_DESIGN.md for full rationale.
+message TemplateInfo {
+  // ========================================================================
+  // IDENTITY (Template-Level)
+  // ========================================================================
+  
+  // Unique template identifier. Required.
+  // Format: lowercase alphanumeric with hyphens (e.g., "aes-256-gcm", "ml-dsa-65").
+  string template_id = 1 [(buf.validate.field).string = {
+    min_len: 1,
+    max_len: 128,
+    pattern: "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$"
+  }];
+  
+  // Human-readable display name. Optional but recommended.
+  string display_name = 2 [(buf.validate.field).string.max_len = 256];
+  
+  // Detailed description of the template. Optional.
+  string description = 3 [(buf.validate.field).string.max_len = 2048];
+  
+  // ========================================================================
+  // SCOPE-BUNDLED PROPERTIES (Per-Scope)
+  // ========================================================================
+  
+  // Each entry represents one operational mode of this template.
+  // Most templates have exactly ONE capability (single-scope).
+  // Multi-scope templates (hybrids, ML-DSA with context) have multiple..
+  //
+  // Used by: CreateKeyRequest scope-based selection, ListTemplates filtering
+  // At least one scoped capability must be specified.
+  repeated ScopedCapabilities scoped_capabilities = 4 [(buf.validate.field).repeated.min_items = 1];
+  
+  // ========================================================================
+  // ALGORITHM DETAILS (Template-Level)
+  // ========================================================================
+  
+  // Algorithm details. Required.
+  // Template = Algorithm + Configuration. This stays template-level because
+  // scopes define HOW you call the algorithm (API), not WHAT algorithm it is.
+  AlgorithmDetails algorithm = 5;
+  
+  // Template lifecycle status. Default: ACTIVE.
+  TemplateStatus status = 6;
+  
+  // Deprecation notice (required if status is DEPRECATED).
+  string deprecation_notice = 7 [(buf.validate.field).string.max_len = 1024];
+  
+  // ========================================================================
+  // SHARED PROPERTIES (Template-Level)
+  // ========================================================================
+  
+  // Provider-specific capabilities (key-value pairs).
+  // Per-scope capabilities in ScopedCapabilities override these if same key exists.
+  map<string, string> capabilities = 8;
+  
+  // Available crypto providers for this template. Required.
+  // At least one provider must be available.
+  repeated string available_providers = 9 [(buf.validate.field).repeated.min_items = 1];
+  
+  // Applicable standards (e.g., "NIST SP 800-38D", "RFC 8032").
+  repeated string standards = 10;
+   
+  
+  // Flattened search index for property-based template discovery.
+  //
+  // ============================================================================
+  // PURPOSE AND DESIGN
+  // ============================================================================
+  //
+  // This field serves as a COMPREHENSIVE FLATTENED SEARCH INDEX that combines
+  // all searchable fields from TemplateInfo into a single map for efficient
+  // property-based discovery queries.
+  //
+  // CANONICAL SOURCE OF TRUTH:
+  //   - The original fields (Algorithm, ScopedCapabilities, etc.) are canonical
+  //   - algorithm_properties is DERIVED/COMPUTED for search convenience
+  //   - Implementations SHOULD auto-populate this field when loading templates
+  //
+  // ============================================================================
+  // FLATTENED FIELDS (with key prefixes)
+  // ============================================================================
+  //
+  // 1. AlgorithmDetails core fields (no prefix):
+  //      algorithm_name, variant, key_size_bits, key_type
+  //
+  // 2. AlgorithmDetails.parameters (no prefix):
+  //      All key-value pairs (iv_size_bits, tag_bits, hash, salt_length, etc.)
+  //
+  // 3. Operations (prefix: "op:"):
+  //      op:encrypt, op:decrypt, op:sign, op:verify, op:wrap, op:unwrap, etc.
+  //      All values are "true" for supported operations (derived from scoped_capabilities).
+  //
+  // 4. Capabilities (prefix: "capability:"):
+  //      capability:aead, capability:streaming, capability:deterministic, etc.
+  //      Values are preserved from the Capabilities map.
+  //
+  // 5. AvailableProviders (prefix: "provider:"):
+  //      provider:software, provider:hsm, provider:cloud, etc.
+  //      All values are "true" for available providers.
+  //
+  // 6. Standards (prefix: "standard:"):
+  //      standard:FIPS 197, standard:NIST SP 800-38D, standard:RFC 8032, etc.
+  //      All values are "true" for applicable standards.
+  //
+  // 7. SecurityProperties (prefix: "security:"):
+  //      security:confidentiality, security:integrity, security:authenticity,
+  //      security:non_repudiation, security:quantum_resistant, etc.
+  //      Values are preserved from the SecurityProperties map.
+  //
+  // 8. Status (no prefix):
+  //      status = "TEMPLATE_STATUS_ACTIVE", "TEMPLATE_STATUS_DEPRECATED", etc.
+  //
+  // 9. Computed discovery metadata (no prefix):
+  //      pqc_ready:      "true" if post-quantum safe. For hybrid algorithms,
+  //                      this is "true" ONLY if at least one component is a
+  //                      PQC algorithm (ML-DSA, ML-KEM, SLH-DSA, SPHINCS+).
+  //
+  //      HYBRID / COMPOSITE ALGORITHM PROPERTIES:
+  //      Hybrid algorithms combine classical + post-quantum components.
+  //      Their algorithm_properties include:
+  //        hybrid:      "true" — marks this as a hybrid/composite template
+  //        components:  Comma-separated list (e.g., "ML-DSA-65,ECDSA-P256")
+  //        pqc_ready:   "true" if any component is a PQC algorithm
+  //        combiner:    Composition strategy (e.g., "concatenation", "nesting")
+  //      security_level: NIST security level (if explicitly set)
+  //      hybrid:         "true" if hybrid/composite algorithm
+  //      components:     Comma-separated list of component algorithms (for hybrids)
+  //
+  // ============================================================================
+  // SEARCH QUERY EXAMPLES
+  // ============================================================================
+  //
+  // Basic searches:
+  //   {"algorithm_name": "AES"}                      // All AES templates
+  //   {"key_size_bits": "256"}                       // All 256-bit keys
+  //   {"pqc_ready": "true"}                          // Post-quantum templates
+  //
+  // Operation-based:
+  //   {"op:sign": "true"}                            // Templates that support signing
+  //   {"op:encrypt": "true", "op:decrypt": "true"}   // Encryption templates
+  //
+  // Provider-based:
+  //   {"provider:hsm": "true"}                       // HSM-available templates
+  //   {"provider:software": "true"}                  // Software-available templates
+  //
+  // Capability-based:
+  //   {"capability:aead": "true"}                    // AEAD-capable templates
+  //   {"capability:deterministic": "true"}          // Deterministic algorithms
+  //
+  // Security-based:
+  //   {"security:quantum_resistant": "true"}        // Quantum-resistant templates
+  //   {"security:confidentiality": "true"}          // Confidentiality-providing
+  //
+  // Complex queries (AND semantics):
+  //   {"algorithm_name": "AES", "variant": "GCM", "provider:hsm": "true"}
+  //   {"op:sign": "true", "pqc_ready": "true", "provider:software": "true"}
+  //   {"capability:aead": "true", "key_size_bits": "256", "security:integrity": "true"}
+  //
+  // Hybrid algorithm queries:
+  //   {"hybrid": "true", "pqc_ready": "true"}        // PQC-ready hybrid algorithms
+  //   {"hybrid": "true", "op:sign": "true"}          // Hybrid signature algorithms
+  //   {"components": "ML-DSA-65"}                    // Hybrids containing ML-DSA-65
+  //
+  // ============================================================================
+  // IMPLEMENTATION NOTES
+  // ============================================================================
+  //
+  // - Explicitly set values in algorithm_properties are NOT overwritten
+  // - All values are strings for consistent map-based queries
+  // - Prefixes prevent collisions (e.g., "hash" parameter vs hypothetical "hash" operation)
+  // - Query matching uses AND semantics: all criteria must match
+  //
+  map<string, string> algorithm_properties = 11;
+  
+  
+  // Full CycloneDX algorithm properties for CBOM (Cryptography Bill of Materials) export.
+  // This field provides direct mapping to CycloneDX v1.7 algorithmProperties
+  // for seamless interoperability without modifying existing CaaS fields.
+  CycloneDXAlgorithmProperties cyclonedx = 13;
+  
+  // NOTE: Security levels (classical_security_level, nist_quantum_security_level)
+  // are NOT needed here - they exist in ScopedCapabilities.scope.security
+  // (UniversalSecurityProperties.security_strength_bits and nist_security_level)
+  
+  // Cross-field validation: deprecation_notice required when status is DEPRECATED
+  option (buf.validate.message).cel = {
+    id: "deprecation_notice_required"
+    message: "deprecation_notice is required when status is TEMPLATE_STATUS_DEPRECATED"
+    expression: "this.status != 3 || this.deprecation_notice != ''"
+  };
+}
+
+// CycloneDXAlgorithmProperties provides full alignment with CycloneDX v1.7
+// algorithmProperties for CBOM (Cryptography Bill of Materials) export.
+// Reference: https://cyclonedx.org/docs/1.7/json/#algorithmProperties
+//
+// This message enables direct serialization to CycloneDX format while
+// allowing CaaS to maintain its own internal field naming conventions.
+message CycloneDXAlgorithmProperties {
+  // CycloneDX-compliant algorithm name (e.g., "AES-256-GCM", "ML-DSA-65").
+  // Follows naming patterns from https://cyclonedx.org/schema/cryptography-defs.json
+  string name = 1 [(buf.validate.field).string.max_len = 256];
+  
+  // Cryptographic primitive type.
+  // Values: drbg, mac, block-cipher, stream-cipher, signature, hash, pke, xof,
+  //         kdf, key-agree, kem, ae, combiner, key-wrap, other, unknown
+  string primitive = 2 [(buf.validate.field).string.max_len = 64];
+  
+  // Algorithm family identifier (introduced in CycloneDX v1.7).
+  // Examples: AES, RSA, RSASSA-PSS, ECDSA, ECDH, ML-DSA, ML-KEM, Ed25519, X25519
+  string algorithm_family = 3 [(buf.validate.field).string.max_len = 64];
+  
+  // Parameter set identifier (key size, security level parameter, etc.).
+  // Examples: "256" for AES-256, "65" for ML-DSA-65, "768" for ML-KEM-768
+  string parameter_set_identifier = 4 [(buf.validate.field).string.max_len = 32];
+  
+  // Elliptic curve name (CycloneDX v1.7 renamed from deprecated "curve").
+  // Examples: P-256, P-384, P-521, Ed25519, X25519, brainpoolP256r1
+  string elliptic_curve = 5 [(buf.validate.field).string.max_len = 64];
+  
+  // Block cipher mode of operation.
+  // Values: cbc, ecb, ccm, gcm, cfb, ofb, ctr, other, unknown
+  string mode = 6 [(buf.validate.field).string.max_len = 32];
+  
+  // Padding scheme.
+  // Values: pkcs5, pkcs7, pkcs1v15, oaep, raw, other, unknown
+  string padding = 7 [(buf.validate.field).string.max_len = 32];
+  
+  // Cryptographic functions the algorithm supports.
+  // Values: generate, keygen, encrypt, decrypt, digest, tag, keyderive,
+  //         sign, verify, encapsulate, decapsulate, other, unknown
+  repeated string crypto_functions = 8;
+  
+  // Classical security level in bits (e.g., 128, 192, 256).
+  uint32 classical_security_level = 9 [(buf.validate.field).uint32 = {
+    in: [0, 80, 112, 128, 192, 256]
+  }];
+  
+  // NIST post-quantum security level (0-6, where 0 = none of the categories met).
+  // Per https://csrc.nist.gov/projects/post-quantum-cryptography
+  uint32 nist_quantum_security_level = 10 [(buf.validate.field).uint32.lte = 6];
+  
+  // Certification levels achieved.
+  // Values: none, fips140-1-l1 through fips140-3-l4, cc-eal1 through cc-eal7+
+  repeated string certification_level = 11;
+  
+  // Execution environment.
+  // Values: software-plain-ram, software-encrypted-ram, software-tee, hardware, other, unknown
+  string execution_environment = 12 [(buf.validate.field).string.max_len = 64];
+  
+  // Implementation platform.
+  // Values: generic, x86_32, x86_64, armv7-a, armv8-a, armv9-a, s390x, ppc64, ppc64le, other, unknown
+  string implementation_platform = 13 [(buf.validate.field).string.max_len = 32];
+  
+  // Algorithm Object Identifier (OID).
+  // Examples: "2.16.840.1.101.3.4.1.46" for AES-256-GCM
+  string oid = 14 [(buf.validate.field).string.max_len = 128];
+}
+
+// ScopeInfo provides human-readable information about a scope specification.
+// Used in discovery responses to describe available scopes.
+message ScopeInfo {
+  // The scope specification. Required.
+  // Contains the primitive-specific scope enum and filter properties.
+  ScopeSpecification specification = 1 [(buf.validate.field).required = true];
+  
+  // Human-readable scope name (e.g., "Standard Digital Signatures").
+  string name = 2 [(buf.validate.field).string.max_len = 128];
+  
+  // Detailed description of the scope.
+  string description = 3 [(buf.validate.field).string.max_len = 2048];
+  
+  // Example use cases for this scope.
+  repeated string typical_use_cases = 4;
+  
+  // Operations typically supported in this scope.
+  repeated CryptoOperation supported_operations = 5;
+}

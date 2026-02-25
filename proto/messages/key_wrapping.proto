@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "types/common.proto";
+import "messages/metadata.proto";
+import "messages/key_management.proto";
+import "types/operation_params.proto";
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Key Wrapping/Unwrapping Messages
+// ============================================================================
+
+message WrapKeyRequest {
+  string key_to_wrap_name = 1;
+  string wrapping_key_name = 2;
+  WrapFormat format = 3;
+  
+  // Scope-based operation parameters.
+  // REQUIRED: Always set one option to make intent explicit.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 4;                        // Standard wrapping (AES-KW, AES-KWP, RSA)
+    KeyAgreementWrapParams ka_wrap_params = 5;     // Key-agreement wrapping (ECDH-ES+AES-KW)
+    GostWrapOperationParams gost_wrap_params = 6;  // Regional standard wrapping (GOST)
+    VendorWrapParams vendor_params = 7;            // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message WrapKeyResponse {
+  bytes wrapped_key = 1;
+  OperationMetadata metadata = 2;
+}
+
+message UnwrapKeyRequest {
+  bytes wrapped_key = 1;
+  string wrapping_key_name = 2;
+  string unwrapped_key_name = 3;
+  string unwrapped_key_template_id = 4;
+  WrapFormat format = 5;
+  // Operation metadata from wrap key response.
+  // Contains key_version and algorithm_parameters from wrapping operation.
+  OperationMetadata metadata = 6;
+  
+  // Must match scope used during wrapping.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 7;                        // Standard wrapping
+    KeyAgreementWrapParams ka_wrap_params = 8;     // Key-agreement wrapping
+    GostWrapOperationParams gost_wrap_params = 9;  // Regional standard wrapping
+    VendorWrapParams vendor_params = 10;           // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message UnwrapKeyResponse {
+  bool success = 1;
+  string message = 2;
+  OperationMetadata metadata = 3;
+  // Metadata of the newly unwrapped key.
+  // Consistent with CreateKeyResponse, ImportKeyResponse, TransformKeyResponse.
+  KeyMetadata key_metadata = 4;
+}

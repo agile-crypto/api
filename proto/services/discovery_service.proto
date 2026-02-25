@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/services;services";
+
+import "google/api/annotations.proto";
+import "types/common.proto";
+import "types/templates.proto";
+
+// ============================================================================
+// Algorithm Discovery Service
+// ============================================================================
+//
+// PROPERTY-BASED DISCOVERY MECHANISM:
+// 
+// Templates expose queryable properties enabling intelligent discovery and selection.
+// Clients can filter templates by requirements without knowing all available options.
+//
+// DISCOVERY PATTERNS:
+//
+// The API uses typed ScopeSpecification (per-primitive scope enums) for filtering,
+// NOT a flat CRYPTO_SCOPE_* enum. See types/common.proto for ScopeSpecification.
+//
+// Pattern 1: Find AEAD templates with specific properties
+//   ListTemplatesRequest {
+//     scope_spec: {
+//       aead: { scope: AEAD_SCOPE_STANDARD, security: { security_strength_bits: 256 } }
+//     }
+//     required_properties: {"tag_bits": "128"}
+//   }
+//   → Returns all AEAD templates with 256-bit keys and 128-bit authentication tags
+//
+// Pattern 2: Find FIPS-approved signature alternatives
+//   ListTemplatesRequest {
+//     scope_spec: {
+//       signature: { scope: SIGNATURE_SCOPE_STANDARD, security: { fips_approved: true, security_strength_bits: 256 } }
+//     }
+//     excluded_properties: {"deprecation_status": "deprecated"}
+//   }
+//   → Returns only FIPS-approved, non-deprecated signature templates with 256-bit strength
+//
+// Pattern 3: Find post-quantum signature options
+//   ListTemplatesRequest {
+//     scope_spec: {
+//       signature: { scope: SIGNATURE_SCOPE_STANDARD, security: { quantum_safe: true } }
+//     }
+//     required_properties: {"pqc_ready": "true"}
+//   }
+//   → Returns ML-DSA, SLH-DSA, and other post-quantum signature templates
+//
+// Pattern 4: Filter KDF templates by algorithm-specific parameters
+//   ListTemplatesRequest {
+//     scope_spec: {
+//       kdf: { scope: KDF_SCOPE_PASSWORD }
+//     }
+//     required_properties: {"hash_algorithm": "sha256", "iterations": "600000"}
+//   }
+//   → Returns PBKDF2-SHA256 and other KDFs matching the criteria
+//
+
+service AlgorithmDiscoveryService {
+  rpc ListTemplates(ListTemplatesRequest) returns (ListTemplatesResponse) {
+    option (google.api.http) = {
+      get: "/v1/templates"
+    };
+  }
+
+  rpc GetTemplate(GetTemplateRequest) returns (GetTemplateResponse) {
+    option (google.api.http) = {
+      get: "/v1/templates/{template_id}"
+    };
+  }
+
+  rpc ListScopes(ListScopesRequest) returns (ListScopesResponse) {
+    option (google.api.http) = {
+      get: "/v1/scopes"
+    };
+  }
+}
+
+message ListTemplatesRequest {
+  // Filter by scope specification (optional)
+  // Example: { aead: { scope: AEAD_SCOPE_STANDARD, security: { security_strength_bits: 256 } } }
+  ScopeSpecification scope_spec = 1;
+  
+  string provider_id = 2;
+  
+  // Optional: filter templates by required properties (additional filtering)
+  // Example: {"key_size_bits": "256", "tag_bits": "128"}
+  // Matches templates where ALL required properties match exactly
+  map<string, string> required_properties = 3;
+  
+  // Optional: exclude templates by property values
+  // Example: {"deprecation_status": "deprecated"}
+  // Excludes templates where ANY excluded property matches
+  map<string, string> excluded_properties = 4;
+
+  // Pagination
+  int32 page_size = 10;   // Max results per page (0 = server default = return all)
+  string page_token = 11; // Opaque token from previous ListTemplatesResponse
+}
+
+message ListTemplatesResponse {
+  repeated TemplateInfo templates = 1;
+  // Opaque token for the next page. Empty if no more results.
+  string next_page_token = 2;
+}
+
+message GetTemplateRequest {
+  string template_id = 1;
+}
+
+message GetTemplateResponse {
+  TemplateInfo template = 1;
+}
+
+message ListScopesRequest {}
+
+message ListScopesResponse {
+  repeated ScopeInfo scopes = 1;
+}

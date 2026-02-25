@@ -1,0 +1,1652 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/types;types";
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+import "google/protobuf/any.proto";
+
+// ============================================================================
+// Algorithm Parameter Enums
+// ============================================================================
+// These enums replace string-based parameters for type safety and validation.
+// They are used in algorithm-specific parameter messages (Phase 2) and provide
+// compile-time type checking instead of runtime string parsing.
+//
+// Design principles:
+// - Every enum has an UNSPECIFIED = 0 value for proto3 compatibility
+// - Enum names follow UPPER_SNAKE_CASE convention
+// - Values are grouped logically with comments
+// - CycloneDX alignment where applicable
+
+// ============================================================================
+// Hash Algorithms
+// ============================================================================
+
+// HashAlgorithm specifies supported cryptographic hash functions.
+// Used in signatures, MACs, KDFs, and key derivation.
+// PKCS#11 Reference: CKM_SHA* mechanisms in pkcs11-curr-v3.0
+enum HashAlgorithm {
+  HASH_ALGORITHM_UNSPECIFIED = 0;
+  
+  // SHA-2 family (NIST FIPS 180-4)
+  HASH_ALGORITHM_SHA256 = 1;       // SHA-256 (256-bit output)
+  HASH_ALGORITHM_SHA384 = 2;       // SHA-384 (384-bit output)
+  HASH_ALGORITHM_SHA512 = 3;       // SHA-512 (512-bit output)
+  HASH_ALGORITHM_SHA512_256 = 4;   // SHA-512/256 (256-bit output, 64-bit optimized)
+  HASH_ALGORITHM_SHA224 = 5;       // SHA-224 (224-bit output, truncated SHA-256)
+  HASH_ALGORITHM_SHA512_224 = 6;   // SHA-512/224 (224-bit output, 64-bit optimized)
+  
+  // SHA-3 family (NIST FIPS 202)
+  HASH_ALGORITHM_SHA3_256 = 10;    // SHA3-256 (256-bit output)
+  HASH_ALGORITHM_SHA3_384 = 11;    // SHA3-384 (384-bit output)
+  HASH_ALGORITHM_SHA3_512 = 12;    // SHA3-512 (512-bit output)
+  HASH_ALGORITHM_SHA3_224 = 13;    // SHA3-224 (224-bit output)
+  
+  // SHAKE extendable output functions (NIST FIPS 202)
+  HASH_ALGORITHM_SHAKE128 = 20;    // SHAKE128 (variable output, 128-bit security)
+  HASH_ALGORITHM_SHAKE256 = 21;    // SHAKE256 (variable output, 256-bit security)
+  
+  // BLAKE2 family (RFC 7693)
+  HASH_ALGORITHM_BLAKE2B_256 = 30; // BLAKE2b with 256-bit output
+  HASH_ALGORITHM_BLAKE2B_384 = 31; // BLAKE2b with 384-bit output
+  HASH_ALGORITHM_BLAKE2B_512 = 32; // BLAKE2b with 512-bit output (default)
+  HASH_ALGORITHM_BLAKE2S_256 = 33; // BLAKE2s with 256-bit output (optimized for 32-bit)
+  HASH_ALGORITHM_BLAKE2B_160 = 34; // BLAKE2b with 160-bit output
+  HASH_ALGORITHM_BLAKE2S_128 = 35; // BLAKE2s with 128-bit output
+  HASH_ALGORITHM_BLAKE2S_160 = 36; // BLAKE2s with 160-bit output
+  HASH_ALGORITHM_BLAKE2S_224 = 37; // BLAKE2s with 224-bit output
+  
+  // BLAKE3 (newer, faster, unified)
+  HASH_ALGORITHM_BLAKE3 = 40;      // BLAKE3 (256-bit output by default, extendable)
+  
+  // Regional standards
+  // PKCS#11: CKM_GOSTR3411, CKM_GOSTR3411_12_256, CKM_GOSTR3411_12_512
+  HASH_ALGORITHM_GOST_R3411_94 = 50;    // GOST R 34.11-94 (Russia, 256-bit)
+  HASH_ALGORITHM_GOST_R3411_2012_256 = 51; // GOST R 34.11-2012 (Streebog-256)
+  HASH_ALGORITHM_GOST_R3411_2012_512 = 52; // GOST R 34.11-2012 (Streebog-512)
+  
+  // Legacy (NOT RECOMMENDED for new applications)
+  // PKCS#11: CKM_SHA_1, CKM_MD5 (pkcs11-hist-v3.0)
+  HASH_ALGORITHM_SHA1 = 100 [deprecated = true];  // SHA-1 (160-bit, collision attacks known)
+  HASH_ALGORITHM_MD5 = 101 [deprecated = true];   // MD5 (128-bit, severely broken)
+  
+  // Extensible: use with hash_algorithm_oid for algorithms not in this enum
+  HASH_ALGORITHM_OTHER = 200;  // Set this + hash_algorithm_oid for unlisted algorithms
+}
+
+// ============================================================================
+// Elliptic Curves
+// ============================================================================
+
+// EllipticCurve specifies supported elliptic curves for ECDSA, ECDH, etc.
+// Curves are grouped by standardization body and security level.
+// PKCS#11 Reference: CKA_EC_PARAMS OIDs in pkcs11-curr-v3.0
+enum EllipticCurve {
+  ELLIPTIC_CURVE_UNSPECIFIED = 0;
+  
+  // NIST curves (FIPS 186-4) - Most widely supported
+  // PKCS#11: Standard OIDs in CKA_EC_PARAMS
+  ELLIPTIC_CURVE_P256 = 1;         // NIST P-256 / secp256r1 / prime256v1 (128-bit security)
+  ELLIPTIC_CURVE_P384 = 2;         // NIST P-384 / secp384r1 (192-bit security)
+  ELLIPTIC_CURVE_P521 = 3;         // NIST P-521 / secp521r1 (256-bit security)
+  
+  // Modern curves (RFC 7748, RFC 8032)
+  // PKCS#11: CKK_EC_EDWARDS, CKK_EC_MONTGOMERY key types
+  ELLIPTIC_CURVE_CURVE25519 = 10;  // Curve25519 for X25519/Ed25519 (128-bit security)
+  ELLIPTIC_CURVE_CURVE448 = 11;    // Curve448 for X448/Ed448 (224-bit security)
+  
+  // Koblitz curve (SEC 2)
+  ELLIPTIC_CURVE_SECP256K1 = 20;   // secp256k1 - Bitcoin/Ethereum (128-bit security)
+  
+  // Brainpool curves (RFC 5639) - European standard
+  // PKCS#11: Standard OIDs in CKA_EC_PARAMS
+  ELLIPTIC_CURVE_BRAINPOOL_P256R1 = 30;  // brainpoolP256r1 (128-bit security)
+  ELLIPTIC_CURVE_BRAINPOOL_P384R1 = 31;  // brainpoolP384r1 (192-bit security)
+  ELLIPTIC_CURVE_BRAINPOOL_P512R1 = 32;  // brainpoolP512r1 (256-bit security)
+  ELLIPTIC_CURVE_BRAINPOOL_P256T1 = 33;  // brainpoolP256t1 (twisted variant)
+  ELLIPTIC_CURVE_BRAINPOOL_P384T1 = 34;  // brainpoolP384t1 (twisted variant)
+  ELLIPTIC_CURVE_BRAINPOOL_P512T1 = 35;  // brainpoolP512t1 (twisted variant)
+  
+  // NIST binary field curves (FIPS 186-4 Appendix D) - Legacy
+  // Koblitz (K) and random (B) curves over F(2^m)
+  // NOTE: Binary curves have declining support; prime curves preferred
+  ELLIPTIC_CURVE_K163 = 40;        // sect163k1 - Koblitz, 80-bit security
+  ELLIPTIC_CURVE_B163 = 41;        // sect163r2 - Random, 80-bit security
+  ELLIPTIC_CURVE_K233 = 42;        // sect233k1 - Koblitz, 112-bit security
+  ELLIPTIC_CURVE_B233 = 43;        // sect233r1 - Random, 112-bit security
+  ELLIPTIC_CURVE_K283 = 44;        // sect283k1 - Koblitz, 128-bit security
+  ELLIPTIC_CURVE_B283 = 45;        // sect283r1 - Random, 128-bit security
+  ELLIPTIC_CURVE_K409 = 46;        // sect409k1 - Koblitz, 192-bit security
+  ELLIPTIC_CURVE_B409 = 47;        // sect409r1 - Random, 192-bit security
+  ELLIPTIC_CURVE_K571 = 48;        // sect571k1 - Koblitz, 256-bit security
+  ELLIPTIC_CURVE_B571 = 49;        // sect571r1 - Random, 256-bit security
+}
+
+// ============================================================================
+// Padding Schemes
+// ============================================================================
+
+// PaddingScheme specifies block cipher padding modes.
+// Used with CBC and other block cipher modes that require padding.
+enum PaddingScheme {
+  PADDING_SCHEME_UNSPECIFIED = 0;
+  PADDING_SCHEME_NONE = 1;         // No padding - input must be block-aligned
+  PADDING_SCHEME_PKCS7 = 2;        // PKCS#7 padding (RFC 5652) - recommended
+  PADDING_SCHEME_ISO7816 = 3;      // ISO/IEC 7816-4 padding (0x80 followed by zeros)
+  PADDING_SCHEME_X923 = 4;         // ANSI X9.23 padding (zeros followed by length)
+  PADDING_SCHEME_ZERO = 5;         // Zero padding - not recommended (ambiguous)
+}
+
+// ============================================================================
+// Signature Formats
+// ============================================================================
+
+// SignatureFormat specifies signature encoding formats.
+// Different formats are required for different protocols and systems.
+enum SignatureFormat {
+  SIGNATURE_FORMAT_UNSPECIFIED = 0;
+  SIGNATURE_FORMAT_DER = 1;        // ASN.1 DER encoding (default for ECDSA, RSA)
+  SIGNATURE_FORMAT_IEEE_P1363 = 2; // Fixed-size r||s concatenation (WebCrypto, JWS)
+  SIGNATURE_FORMAT_RAW = 3;        // Raw bytes (Ed25519/Ed448 native format)
+}
+
+// ============================================================================
+// Mask Generation Functions
+// ============================================================================
+
+// MaskGenerationFunction specifies MGF algorithms for RSA-OAEP and RSA-PSS.
+// Currently only MGF1 is standardized (PKCS#1 v2.1).
+enum MaskGenerationFunction {
+  MGF_UNSPECIFIED = 0;
+  MGF_MGF1 = 1;                    // MGF1 (PKCS#1 v2.1) - only standardized option
+}
+
+// ============================================================================
+// Argon2 Variants
+// ============================================================================
+
+// Argon2Variant specifies Argon2 password hashing algorithm variants.
+// Argon2 won the Password Hashing Competition (2015).
+enum Argon2Variant {
+  ARGON2_VARIANT_UNSPECIFIED = 0;
+  ARGON2_VARIANT_D = 1;            // Argon2d - Data-dependent, GPU/ASIC resistant
+  ARGON2_VARIANT_I = 2;            // Argon2i - Data-independent, side-channel resistant
+  ARGON2_VARIANT_ID = 3;           // Argon2id - Hybrid (recommended for password hashing)
+}
+
+// ============================================================================
+// Ed25519/Ed448 Variants
+// ============================================================================
+
+// Ed25519Variant specifies Ed25519 signing variants per RFC 8032.
+enum Ed25519Variant {
+  ED25519_VARIANT_UNSPECIFIED = 0;
+  ED25519_VARIANT_PURE = 1;        // Ed25519 - Pure mode (standard, recommended)
+  ED25519_VARIANT_CTX = 2;         // Ed25519ctx - With context string
+  ED25519_VARIANT_PH = 3;          // Ed25519ph - Prehashed (for large messages)
+}
+
+// Ed448Variant specifies Ed448 signing variants per RFC 8032.
+enum Ed448Variant {
+  ED448_VARIANT_UNSPECIFIED = 0;
+  ED448_VARIANT_PURE = 1;          // Ed448 - Pure mode (context can still be used)
+  ED448_VARIANT_PH = 2;            // Ed448ph - Prehashed (SHAKE256)
+}
+
+// ============================================================================
+// Key Types
+// ============================================================================
+
+// KeyType specifies the type of cryptographic key.
+// Used for key management, storage, and provider selection.
+// PKCS#11 Reference: CKK_* key type constants in pkcs11-curr-v3.0
+enum KeyType {
+  KEY_TYPE_UNSPECIFIED = 0;
+  
+  // Symmetric keys
+  // PKCS#11: CKK_AES, CKK_DES3, CKK_CHACHA20, CKK_CAMELLIA, CKK_ARIA, CKK_SEED, etc.
+  KEY_TYPE_SYMMETRIC = 1;          // AES, ChaCha20, 3DES, Camellia, ARIA, SEED, etc.
+  
+  // Classical asymmetric keys
+  // PKCS#11: CKK_RSA
+  KEY_TYPE_RSA = 10;               // RSA keys (signing, encryption)
+  // PKCS#11: CKK_EC for NIST/Brainpool/secp256k1 curves
+  KEY_TYPE_EC = 11;                // NIST/Brainpool curve EC keys (ECDSA, ECDH)
+  // PKCS#11: CKK_EC_EDWARDS (RFC 8032)
+  KEY_TYPE_ED25519 = 12;           // Ed25519 keys (signing only)
+  KEY_TYPE_ED448 = 13;             // Ed448 keys (signing only)
+  // PKCS#11: CKK_EC_MONTGOMERY (RFC 7748)
+  KEY_TYPE_X25519 = 14;            // X25519 keys (key agreement only)
+  KEY_TYPE_X448 = 15;              // X448 keys (key agreement only)
+  // PKCS#11: CKK_DSA
+  KEY_TYPE_DSA = 16;               // DSA keys (legacy, prefer ECDSA)
+  // PKCS#11: CKK_DH (PKCS#3), CKK_X9_42_DH (X9.42)
+  KEY_TYPE_DH = 17;                // Diffie-Hellman keys (finite field)
+  
+  // Post-quantum keys (NIST PQC standards)
+  // PKCS#11 v3.2+: CKK_ML_KEM
+  KEY_TYPE_ML_KEM = 20;            // ML-KEM (FIPS 203, formerly Kyber)
+  // PKCS#11 v3.2+: CKK_ML_DSA
+  KEY_TYPE_ML_DSA = 21;            // ML-DSA (FIPS 204, formerly Dilithium)
+  // PKCS#11 v3.2+: CKK_SLH_DSA
+  KEY_TYPE_SLH_DSA = 22;           // SLH-DSA (FIPS 205, formerly SPHINCS+)
+  
+  // Hybrid/composite keys
+  KEY_TYPE_HYBRID = 30;            // Combined classical + PQ keys
+  
+  // Regional/national standard keys
+  // PKCS#11: CKK_GOSTR3410 (GOST R 34.10-2001), CKK_GOSTR3410_512 (GOST R 34.10-2012)
+  KEY_TYPE_GOST = 40;              // GOST R 34.10 keys (Russian standard)
+  
+  // Special-purpose keys
+  // PKCS#11: CKK_HOTP (used for both HOTP and TOTP)
+  KEY_TYPE_OTP = 50;               // HOTP/TOTP keys (RFC 4226, RFC 6238)
+  
+  // =========================================================================
+  // Extensibility: Vendor, Experimental, and Custom Key Types
+  // =========================================================================
+  // These key types provide forward compatibility for:
+  // - Vendor-specific HSM/KMS proprietary algorithms
+  // - Pre-standard post-quantum algorithms (NIST Round 4 candidates, etc.)
+  // - Custom or experimental cryptographic schemes
+  //
+  // IMPORTANT: Use CustomAlgorithm in AlgorithmDetails to specify the actual
+  // algorithm parameters when using these key types.
+  
+  // PKCS#11: CKK_VENDOR_DEFINED (0x80000000+)
+  // Use for HSM vendor proprietary key types (e.g., Thales Luna, Entrust nShield).
+  // The specific algorithm is defined in CustomAlgorithm.vendor and .name fields.
+  KEY_TYPE_VENDOR = 100;
+  
+  // Post-quantum algorithms not yet standardized by NIST.
+  // Examples: BIKE, HQC, Classic McEliece, FrodoKEM, NTRU variants
+  // Once standardized, these should migrate to dedicated KEY_TYPE_* values.
+  // Use CustomAlgorithm.name to identify the specific PQ algorithm.
+  KEY_TYPE_PQ_EXPERIMENTAL = 101;
+  
+  // Generic custom key type for any other scenario.
+  // Use CustomAlgorithm to fully specify the algorithm details.
+  // Policy engines SHOULD validate custom algorithms against an allow-list.
+  KEY_TYPE_CUSTOM = 199;
+}
+
+// ============================================================================
+// Cryptographic Primitives (CycloneDX aligned)
+// ============================================================================
+
+// CryptoPrimitive specifies the cryptographic primitive type.
+// Aligns with CycloneDX CBOM v1.7 cryptographic asset classification.
+// Used for template categorization and discovery.
+enum CryptoPrimitive {
+  CRYPTO_PRIMITIVE_UNSPECIFIED = 0;
+  
+  // Encryption primitives
+  CRYPTO_PRIMITIVE_AE = 1;             // Authenticated encryption (AES-GCM, ChaCha20-Poly1305, AES-CCM)
+  CRYPTO_PRIMITIVE_BLOCK_CIPHER = 2;   // Block cipher (AES-CBC, AES-CTR, AES-XTS, Camellia, ARIA)
+  CRYPTO_PRIMITIVE_STREAM_CIPHER = 3;  // Stream cipher (ChaCha20, GOST 28147-CNT)
+  CRYPTO_PRIMITIVE_PKE = 4;            // Public key encryption (RSA-OAEP)
+  
+  // Signature primitives
+  CRYPTO_PRIMITIVE_SIGNATURE = 10;     // Digital signatures (ECDSA, Ed25519, RSA-PSS, DSA, GOST 34.10)
+  
+  // Key exchange primitives
+  CRYPTO_PRIMITIVE_KEM = 20;           // Key encapsulation mechanism (ML-KEM, RSA-KEM)
+  CRYPTO_PRIMITIVE_KEY_AGREE = 21;     // Key agreement (ECDH, X25519, DH, X3DH)
+  
+  // Hash and MAC primitives
+  CRYPTO_PRIMITIVE_HASH = 30;          // Cryptographic hash (SHA-256, SHA-3, GOST 34.11)
+  CRYPTO_PRIMITIVE_MAC = 31;           // Message authentication code (HMAC, KMAC, CMAC, Poly1305)
+  CRYPTO_PRIMITIVE_XOF = 32;           // Extendable output function (SHAKE, BLAKE3)
+  
+  // Key management primitives
+  CRYPTO_PRIMITIVE_KDF = 40;           // Key derivation function (HKDF, PBKDF2, Argon2, SP 800-108, TLS 1.2)
+  CRYPTO_PRIMITIVE_KEY_WRAP = 41;      // Key wrapping (AES-KW, AES-KWP)
+  
+  // Authentication primitives
+  CRYPTO_PRIMITIVE_OTP = 45;           // One-time password (HOTP, TOTP)
+  
+  // Other primitives
+  CRYPTO_PRIMITIVE_DRBG = 50;          // Deterministic random bit generator
+  CRYPTO_PRIMITIVE_COMBINER = 51;      // Hybrid/composite combiner
+  CRYPTO_PRIMITIVE_OTHER = 99;
+}
+
+// ============================================================================
+// ML-DSA Parameter Sets (FIPS 204)
+// ============================================================================
+
+// MlDsaParameterSet enumerates ML-DSA (formerly Dilithium) parameter sets.
+// Each parameter set provides a different security level.
+enum MlDsaParameterSet {
+  ML_DSA_PARAMETER_SET_UNSPECIFIED = 0;
+  ML_DSA_44 = 1;                   // ML-DSA-44: NIST Level 2 (128-bit classical security)
+  ML_DSA_65 = 2;                   // ML-DSA-65: NIST Level 3 (192-bit classical security)
+  ML_DSA_87 = 3;                   // ML-DSA-87: NIST Level 5 (256-bit classical security)
+}
+
+// ============================================================================
+// ML-KEM Parameter Sets (FIPS 203)
+// ============================================================================
+
+// MlKemParameterSet enumerates ML-KEM (formerly Kyber) parameter sets.
+// Each parameter set provides a different security level.
+enum MlKemParameterSet {
+  ML_KEM_PARAMETER_SET_UNSPECIFIED = 0;
+  ML_KEM_512 = 1;                  // ML-KEM-512: NIST Level 1 (128-bit classical security)
+  ML_KEM_768 = 2;                  // ML-KEM-768: NIST Level 3 (192-bit classical security)
+  ML_KEM_1024 = 3;                 // ML-KEM-1024: NIST Level 5 (256-bit classical security)
+}
+
+// ============================================================================
+// SLH-DSA Parameter Sets (FIPS 205)
+// ============================================================================
+
+// SlhDsaHashType specifies the hash function family for SLH-DSA.
+enum SlhDsaHashType {
+  SLH_DSA_HASH_TYPE_UNSPECIFIED = 0;
+  SLH_DSA_SHA2 = 1;                // SHA-256 based
+  SLH_DSA_SHAKE = 2;               // SHAKE256 based
+}
+
+// SlhDsaParameterSet enumerates SLH-DSA (formerly SPHINCS+) parameter sets.
+// 's' suffix = smaller signatures, 'f' suffix = faster signing.
+enum SlhDsaParameterSet {
+  SLH_DSA_PARAMETER_SET_UNSPECIFIED = 0;
+  
+  // 128-bit security (NIST Level 1)
+  SLH_DSA_128S = 1;                // Small signatures (~7KB)
+  SLH_DSA_128F = 2;                // Fast signing (~17KB signatures)
+  
+  // 192-bit security (NIST Level 3)
+  SLH_DSA_192S = 3;                // Small signatures (~16KB)
+  SLH_DSA_192F = 4;                // Fast signing (~35KB signatures)
+  
+  // 256-bit security (NIST Level 5)
+  SLH_DSA_256S = 5;                // Small signatures (~29KB)
+  SLH_DSA_256F = 6;                // Fast signing (~49KB signatures)
+}
+
+// ============================================================================
+// ECDH KDF Types
+// ============================================================================
+
+// EcdhKdfType specifies KDF to apply to ECDH shared secret.
+enum EcdhKdfType {
+  ECDH_KDF_UNSPECIFIED = 0;        // Return raw shared secret (x-coordinate)
+  ECDH_KDF_HKDF_SHA256 = 1;        // HKDF with SHA-256
+  ECDH_KDF_HKDF_SHA384 = 2;        // HKDF with SHA-384
+  ECDH_KDF_HKDF_SHA512 = 3;        // HKDF with SHA-512
+  ECDH_KDF_X963_SHA256 = 4;        // ANSI X9.63 KDF with SHA-256
+  ECDH_KDF_X963_SHA384 = 5;        // ANSI X9.63 KDF with SHA-384
+  ECDH_KDF_X963_SHA512 = 6;        // ANSI X9.63 KDF with SHA-512
+}
+
+// ============================================================================
+// ============================================================================
+//
+//                    ALGORITHM-SPECIFIC PARAMETER MESSAGES
+//
+// ============================================================================
+// ============================================================================
+// Each message is SELF-CONTAINED per CycloneDX naming patterns.
+// The oneof field in AlgorithmDetails selects which message to use.
+// All algorithm metadata (name, variant, key size, key type) can be derived
+// from the specific parameter message selected.
+
+// ============================================================================
+// Symmetric Encryption Parameters
+// ============================================================================
+
+// AesGcmParams defines parameters for AES-GCM authenticated encryption.
+// CycloneDX pattern: AES-{keyLength}-GCM-{tagLength}-{ivLength}
+// PKCS#11 Mechanism: CKM_AES_GCM
+// PKCS#11 Reference Struct: CK_GCM_PARAMS
+// Example: AES-256-GCM-128-96 → AesGcmParams{key_size_bits=256, tag_size_bits=128, iv_size_bits=96}
+message AesGcmParams {
+  // Key size in bits. Required. Valid: 128, 192, 256.
+  // PKCS#11: CKA_VALUE_LEN = 16, 24, or 32 bytes
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // IV size in bits. Default: 96 (12 bytes). NIST SP 800-38D recommended.
+  // PKCS#11: CK_GCM_PARAMS.ulIvLen (bytes), ulIvBits (bits)
+  // Valid values: 96 (recommended), 64, 128
+  uint32 iv_size_bits = 2 [(buf.validate.field).uint32 = {in: [64, 96, 128]}];
+  
+  // Authentication tag size in bits. Default: 128.
+  // Per NIST SP 800-38D §5.2.1, valid tag lengths are {128, 120, 112, 104, 96} bits only.
+  // PKCS#11: CK_GCM_PARAMS.ulTagBits (valid: 32, 64, 96, 104, 112, 120, 128 — we restrict to ≥96)
+  // Values below 96 bits (e.g., 32 or 64) are explicitly excluded as they provide
+  // insufficient authentication strength per NIST guidance.
+  // Valid values: 128 (recommended), 120, 112, 104, 96
+  uint32 tag_size_bits = 3 [(buf.validate.field).uint32 = {in: [96, 104, 112, 120, 128]}];
+}
+
+// AesCbcParams defines parameters for AES-CBC encryption.
+// CycloneDX pattern: AES-{keyLength}-CBC
+// PKCS#11 Mechanism: CKM_AES_CBC, CKM_AES_CBC_PAD
+// PKCS#11 Reference Struct: CK_AES_CBC_ENCRYPT_DATA_PARAMS (iv[16])
+// Note: CBC mode requires separate MAC for authentication (not AEAD).
+message AesCbcParams {
+  // Key size in bits. Required. Valid: 128, 192, 256.
+  // PKCS#11: CKA_VALUE_LEN = 16, 24, or 32 bytes
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // IV size in bits. Must equal block size (128 bits for AES).
+  // PKCS#11: CK_AES_CBC_ENCRYPT_DATA_PARAMS.iv[16] - fixed 16 bytes
+  uint32 iv_size_bits = 2 [(buf.validate.field).uint32.const = 128];
+  
+  // Padding scheme. Default: PKCS7.
+  // PKCS#11: CKM_AES_CBC (no padding) vs CKM_AES_CBC_PAD (PKCS7)
+  PaddingScheme padding = 3 [(buf.validate.field).enum = {not_in: [0]}];
+}
+
+// AesCtrParams defines parameters for AES-CTR encryption.
+// CycloneDX pattern: AES-{keyLength}-CTR
+// PKCS#11 Mechanism: CKM_AES_CTR
+// PKCS#11 Reference Struct: CK_AES_CTR_PARAMS
+// Note: CTR mode requires separate MAC for authentication (not AEAD).
+message AesCtrParams {
+  // Key size in bits. Required. Valid: 128, 192, 256.
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // Nonce size in bits. Default: 96 (leaving 32 bits for counter).
+  // PKCS#11: Nonce is part of cb[16] counter block
+  // Common values: 64 (nonce) + 64 (counter), 96 (nonce) + 32 (counter)
+  uint32 nonce_size_bits = 2 [(buf.validate.field).uint32 = {in: [64, 96]}];
+  
+  // Number of counter bits to increment (rightmost bits of 128-bit block).
+  // PKCS#11: CK_AES_CTR_PARAMS.ulCounterBits (1-128)
+  // Common values: 32 (with 96-bit nonce), 64 (with 64-bit nonce)
+  // Default: 128 - nonce_size_bits
+  uint32 counter_bits = 3 [(buf.validate.field).uint32 = {gte: 1, lte: 128}];
+}
+
+// ChaCha20Poly1305Params defines parameters for ChaCha20-Poly1305 AEAD.
+// CycloneDX pattern: ChaCha20-Poly1305 (IETF) or XChaCha20-Poly1305
+// PKCS#11 Mechanisms: CKM_CHACHA20_POLY1305, CKM_XCHACHA20_POLY1305
+// PKCS#11 Reference Structs: CK_CHACHA20_PARAMS, CK_SALSA20_CHACHA20_POLY1305_PARAMS
+// Key size is always 256 bits for ChaCha20.
+message ChaCha20Poly1305Params {
+  // Nonce size in bits.
+  // PKCS#11: CK_CHACHA20_PARAMS.ulNonceBits
+  // IETF variant: 96 bits (12 bytes) - RFC 8439
+  // Original DJB: 64 bits (8 bytes)
+  // XChaCha variant: 192 bits (24 bytes) - extended nonce
+  uint32 nonce_size_bits = 1 [(buf.validate.field).uint32 = {in: [64, 96, 192]}];
+  
+  // Block counter size in bits.
+  // PKCS#11: CK_CHACHA20_PARAMS.blockCounterBits
+  // IETF: 32 bits, Original: 64 bits
+  uint32 block_counter_bits = 2 [(buf.validate.field).uint32 = {in: [32, 64]}];
+  
+  // Whether this is the extended nonce (XChaCha20) variant.
+  // XChaCha20 allows random nonces without birthday bound concerns.
+  bool extended_nonce = 3;
+  
+  // Cross-field validation: extended_nonce must match nonce_size
+  option (buf.validate.message).cel = {
+    id: "chacha20_nonce_consistency"
+    message: "extended_nonce=true requires nonce_size_bits=192"
+    expression: "!this.extended_nonce || this.nonce_size_bits == 192u"
+  };
+  
+  // Cross-field validation: IETF uses 32-bit counter with 96-bit nonce
+  option (buf.validate.message).cel = {
+    id: "chacha20_ietf_counter"
+    message: "IETF variant (96-bit nonce) requires 32-bit block counter"
+    expression: "this.nonce_size_bits != 96u || this.block_counter_bits == 32u"
+  };
+}
+
+// ============================================================================
+// Digital Signature Parameters (Classical)
+// ============================================================================
+
+// EcdsaParams defines parameters for ECDSA signatures.
+// CycloneDX pattern: ECDSA-{curve}-{hash}
+// PKCS#11 Mechanisms: CKM_ECDSA, CKM_ECDSA_SHA256, CKM_ECDSA_SHA384, CKM_ECDSA_SHA512
+// PKCS#11 Key Type: CKK_EC
+// The curve implicitly determines key size: P-256→256, P-384→384, P-521→521
+message EcdsaParams {
+  // Elliptic curve to use. Required.
+  // PKCS#11: CKA_EC_PARAMS (DER-encoded OID)
+  // Implicitly determines key size bits.
+  // Valid: P-256 (1), P-384 (2), P-521 (3), secp256k1 (20)
+  EllipticCurve curve = 1 [(buf.validate.field).enum = {in: [1, 2, 3, 20]}];
+  
+  // Hash algorithm for signing.
+  // PKCS#11: Determines mechanism (CKM_ECDSA_SHA256, CKM_ECDSA_SHA384, etc.)
+  // Default: curve-appropriate hash (P-256→SHA-256, P-384→SHA-384, P-521→SHA-512)
+  HashAlgorithm hash = 2;
+  
+  // Signature output format. Default: DER.
+  // PKCS#11 produces raw r||s; DER encoding done at API layer
+  SignatureFormat signature_format = 3;
+  
+  // Use deterministic signature generation (RFC 6979).
+  // Recommended for security: prevents nonce-reuse attacks.
+  // Note: Not all HSMs support deterministic ECDSA.
+  bool deterministic = 4;
+  
+  // Cross-field validation: curve should have appropriate hash (warning-level)
+  // P-256 → SHA-256 (1), P-384 → SHA-384 (2), P-521 → SHA-512 (3)
+  option (buf.validate.message).cel = {
+    id: "ecdsa_curve_hash_match"
+    message: "hash algorithm should match curve security level: P-256→SHA-256, P-384→SHA-384, P-521→SHA-512"
+    expression: "this.hash == 0 || (this.curve == 1 && this.hash == 1) || (this.curve == 2 && this.hash == 2) || (this.curve == 3 && this.hash == 3) || (this.curve == 20)"
+  };
+}
+
+// Ed25519Params defines parameters for Ed25519 signatures.
+// CycloneDX pattern: Ed25519, Ed25519ctx, or Ed25519ph
+// PKCS#11 Mechanism: CKM_EDDSA
+// PKCS#11 Key Type: CKK_EC_EDWARDS
+// PKCS#11 Reference Struct: CK_EDDSA_PARAMS
+// Key size is fixed at 256 bits (32 bytes).
+message Ed25519Params {
+  // Ed25519 variant. Default: PURE.
+  // PKCS#11: CK_EDDSA_PARAMS.phFlag (CK_FALSE=Pure, CK_TRUE=Prehash)
+  Ed25519Variant variant = 1;
+  
+  // Field 2 reserved: context was removed (per-operation parameter, not a template property).
+  // Pass context in the sign/verify request instead.
+}
+
+// Ed448Params defines parameters for Ed448 signatures.
+// CycloneDX pattern: Ed448 or Ed448ph
+// PKCS#11 Mechanism: CKM_EDDSA
+// PKCS#11 Key Type: CKK_EC_EDWARDS
+// PKCS#11 Reference Struct: CK_EDDSA_PARAMS
+// Key size is fixed at 456 bits (57 bytes).
+message Ed448Params {
+  // Ed448 variant. Default: PURE.
+  // PKCS#11: CK_EDDSA_PARAMS.phFlag (CK_FALSE=Pure, CK_TRUE=Prehash)
+  Ed448Variant variant = 1;
+  
+  // Context string (0-255 bytes).
+  // PKCS#11: CK_EDDSA_PARAMS.pContextData, ulContextDataLen
+  // Ed448 always supports context; use empty bytes for "pure" mode.
+  bytes context = 2 [(buf.validate.field).bytes.max_len = 255];
+}
+
+// RsaPssParams defines parameters for RSA-PSS signatures (PKCS#1 v2.1).
+// CycloneDX pattern: RSA-PSS-{hash}-{saltLength}-{keyLength}
+// PKCS#11 Mechanisms: CKM_RSA_PKCS_PSS, CKM_SHA256_RSA_PKCS_PSS, etc.
+// PKCS#11 Reference Struct: CK_RSA_PKCS_PSS_PARAMS
+message RsaPssParams {
+  // Key size in bits. Required. Common: 2048, 3072, 4096.
+  // PKCS#11: CK_MECHANISM_INFO.ulMinKeySize/ulMaxKeySize
+  // Minimum 2048 bits recommended for security.
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {gte: 2048, lte: 16384}];
+  
+  // Hash algorithm. Default: SHA-256.
+  // PKCS#11: CK_RSA_PKCS_PSS_PARAMS.hashAlg (CKM_SHA256, CKM_SHA384, etc.)
+  // Valid: SHA-256 (1), SHA-384 (2), SHA-512 (3)
+  HashAlgorithm hash = 2 [(buf.validate.field).enum = {in: [0, 1, 2, 3]}];
+  
+  // Mask generation function. Default: MGF1.
+  // PKCS#11: CK_RSA_PKCS_PSS_PARAMS.mgf (CKG_MGF1_SHA256, etc.)
+  MaskGenerationFunction mgf = 3;
+  
+  // Hash for MGF. Default: same as hash.
+  // PKCS#11: MGF hash typically matches signature hash
+  HashAlgorithm mgf_hash = 4;
+  
+  // Salt length in bytes.
+  // PKCS#11: CK_RSA_PKCS_PSS_PARAMS.sLen
+  // Special values:
+  //   -1: Use hash output length (recommended, PSS default)
+  //   -2: Maximum length (for verification only)
+  //    0: No salt (not recommended)
+  // Positive: Exact salt length in bytes
+  int32 salt_length = 5 [(buf.validate.field).int32 = {gte: -2, lte: 512}];
+}
+
+// RsaPkcs1v15Params defines parameters for RSA PKCS#1 v1.5 signatures.
+// CycloneDX pattern: RSA-PKCS1-v1.5-{hash}-{keyLength}
+// PKCS#11 Mechanisms: CKM_RSA_PKCS, CKM_SHA256_RSA_PKCS, CKM_SHA384_RSA_PKCS, etc.
+// Note: RSA-PSS is preferred for new applications.
+message RsaPkcs1v15Params {
+  // Key size in bits. Required. Common: 2048, 3072, 4096.
+  // PKCS#11: CK_MECHANISM_INFO.ulMinKeySize/ulMaxKeySize
+  // Minimum 2048 bits recommended for security.
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {gte: 2048, lte: 16384}];
+  
+  // Hash algorithm. Default: SHA-256.
+  // PKCS#11: Determines mechanism (CKM_SHA256_RSA_PKCS, etc.)
+  HashAlgorithm hash = 2;
+}
+
+// ============================================================================
+// Digital Signature Parameters (Post-Quantum)
+// ============================================================================
+
+// MlDsaParams defines parameters for ML-DSA (FIPS 204) signatures.
+// CycloneDX pattern: ML-DSA-{parameterSet}
+// PKCS#11 Mechanisms: CKM_ML_DSA_44, CKM_ML_DSA_65, CKM_ML_DSA_87
+// PKCS#11 Key Type: CKK_ML_DSA
+// PKCS#11 Reference Struct: CK_ML_DSA_PARAMS
+// Parameter set determines all key and signature sizes.
+message MlDsaParams {
+  // Parameter set. Required.
+  // PKCS#11: CKA_ML_DSA_PARAMETER_SET (44, 65, or 87)
+  // ML_DSA_44: NIST Level 2 (128-bit security)
+  // ML_DSA_65: NIST Level 3 (192-bit security)
+  // ML_DSA_87: NIST Level 5 (256-bit security)
+  MlDsaParameterSet parameter_set = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Use hedged signing (adds randomness for side-channel resistance).
+  // PKCS#11: CK_ML_DSA_PARAMS.bDeterministic (inverse: CK_FALSE = hedged)
+  // Recommended: true for hardware implementations.
+  bool hedged = 2;
+  
+  // Field 3 reserved: context was removed (per-operation parameter, not a template property).
+  // Pass context in the sign/verify request instead.
+}
+
+// SlhDsaParams defines parameters for SLH-DSA (FIPS 205) signatures.
+// CycloneDX pattern: SLH-DSA-{hashType}-{parameterSet}
+// PKCS#11 Mechanisms: CKM_SLH_DSA_SHA2_128S_KEY_PAIR_GEN, CKM_SLH_DSA_SHAKE_256F_KEY_PAIR_GEN, etc.
+// PKCS#11 Key Type: CKK_SLH_DSA
+// PKCS#11 Reference Struct: CK_SLH_DSA_PARAMS
+// Also known as SPHINCS+. Stateless hash-based signatures.
+message SlhDsaParams {
+  // Hash type. Required. SHA2 or SHAKE.
+  // PKCS#11: Encoded in mechanism (CKM_SLH_DSA_SHA2_* vs CKM_SLH_DSA_SHAKE_*)
+  SlhDsaHashType hash_type = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Parameter set. Required.
+  // PKCS#11: Encoded in mechanism (128S, 128F, 192S, 192F, 256S, 256F)
+  // 's' suffix = smaller signatures, slower signing
+  // 'f' suffix = faster signing, larger signatures
+  SlhDsaParameterSet parameter_set = 2 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Use deterministic signing.
+  // PKCS#11: CK_SLH_DSA_PARAMS.bDeterministic
+  bool deterministic = 3;
+  
+  // Field 4 reserved: context was removed (per-operation parameter, not a template property).
+  // Pass context in the sign/verify request instead.
+}
+
+// ============================================================================
+// Key Encapsulation Parameters
+// ============================================================================
+
+// MlKemParams defines parameters for ML-KEM (FIPS 203) key encapsulation.
+// CycloneDX pattern: ML-KEM-{parameterSet}
+// PKCS#11 Mechanisms: CKM_ML_KEM_512_KEY_PAIR_GEN, CKM_ML_KEM_768_KEY_PAIR_GEN,
+//                     CKM_ML_KEM_1024_KEY_PAIR_GEN, CKM_ML_KEM
+// PKCS#11 Key Type: CKK_ML_KEM
+// Shared secret is always 32 bytes for all parameter sets.
+message MlKemParams {
+  // Parameter set. Required.
+  // PKCS#11: CKA_ML_KEM_PARAMETER_SET (512, 768, or 1024)
+  // ML_KEM_512:  NIST Level 1 (128-bit security)
+  // ML_KEM_768:  NIST Level 3 (192-bit security)
+  // ML_KEM_1024: NIST Level 5 (256-bit security)
+  MlKemParameterSet parameter_set = 1 [(buf.validate.field).enum = {not_in: [0]}];
+}
+
+// RsaOaepParams defines parameters for RSA-OAEP encryption (PKCS#1 v2.1).
+// CycloneDX pattern: RSA-OAEP-{hash}-{keyLength}
+// PKCS#11 Mechanism: CKM_RSA_PKCS_OAEP
+// PKCS#11 Reference Struct: CK_RSA_PKCS_OAEP_PARAMS
+message RsaOaepParams {
+  // Key size in bits. Required. Common: 2048, 3072, 4096.
+  // PKCS#11: CK_MECHANISM_INFO.ulMinKeySize/ulMaxKeySize
+  // Minimum 2048 bits recommended for security.
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {gte: 2048, lte: 16384}];
+  
+  // Hash algorithm for OAEP. Default: SHA-256.
+  // PKCS#11: CK_RSA_PKCS_OAEP_PARAMS.hashAlg (CKM_SHA256, CKM_SHA384, etc.)
+  HashAlgorithm hash = 2;
+  
+  // Mask generation function. Default: MGF1.
+  // PKCS#11: CK_RSA_PKCS_OAEP_PARAMS.mgf (CKG_MGF1_SHA256, etc.)
+  MaskGenerationFunction mgf = 3;
+  
+  // Hash for MGF. Default: same as hash.
+  HashAlgorithm mgf_hash = 4;
+  
+  // Field 5 reserved: label was removed (per-operation parameter, not a template property).
+  // Pass the OAEP label in the encrypt/decrypt request instead.
+}
+
+// ============================================================================
+// Key Agreement Parameters
+// ============================================================================
+
+// EcdhParams defines parameters for ECDH key agreement.
+// CycloneDX pattern: ECDH-{curve}
+// PKCS#11 Mechanisms: CKM_ECDH1_DERIVE, CKM_ECDH1_COFACTOR_DERIVE
+// PKCS#11 Reference Struct: CK_ECDH1_DERIVE_PARAMS
+message EcdhParams {
+  // Elliptic curve for key agreement. Required.
+  // PKCS#11: CKA_EC_PARAMS (DER-encoded OID)
+  // Use NIST curves (P-256, P-384, P-521) or secp256k1.
+  // Valid: P-256 (1), P-384 (2), P-521 (3), secp256k1 (20)
+  EllipticCurve curve = 1 [(buf.validate.field).enum = {in: [1, 2, 3, 20]}];
+  
+  // Whether to use cofactor ECDH (ECCDH).
+  // PKCS#11: CKM_ECDH1_COFACTOR_DERIVE vs CKM_ECDH1_DERIVE
+  // Cofactor mode provides additional protections against small subgroup attacks.
+  bool cofactor_mode = 2;
+  
+  // Key derivation function to apply to raw shared secret.
+  // PKCS#11: CK_ECDH1_DERIVE_PARAMS.kdf (CK_EC_KDF_TYPE)
+  // If UNSPECIFIED, raw shared secret (x-coordinate) is returned.
+  EcdhKdfType kdf = 3;
+}
+
+// X25519Params defines parameters for X25519 key agreement (RFC 7748).
+// CycloneDX pattern: X25519
+// PKCS#11 Mechanism: CKM_EC_MONTGOMERY_KEY_PAIR_GEN (for key gen)
+// PKCS#11 Key Type: CKK_EC_MONTGOMERY
+// Key size is fixed at 256 bits (32 bytes).
+message X25519Params {
+  // X25519 has no configurable parameters.
+  // PKCS#11: CKA_EC_PARAMS = OID 1.3.101.110
+  // This message exists for API consistency in the oneof.
+}
+
+// X448Params defines parameters for X448 key agreement (RFC 7748).
+// CycloneDX pattern: X448
+// PKCS#11 Mechanism: CKM_EC_MONTGOMERY_KEY_PAIR_GEN (for key gen)
+// PKCS#11 Key Type: CKK_EC_MONTGOMERY
+// Key size is fixed at 448 bits (56 bytes).
+message X448Params {
+  // X448 has no configurable parameters.
+  // PKCS#11: CKA_EC_PARAMS = OID 1.3.101.111
+  // This message exists for API consistency in the oneof.
+}
+
+// ============================================================================
+// Key Derivation Parameters
+// ============================================================================
+
+// HkdfParams defines parameters for HKDF (RFC 5869).
+// CycloneDX pattern: HKDF-{hash}
+// PKCS#11 Mechanism: CKM_HKDF_DERIVE
+// PKCS#11 Reference Struct: CK_HKDF_PARAMS
+message HkdfParams {
+  // Hash algorithm. Default: SHA-256.
+  // PKCS#11: CK_HKDF_PARAMS.prfHashMechanism
+  HashAlgorithm hash = 1;
+  
+  // Perform HKDF-Extract step.
+  // PKCS#11: CK_HKDF_PARAMS.bExtract
+  // If false, input key material is used directly as PRK.
+  bool extract = 2;
+  
+  // Perform HKDF-Expand step.
+  // PKCS#11: CK_HKDF_PARAMS.bExpand
+  // If false, PRK is used directly as output.
+  bool expand = 3;
+  
+  // Expected salt size in bytes. Default: 0 (use hash output size).
+  // PKCS#11: CK_HKDF_PARAMS.ulSaltLen
+  // Salt is optional but recommended.
+  uint32 salt_size_bytes = 4;
+  
+  // Field 5 reserved: info was removed (per-operation parameter, not a template property).
+  // Pass the HKDF info/context in the derive key request instead.
+  
+  // Output key length in bytes.
+  // Must not exceed 255 * hash_output_size.
+  uint32 output_length = 6 [(buf.validate.field).uint32 = {gte: 1, lte: 16320}];
+}
+
+// Pbkdf2Params defines parameters for PBKDF2 (RFC 8018).
+// CycloneDX pattern: PBKDF2-{hash}-{iterations}
+// PKCS#11 Mechanism: CKM_PKCS5_PBKD2
+// PKCS#11 Reference Struct: CK_PKCS5_PBKD2_PARAMS
+message Pbkdf2Params {
+  // PRF hash algorithm. Default: SHA-256.
+  // PKCS#11: CK_PKCS5_PBKD2_PARAMS.prf (CKP_PKCS5_PBKD2_HMAC_SHA256, etc.)
+  HashAlgorithm hash = 1;
+  
+  // Iteration count. Default: 600000 (OWASP 2023 recommendation for SHA-256).
+  // PKCS#11: CK_PKCS5_PBKD2_PARAMS.iterations
+  // Minimum: 10000 (NIST minimum)
+  // Higher values increase computation time for attackers.
+  uint32 iterations = 2 [(buf.validate.field).uint32.gte = 10000];
+  
+  // Salt size in bytes. Default: 16 (128 bits).
+  // PKCS#11: CK_PKCS5_PBKD2_PARAMS.ulSaltSourceDataLen
+  // NIST recommends at least 128 bits.
+  uint32 salt_size_bytes = 3 [(buf.validate.field).uint32.gte = 16];
+  
+  // Output key length in bytes.
+  uint32 output_length = 4 [(buf.validate.field).uint32 = {gte: 16, lte: 512}];
+}
+
+// Argon2Params defines parameters for Argon2 password hashing (RFC 9106).
+// Winner of the Password Hashing Competition (2015).
+// Note: Argon2 is NOT in PKCS#11 v3.0; software-only implementation required.
+message Argon2Params {
+  // Argon2 variant. Default: ARGON2_VARIANT_ID (recommended).
+  Argon2Variant variant = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Argon2 version. Default: 19 (0x13, current version).
+  uint32 version = 2 [(buf.validate.field).uint32.const = 19];
+  
+  // Memory cost in KiB. Default: 65536 (64 MiB).
+  // OWASP recommends at least 19 MiB (19456 KiB) for Argon2id.
+  uint32 memory_kib = 3 [(buf.validate.field).uint32.gte = 19456];
+  
+  // Time cost (iterations/passes). Default: 3.
+  // More iterations = slower but more secure.
+  uint32 iterations = 4 [(buf.validate.field).uint32.gte = 1];
+  
+  // Degree of parallelism. Default: 4.
+  // Number of parallel threads.
+  uint32 parallelism = 5 [(buf.validate.field).uint32 = {gte: 1, lte: 16}];
+  
+  // Salt size in bytes. Default: 16 (128 bits).
+  uint32 salt_size_bytes = 6 [(buf.validate.field).uint32.gte = 16];
+  
+  // Output key length in bytes. Default: 32 (256 bits).
+  uint32 output_length = 7 [(buf.validate.field).uint32.gte = 16];
+}
+
+// ============================================================================
+// MAC Parameters
+// ============================================================================
+
+// HmacParams defines parameters for HMAC (RFC 2104).
+// CycloneDX pattern: HMAC-{hash}
+// PKCS#11 Mechanisms: CKM_SHA256_HMAC, CKM_SHA256_HMAC_GENERAL, etc.
+// PKCS#11 Reference: CK_MAC_GENERAL_PARAMS (for truncated output)
+message HmacParams {
+  // Hash algorithm. Required.
+  // PKCS#11: Mechanism selection (CKM_SHA256_HMAC, CKM_SHA384_HMAC, etc.)
+  HashAlgorithm hash = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Truncate MAC output to this many bits.
+  // Default: 0 (full hash output, recommended).
+  // PKCS#11: CK_MAC_GENERAL_PARAMS for HMAC_GENERAL variants
+  // If set, must be at least half the hash output per RFC 2104.
+  // Valid: 0, 96, 128, 160, 192, 224, 256, 384, 512
+  uint32 truncation_bits = 2 [(buf.validate.field).uint32 = {in: [0, 96, 128, 160, 192, 224, 256, 384, 512]}];
+}
+
+// KmacParams defines parameters for KMAC (NIST SP 800-185).
+// Keccak-based MAC using SHAKE.
+// PKCS#11: No specific KMAC mechanism in v3.0; implemented via SHAKE XOF
+message KmacParams {
+  // KMAC variant: 128 or 256 (security strength in bits).
+  // 128 uses SHAKE128 (CKM_SHAKE128), 256 uses SHAKE256 (CKM_SHAKE256).
+  uint32 variant = 1 [(buf.validate.field).uint32 = {in: [128, 256]}];
+  
+  // Output length in bits.
+  // Default: 256 for KMAC128, 512 for KMAC256.
+  uint32 output_bits = 2 [(buf.validate.field).uint32 = {gte: 128, lte: 4096}];
+  
+  // Optional customization string for domain separation.
+  // KMAC: S parameter in KMAC(K, X, L, S)
+  bytes customization = 3 [(buf.validate.field).bytes.max_len = 1024];
+}
+
+// ============================================================================
+// Key Wrapping Parameters
+// ============================================================================
+
+// AesKeyWrapParams defines parameters for AES-KW and AES-KWP (RFC 3394, RFC 5649).
+// CycloneDX pattern: AES-KW-{keyLength} or AES-KWP-{keyLength}
+// PKCS#11 Mechanisms: CKM_AES_KEY_WRAP, CKM_AES_KEY_WRAP_PAD, CKM_AES_KEY_WRAP_KWP
+// Note: No parameter struct needed for PKCS#11 AES-KW (uses NULL params)
+message AesKeyWrapParams {
+  // Key encryption key (KEK) size in bits. Required. Valid: 128, 192, 256.
+  // PKCS#11: CKA_VALUE_LEN = 16, 24, or 32 bytes
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // Use padding variant (AES-KWP, RFC 5649) instead of standard AES-KW.
+  // PKCS#11: CKM_AES_KEY_WRAP_PAD or CKM_AES_KEY_WRAP_KWP (equivalent)
+  // AES-KWP supports arbitrary payload lengths (1-2^32 bytes).
+  // AES-KW requires payload length to be multiple of 8 bytes (≥16 bytes).
+  bool with_padding = 2;
+}
+
+// ============================================================================
+// ============================================================================
+//
+//              PHASE 1: CORE MISSING ALGORITHMS (PKCS#11 v3.0)
+//
+// ============================================================================
+// ============================================================================
+// These algorithms complete PKCS#11 v3.0 coverage for HSM compatibility.
+// Each message includes PKCS#11 mechanism references for verification.
+
+// ============================================================================
+// Legacy Symmetric Encryption (Phase 1.1)
+// PKCS#11 Reference: pkcs11-hist-v3.0
+// ============================================================================
+
+// TripleDesParams defines parameters for Triple-DES (TDEA) encryption.
+// CycloneDX pattern: 3DES-{keyingOption}-{mode}
+// PKCS#11 Mechanisms: CKM_DES3_ECB, CKM_DES3_CBC, CKM_DES3_CBC_PAD
+// PKCS#11 Key Type: CKK_DES3
+// PKCS#11 Reference Struct: CK_DES_CBC_ENCRYPT_DATA_PARAMS
+// NOTE: NIST deprecated 3DES in 2023 (NIST SP 800-131A Rev 2)
+message TripleDesParams {
+  option deprecated = true;  // NIST deprecated 3DES in 2023
+  
+  // Keying option determines effective security level.
+  // PKCS#11: CKA_VALUE = 16 bytes (2-key) or 24 bytes (3-key)
+  enum KeyingOption {
+    KEYING_OPTION_UNSPECIFIED = 0;
+    TWO_KEY = 1;    // K1||K2||K1 (112-bit effective), CKA_VALUE = 16 bytes
+    THREE_KEY = 2;  // K1||K2||K3 (168-bit effective), CKA_VALUE = 24 bytes
+  }
+  KeyingOption keying_option = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Block cipher mode.
+  // PKCS#11: CKM_DES3_ECB, CKM_DES3_CBC
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    ECB = 1;  // CKM_DES3_ECB - Electronic codebook (not recommended)
+    CBC = 2;  // CKM_DES3_CBC - Cipher block chaining
+  }
+  Mode mode = 2 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // IV size in bits. Required for CBC mode.
+  // PKCS#11: CK_DES_CBC_ENCRYPT_DATA_PARAMS.iv[8] = 64 bits (8 bytes)
+  // 3DES block size is 64 bits.
+  uint32 iv_size_bits = 3 [(buf.validate.field).uint32 = {in: [0, 64]}];
+  
+  // Padding scheme for CBC mode.
+  PaddingScheme padding = 4;
+}
+
+// ============================================================================
+// Classical Digital Signatures (Phase 1.2)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.4 (DSA)
+// ============================================================================
+
+// DsaParams defines parameters for DSA (Digital Signature Algorithm).
+// CycloneDX pattern: DSA-{modulusBits}-{hash}
+// PKCS#11 Mechanisms: CKM_DSA, CKM_DSA_SHA256, CKM_DSA_SHA384, CKM_DSA_SHA512
+// PKCS#11 Key Pair Gen: CKM_DSA_KEY_PAIR_GEN
+// PKCS#11 Reference Struct: CK_DSA_PARAMETER_GEN_PARAM
+// NOTE: L=1024 excluded per NIST SP 800-131A Rev 2 (disallowed after 2023)
+message DsaParams {
+  // Modulus length L in bits.
+  // FIPS 186-4 approved (post-2023): (L=2048, N=224/256) or (L=3072, N=256)
+  // PKCS#11: CKA_PRIME length in bits
+  uint32 modulus_bits = 1 [(buf.validate.field).uint32 = {in: [2048, 3072]}];
+  
+  // Subprime length N in bits.
+  // Must match modulus per FIPS 186-4: 2048→224/256, 3072→256
+  // PKCS#11: CKA_SUBPRIME length in bits
+  uint32 subprime_bits = 2 [(buf.validate.field).uint32 = {in: [224, 256]}];
+  
+  // Hash algorithm for signing.
+  // Must be at least as strong as subprime (N bits).
+  // PKCS#11: Determines mechanism (CKM_DSA_SHA256, etc.)
+  HashAlgorithm hash = 3;
+  
+  // Cross-field validation: modulus/subprime consistency per FIPS 186-4
+  option (buf.validate.message).cel = {
+    id: "dsa_parameter_consistency"
+    message: "DSA parameters must match FIPS 186-4: L=2048→N=224/256, L=3072→N=256"
+    expression: "(this.modulus_bits == 2048u && (this.subprime_bits == 224u || this.subprime_bits == 256u)) || (this.modulus_bits == 3072u && this.subprime_bits == 256u)"
+  };
+}
+
+// ============================================================================
+// Diffie-Hellman Key Agreement (Phase 1.3)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.3 (DH)
+// ============================================================================
+
+// DiffieHellmanParams defines parameters for Diffie-Hellman key agreement.
+// CycloneDX pattern: DH-{variant}-{primeBits}
+// PKCS#11 Mechanisms: CKM_DH_PKCS_DERIVE, CKM_X9_42_DH_DERIVE, CKM_X9_42_MQV_DERIVE
+// PKCS#11 Reference Structs: CK_X9_42_DH1_DERIVE_PARAMS, CK_X9_42_DH2_DERIVE_PARAMS
+message DiffieHellmanParams {
+  // DH variant determines mechanism and capabilities.
+  // PKCS#11: Different mechanisms for each variant
+  enum Variant {
+    VARIANT_UNSPECIFIED = 0;
+    PKCS3 = 1;         // PKCS#3 basic DH (CKM_DH_PKCS_DERIVE)
+    X942 = 2;          // ANSI X9.42 DH with subprime (CKM_X9_42_DH_DERIVE)
+    X942_MQV = 3;      // X9.42 MQV 2-key-pair variant (CKM_X9_42_MQV_DERIVE)
+  }
+  Variant variant = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Prime (p) length in bits.
+  // PKCS#11: CKA_PRIME length, CK_MECHANISM_INFO.ulMinKeySize/ulMaxKeySize
+  // NIST recommended: 2048, 3072, 4096, 6144, 8192
+  uint32 prime_bits = 2 [(buf.validate.field).uint32 = {gte: 2048, lte: 8192}];
+  
+  // Key derivation function to apply to shared secret.
+  // PKCS#11: CK_X9_42_DH_KDF_TYPE enum values
+  enum KdfType {
+    KDF_UNSPECIFIED = 0;
+    KDF_NULL = 1;                  // CKD_NULL - Raw shared secret (z)
+    KDF_SHA1_CONCATENATE = 2;      // CKD_SHA1_KDF_CONCATENATE - X9.42 KDF (legacy)
+    KDF_SHA256_SP800 = 3;          // CKD_SHA256_KDF_SP800 - NIST SP 800-56A
+    KDF_SHA384_SP800 = 4;          // CKD_SHA384_KDF_SP800
+    KDF_SHA512_SP800 = 5;          // CKD_SHA512_KDF_SP800
+  }
+  KdfType kdf = 3;
+  
+  // Optional: private value length limiter (bits).
+  // If set, private key exponent limited to this length.
+  // PKCS#3 allows this for performance/compatibility.
+  uint32 private_value_length_bits = 4;
+}
+
+// ============================================================================
+// NIST SP 800-108 Key Derivation (Phase 1.4)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.35 (SP 800-108)
+// ============================================================================
+
+// Sp800108KdfParams defines parameters for NIST SP 800-108 KDF.
+// CycloneDX pattern: SP800-108-{mode}-{prf}
+// PKCS#11 Mechanisms: CKM_SP800_108_COUNTER_KDF, CKM_SP800_108_FEEDBACK_KDF,
+//                     CKM_SP800_108_DOUBLE_PIPELINE_KDF
+// PKCS#11 Reference Struct: CK_SP800_108_KDF_PARAMS, CK_SP800_108_FEEDBACK_KDF_PARAMS
+message Sp800108KdfParams {
+  // KDF mode.
+  // PKCS#11: Determines mechanism selection
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    COUNTER = 1;           // CKM_SP800_108_COUNTER_KDF
+    FEEDBACK = 2;          // CKM_SP800_108_FEEDBACK_KDF
+    DOUBLE_PIPELINE = 3;   // CKM_SP800_108_DOUBLE_PIPELINE_KDF
+  }
+  Mode mode = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Pseudorandom function (PRF) type.
+  // PKCS#11: CK_SP800_108_PRF_TYPE (uses mechanism types)
+  enum PrfType {
+    PRF_UNSPECIFIED = 0;
+    PRF_HMAC_SHA1 = 1;       // HMAC-SHA1 (legacy)
+    PRF_HMAC_SHA224 = 2;     // HMAC-SHA224
+    PRF_HMAC_SHA256 = 3;     // HMAC-SHA256 (recommended)
+    PRF_HMAC_SHA384 = 4;     // HMAC-SHA384
+    PRF_HMAC_SHA512 = 5;     // HMAC-SHA512
+    PRF_HMAC_SHA3_224 = 6;   // HMAC-SHA3-224
+    PRF_HMAC_SHA3_256 = 7;   // HMAC-SHA3-256
+    PRF_HMAC_SHA3_384 = 8;   // HMAC-SHA3-384
+    PRF_HMAC_SHA3_512 = 9;   // HMAC-SHA3-512
+    PRF_AES_CMAC = 10;       // AES-CMAC
+    PRF_DES3_CMAC = 11;      // 3DES-CMAC
+  }
+  PrfType prf = 2 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Derived key material length in bytes.
+  uint32 derived_key_length_bytes = 3 [(buf.validate.field).uint32 = {gte: 16, lte: 512}];
+  
+  // Counter format (for COUNTER mode only).
+  // PKCS#11: CK_SP800_108_COUNTER_FORMAT
+  message CounterFormat {
+    bool little_endian = 1;  // Byte order (false = big endian)
+    uint32 width_bits = 2 [(buf.validate.field).uint32 = {in: [8, 16, 24, 32]}];
+  }
+  CounterFormat counter_format = 4;
+  
+  // Initial value for FEEDBACK mode.
+  // PKCS#11: CK_SP800_108_FEEDBACK_KDF_PARAMS.pIV
+  // Required when mode = FEEDBACK, optional otherwise.
+  // Length should match PRF output length.
+  uint32 iv_length_bytes = 5;
+}
+
+// ============================================================================
+// TLS 1.2 Key Derivation (Phase 1.5)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.33 (TLS)
+// ============================================================================
+
+// Tls12Params defines parameters for TLS 1.2 cryptographic mechanisms.
+// CycloneDX pattern: TLS12-{operation}-{prfHash}
+// PKCS#11 Mechanisms: CKM_TLS12_MASTER_KEY_DERIVE, CKM_TLS12_KEY_AND_MAC_DERIVE,
+//                     CKM_TLS12_KDF, CKM_TLS12_MAC
+// PKCS#11 Reference Structs: CK_TLS12_MASTER_KEY_DERIVE_PARAMS, CK_TLS12_KEY_MAT_PARAMS,
+//                            CK_SSL3_RANDOM_DATA
+message Tls12Params {
+  // TLS operation type.
+  // PKCS#11: Determines mechanism selection
+  enum Operation {
+    OPERATION_UNSPECIFIED = 0;
+    MASTER_KEY_DERIVE = 1;       // CKM_TLS12_MASTER_KEY_DERIVE
+    KEY_AND_MAC_DERIVE = 2;      // CKM_TLS12_KEY_AND_MAC_DERIVE
+    KDF = 3;                     // CKM_TLS12_KDF (RFC 5705 exporter)
+    MAC = 4;                     // CKM_TLS12_MAC (Finished message)
+  }
+  Operation operation = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // PRF hash mechanism.
+  // TLS 1.2 requires explicit PRF: SHA-256 (default) or SHA-384.
+  // PKCS#11: CK_TLS12_MASTER_KEY_DERIVE_PARAMS.prfHashMechanism
+  HashAlgorithm prf_hash = 2 [(buf.validate.field).enum = {in: [0, 1, 2]}];  // UNSPEC, SHA256, SHA384
+  
+  // RandomInfo from TLS handshake.
+  // PKCS#11: CK_SSL3_RANDOM_DATA embedded in TLS12 params
+  message RandomInfo {
+    // Client random value (32 bytes).
+    // PKCS#11: CK_SSL3_RANDOM_DATA.pClientRandom (ulClientRandomLen = 32)
+    uint32 client_random_length = 1 [(buf.validate.field).uint32.const = 32];
+    
+    // Server random value (32 bytes).
+    // PKCS#11: CK_SSL3_RANDOM_DATA.pServerRandom (ulServerRandomLen = 32)
+    uint32 server_random_length = 2 [(buf.validate.field).uint32.const = 32];
+  }
+  RandomInfo random_info = 3;
+  
+  // For KEY_AND_MAC_DERIVE: cipher suite parameters.
+  // PKCS#11: CK_TLS12_KEY_MAT_PARAMS fields
+  message KeyMaterialParams {
+    uint32 mac_size_bits = 1;    // ulMacSizeInBits
+    uint32 key_size_bits = 2;    // ulKeySizeInBits
+    uint32 iv_size_bits = 3;     // ulIVSizeInBits
+  }
+  KeyMaterialParams key_material = 4;
+}
+
+// ============================================================================
+// CMAC (Cipher-based MAC) (Phase 1.6)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.9 (AES), 2.10 (DES)
+// ============================================================================
+
+// CmacParams defines parameters for CMAC (NIST SP 800-38B).
+// CycloneDX pattern: {cipher}-CMAC-{outputBits}
+// PKCS#11 Mechanisms: CKM_AES_CMAC, CKM_AES_CMAC_GENERAL, CKM_DES3_CMAC, CKM_DES3_CMAC_GENERAL
+// PKCS#11 Reference: CK_MAC_GENERAL_PARAMS (for GENERAL variants)
+message CmacParams {
+  // Block cipher for CMAC.
+  // PKCS#11: CKM_AES_CMAC (128-bit block) or CKM_DES3_CMAC (64-bit block)
+  enum BlockCipher {
+    BLOCK_CIPHER_UNSPECIFIED = 0;
+    AES = 1;       // AES-CMAC (128-bit block, recommended)
+    DES3 = 2;      // 3DES-CMAC (64-bit block, legacy)
+  }
+  BlockCipher cipher = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Key size in bits.
+  // AES: 128, 192, or 256 bits
+  // 3DES: 128 (2-key) or 192 (3-key) bits
+  uint32 key_size_bits = 2 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // Output tag length in bits.
+  // 0 = full block size (128 for AES, 64 for 3DES)
+  // PKCS#11: CK_MAC_GENERAL_PARAMS for custom output length
+  // Must not exceed cipher block size.
+  uint32 output_bits = 3;
+  
+  // Cross-field validation: output_bits ≤ cipher block size
+  option (buf.validate.message).cel = {
+    id: "cmac_output_vs_cipher"
+    message: "CMAC output must not exceed cipher block size (128 for AES, 64 for 3DES)"
+    expression: "(this.cipher == 1 && (this.output_bits <= 128u || this.output_bits == 0u)) || (this.cipher == 2 && (this.output_bits <= 64u || this.output_bits == 0u))"
+  };
+}
+
+// ============================================================================
+// AES Additional Modes (Phase 1.7)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.9 (AES)
+// ============================================================================
+
+// AesCcmParams defines parameters for AES-CCM (Counter with CBC-MAC).
+// CycloneDX pattern: AES-{keyLength}-CCM-{tagLength}
+// PKCS#11 Mechanism: CKM_AES_CCM
+// PKCS#11 Reference Struct: CK_CCM_PARAMS
+message AesCcmParams {
+  // Key size in bits.
+  // PKCS#11: CKA_VALUE_LEN = 16, 24, or 32 bytes
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // Nonce length in bytes (7-13 bytes per NIST SP 800-38C).
+  // PKCS#11: CK_CCM_PARAMS.ulNonceLen (7-13)
+  // Trade-off: longer nonce = shorter max message
+  //   13 bytes nonce → 2 bytes counter (max 64KB message)
+  //   7 bytes nonce → 8 bytes counter (max 16 EB message)
+  uint32 nonce_size_bytes = 2 [(buf.validate.field).uint32 = {gte: 7, lte: 13}];
+  
+  // MAC tag length in bytes.
+  // PKCS#11: CK_CCM_PARAMS.ulMACLen (4, 6, 8, 10, 12, 14, 16)
+  // Per NIST SP 800-38C: only these even values are valid.
+  uint32 tag_size_bytes = 3 [(buf.validate.field).uint32 = {in: [4, 6, 8, 10, 12, 14, 16]}];
+}
+
+// AesXtsParams defines parameters for AES-XTS (XEX-based Tweaked Codebook mode).
+// CycloneDX pattern: AES-{keyLength}-XTS
+// PKCS#11 Mechanism: CKM_AES_XTS
+// PKCS#11 Key Type: CKK_AES_XTS
+// PKCS#11 Reference Struct: CK_AES_XTS_PARAMS
+// Primary use case: Disk/storage encryption
+message AesXtsParams {
+  // Key size in bits (total for both XTS keys).
+  // NOTE: AES-XTS uses TWO keys internally (key1 || key2)
+  // PKCS#11: CKA_VALUE = 32 bytes (AES-128-XTS) or 64 bytes (AES-256-XTS)
+  // "AES-256-XTS" means 512-bit total key (2 × 256-bit keys)
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [256, 512]}];
+  
+  // Tweak (sector address) size in bytes.
+  // PKCS#11: CK_AES_XTS_PARAMS.ulTweakLen (typically 16)
+  // Per NIST SP 800-38E: Tweak is 128 bits (16 bytes)
+  uint32 tweak_size_bytes = 2 [(buf.validate.field).uint32.const = 16];
+  
+  // Data unit size in bytes (optional).
+  // PKCS#11: CK_AES_XTS_PARAMS.ulDataUnitLen
+  // 0 = single data unit, 512/4096 = common sector sizes
+  uint32 data_unit_size_bytes = 3;
+}
+
+// Poly1305Params defines parameters for standalone Poly1305 authenticator.
+// CycloneDX pattern: Poly1305
+// Note: Usually combined with ChaCha20, but PKCS#11 allows standalone.
+// Key: 256 bits (32 bytes), Output: 128 bits (16 bytes)
+// WARNING: One-time authenticator - key/nonce must NEVER repeat
+message Poly1305Params {
+  // Poly1305 has fixed parameters - this message exists for API consistency.
+  // Key size is always 256 bits (32 bytes)
+  // Output is always 128 bits (16 bytes)
+}
+
+// ============================================================================
+// ============================================================================
+//
+//              PHASE 2: REGIONAL STANDARDS (PKCS#11 v3.0)
+//
+// ============================================================================
+// ============================================================================
+// Regional cryptographic standards for specific markets.
+// PKCS#11 Reference: pkcs11-curr-v3.0 (Camellia, ARIA, SEED, GOST)
+
+// ============================================================================
+// Asian Regional Standards (Phase 2.1-2.3)
+// ============================================================================
+
+// CamelliaParams defines parameters for Camellia cipher (Japan/EU).
+// CycloneDX pattern: Camellia-{keyLength}-{mode}
+// PKCS#11 Mechanisms: CKM_CAMELLIA_ECB, CKM_CAMELLIA_CBC, CKM_CAMELLIA_CTR
+// PKCS#11 Key Type: CKK_CAMELLIA
+// PKCS#11 Reference Struct: CK_CAMELLIA_CTR_PARAMS, CK_CAMELLIA_CBC_ENCRYPT_DATA_PARAMS
+// Standards: ISO/IEC 18033-3, RFC 3713
+message CamelliaParams {
+  // Key size in bits.
+  // PKCS#11: CKA_VALUE_LEN = 16, 24, or 32 bytes
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // Block cipher mode.
+  // PKCS#11: CKM_CAMELLIA_ECB, CKM_CAMELLIA_CBC, CKM_CAMELLIA_CTR
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    ECB = 1;   // CKM_CAMELLIA_ECB
+    CBC = 2;   // CKM_CAMELLIA_CBC
+    CTR = 3;   // CKM_CAMELLIA_CTR
+  }
+  Mode mode = 2 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // IV size in bits. 128 for CBC/CTR (block size), 0 for ECB.
+  // Camellia uses 128-bit block size (same as AES).
+  uint32 iv_size_bits = 3 [(buf.validate.field).uint32 = {in: [0, 128]}];
+  
+  // Counter bits for CTR mode (1-128).
+  // PKCS#11: CK_CAMELLIA_CTR_PARAMS.ulCounterBits
+  // Specifies how many rightmost bits of the counter block to increment.
+  uint32 counter_bits = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 128}];
+  
+  // Padding scheme for CBC mode.
+  PaddingScheme padding = 5;
+}
+
+// AriaParams defines parameters for ARIA cipher (Korean standard).
+// CycloneDX pattern: ARIA-{keyLength}-{mode}
+// PKCS#11 Mechanisms: CKM_ARIA_ECB, CKM_ARIA_CBC, CKM_ARIA_MAC
+// PKCS#11 Key Type: CKK_ARIA
+// PKCS#11 Reference Struct: CK_ARIA_CBC_ENCRYPT_DATA_PARAMS
+// Standards: KS X 1213, RFC 5794
+message AriaParams {
+  // Key size in bits.
+  // PKCS#11: CKA_VALUE_LEN = 16, 24, or 32 bytes
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // Block cipher mode.
+  // PKCS#11: CKM_ARIA_ECB, CKM_ARIA_CBC
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    ECB = 1;   // CKM_ARIA_ECB
+    CBC = 2;   // CKM_ARIA_CBC
+  }
+  Mode mode = 2 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // IV size in bits. 128 for CBC (block size), 0 for ECB.
+  // ARIA uses 128-bit block size (same as AES).
+  uint32 iv_size_bits = 3 [(buf.validate.field).uint32 = {in: [0, 128]}];
+  
+  // Padding scheme for CBC mode.
+  PaddingScheme padding = 4;
+}
+
+// SeedParams defines parameters for SEED cipher (Korean standard).
+// CycloneDX pattern: SEED-{mode}
+// PKCS#11 Mechanisms: CKM_SEED_ECB, CKM_SEED_CBC, CKM_SEED_MAC
+// PKCS#11 Key Type: CKK_SEED
+// Standards: KISA SEED, RFC 4269
+// NOTE: SEED only supports 128-bit keys (fixed)
+message SeedParams {
+  // Key size is FIXED at 128 bits (16 bytes).
+  // PKCS#11: CKA_VALUE_LEN = 16 (always)
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32.const = 128];
+  
+  // Block cipher mode.
+  // PKCS#11: CKM_SEED_ECB, CKM_SEED_CBC
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    ECB = 1;   // CKM_SEED_ECB
+    CBC = 2;   // CKM_SEED_CBC
+  }
+  Mode mode = 2 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // IV size in bits. 128 for CBC (block size), 0 for ECB.
+  // SEED uses 128-bit block size.
+  uint32 iv_size_bits = 3 [(buf.validate.field).uint32 = {in: [0, 128]}];
+  
+  // Padding scheme for CBC mode.
+  PaddingScheme padding = 4;
+}
+
+// ============================================================================
+// Russian Standards - GOST Family (Phase 2.4)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.34 (GOST)
+// ============================================================================
+
+// Gost28147Params defines parameters for GOST 28147-89 block cipher.
+// CycloneDX pattern: GOST28147-{mode}
+// PKCS#11 Mechanisms: CKM_GOST28147_ECB, CKM_GOST28147, CKM_GOST28147_MAC
+// PKCS#11 Key Type: CKK_GOST28147
+// NOTE: Block size is 64 bits (smaller than AES's 128 bits)
+// NOTE: Key size is fixed at 256 bits
+message Gost28147Params {
+  // Block cipher mode.
+  // PKCS#11: CKM_GOST28147_ECB, CKM_GOST28147 (CFB is default naming)
+  enum Mode {
+    MODE_UNSPECIFIED = 0;
+    ECB = 1;   // CKM_GOST28147_ECB
+    CBC = 2;   // CKM_GOST28147 cipher feedback variant
+    CFB = 3;   // Cipher Feedback mode
+  }
+  Mode mode = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // IV size in bits. 64 for CBC/CFB (64-bit block size), 0 for ECB.
+  // GOST 28147-89 uses 64-bit block size.
+  uint32 iv_size_bits = 2 [(buf.validate.field).uint32 = {in: [0, 64]}];
+  
+  // S-box parameter set OID (Russian regulatory requirement).
+  // PKCS#11: CKA_GOST28147_PARAMS
+  // Common: "id-Gost28147-89-CryptoPro-A-ParamSet" (1.2.643.2.2.31.1)
+  string sbox_oid = 3 [(buf.validate.field).string.max_len = 128];
+}
+
+// Gost3411Params defines parameters for GOST R 34.11-94 hash function.
+// CycloneDX pattern: GOSTR3411-94
+// PKCS#11 Mechanism: CKM_GOSTR3411
+// NOTE: Output is fixed at 256 bits
+message Gost3411Params {
+  // Initial hash value (IHV) customization (optional).
+  // Most implementations use default IHV.
+  bytes initial_value = 1 [(buf.validate.field).bytes.max_len = 32];
+}
+
+// Gost3410Params defines parameters for GOST R 34.10-2001/2012 digital signature.
+// CycloneDX pattern: GOSTR3410-{year}
+// PKCS#11 Mechanisms: CKM_GOSTR3410, CKM_GOSTR3410_WITH_GOSTR3411
+// PKCS#11 Key Types: CKK_GOSTR3410, CKK_GOSTR3410_512
+// PKCS#11 Reference Struct: CK_GOSTR3410_DERIVE_PARAMS
+message Gost3410Params {
+  // Algorithm version/year.
+  enum Version {
+    VERSION_UNSPECIFIED = 0;
+    GOST_2001 = 1;   // GOST R 34.10-2001 (256-bit keys)
+    GOST_2012 = 2;   // GOST R 34.10-2012 (256 or 512-bit keys)
+  }
+  Version version = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // Key size in bits.
+  // GOST 2001: 256 bits only
+  // GOST 2012: 256 or 512 bits
+  uint32 key_size_bits = 2 [(buf.validate.field).uint32 = {in: [256, 512]}];
+  
+  // Parameter set OID (Russian regulatory requirement).
+  // PKCS#11: CKA_GOSTR3410_PARAMS
+  // Example: "1.2.643.2.2.35.1" (CryptoPro-A)
+  string parameter_set_oid = 3 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  
+  // Digest parameter set OID (links to GOST R 34.11).
+  // PKCS#11: CKA_GOSTR3411_PARAMS
+  string digest_param_set_oid = 4 [(buf.validate.field).string.max_len = 64];
+  
+  // Cross-field validation: GOST 2001 only supports 256-bit keys
+  option (buf.validate.message).cel = {
+    id: "gost_version_key_size"
+    message: "GOST R 34.10-2001 only supports 256-bit keys; 512-bit requires GOST 2012"
+    expression: "this.version != 1 || this.key_size_bits == 256u"
+  };
+}
+
+// ============================================================================
+// ============================================================================
+//
+//              PHASE 3: LEGACY & SPECIALIZED (PKCS#11 v3.0)
+//
+// ============================================================================
+// ============================================================================
+// Legacy algorithms for compatibility and specialized protocols.
+// PKCS#11 Reference: pkcs11-curr-v3.0 (OTP), pkcs11-hist-v3.0 (legacy ciphers)
+
+// ============================================================================
+// OTP (One-Time Password) (Phase 3.1)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.36 (OTP)
+// ============================================================================
+
+// HotpParams defines parameters for HOTP (HMAC-based One-Time Password).
+// CycloneDX pattern: HOTP-{hash}-{digits}
+// PKCS#11 Mechanisms: CKM_HOTP_KEY_GEN, CKM_HOTP
+// PKCS#11 Key Type: CKK_HOTP
+// PKCS#11 Reference Struct: CK_OTP_PARAMS, CK_OTP_PARAM
+// Standards: RFC 4226
+message HotpParams {
+  // Hash algorithm for HMAC.
+  // PKCS#11: Part of key attributes (typically SHA-1 per RFC 4226)
+  // Standard uses SHA-1, but SHA-256/512 are supported.
+  HashAlgorithm hash = 1;
+  
+  // Number of digits in OTP output (6 or 8).
+  // PKCS#11: CK_OTP_OUTPUT_LENGTH (CK_OTP_PARAM with type=CK_OTP_OUTPUT_LENGTH)
+  uint32 digits = 2 [(buf.validate.field).uint32 = {in: [6, 8]}];
+  
+  // Initial counter value.
+  // PKCS#11: CK_OTP_COUNTER attribute on key (CK_OTP_PARAM with type=CK_OTP_COUNTER)
+  uint64 counter_start = 3;
+}
+
+// TotpParams defines parameters for TOTP (Time-based One-Time Password).
+// CycloneDX pattern: TOTP-{hash}-{digits}-{timeStep}
+// PKCS#11: Uses CKM_HOTP with time-based counter (CK_OTP_TIME param)
+// PKCS#11 Reference Struct: CK_OTP_PARAMS with CK_OTP_TIME parameter
+// Standards: RFC 6238
+message TotpParams {
+  // Hash algorithm for HMAC.
+  // Standard uses SHA-1, but SHA-256/512 are supported.
+  HashAlgorithm hash = 1;
+  
+  // Number of digits in OTP output (6 or 8).
+  // PKCS#11: CK_OTP_OUTPUT_LENGTH
+  uint32 digits = 2 [(buf.validate.field).uint32 = {in: [6, 8]}];
+  
+  // Time step in seconds (default: 30).
+  // PKCS#11: CK_OTP_TIME attribute handling
+  uint32 time_step_seconds = 3 [(buf.validate.field).uint32 = {gte: 1, lte: 300}];
+  
+  // Unix epoch start time T0 (default: 0).
+  uint64 t0 = 4;
+}
+
+// ============================================================================
+// Signal Protocol (Phase 3.2)
+// PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.42 (X3DH)
+// ============================================================================
+
+// X3dhParams defines parameters for Extended Triple Diffie-Hellman (X3DH).
+// CycloneDX pattern: X3DH
+// PKCS#11 Mechanisms: CKM_X3DH_INITIALIZE, CKM_X3DH_RESPOND
+// PKCS#11 Reference Structs: CK_X3DH_INITIATE_PARAMS, CK_X3DH_RESPOND_PARAMS
+// Used in: Signal Protocol, Matrix, Wire
+message X3dhParams {
+  // Role in X3DH handshake.
+  // PKCS#11: CKM_X3DH_INITIALIZE (initiator), CKM_X3DH_RESPOND (responder)
+  enum Role {
+    ROLE_UNSPECIFIED = 0;
+    INITIATOR = 1;   // Alice (initiates handshake)
+    RESPONDER = 2;   // Bob (responds with signed prekey)
+  }
+  Role role = 1 [(buf.validate.field).enum = {not_in: [0]}];
+  
+  // KDF for final shared secret derivation.
+  // PKCS#11: CK_X3DH_KDF_TYPE (CKD_X3DH_KDF_SHA256, etc.)
+  enum X3dhKdfType {
+    X3DH_KDF_UNSPECIFIED = 0;
+    X3DH_KDF_SHA256 = 1;       // CKD_X3DH_KDF_SHA256
+    X3DH_KDF_SHA512 = 2;       // CKD_X3DH_KDF_SHA512
+    X3DH_KDF_BLAKE2B_256 = 3;  // CKD_X3DH_KDF_BLAKE2B_256
+    X3DH_KDF_BLAKE2B_512 = 4;  // CKD_X3DH_KDF_BLAKE2B_512
+  }
+  X3dhKdfType kdf = 2;
+}
+
+// ============================================================================
+// Legacy Block Ciphers (Phase 3.3)
+// PKCS#11 Reference: pkcs11-hist-v3.0
+// ============================================================================
+
+// BlowfishParams defines parameters for Blowfish cipher.
+// CycloneDX pattern: Blowfish-{keyLength}-CBC
+// NOTE: Superseded by AES - use for legacy compatibility only
+// Block size: 64 bits, Key size: 32-448 bits
+message BlowfishParams {
+  option deprecated = true;  // Superseded by AES
+  
+  // Key size in bits (variable: 32-448).
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {gte: 32, lte: 448}];
+  
+  // IV size in bits. Fixed at 64 (block size).
+  uint32 iv_size_bits = 2 [(buf.validate.field).uint32.const = 64];
+  
+  // Padding scheme.
+  PaddingScheme padding = 3;
+}
+
+// TwofishParams defines parameters for Twofish cipher.
+// CycloneDX pattern: Twofish-{keyLength}-CBC
+// AES finalist - similar security level to AES.
+// Block size: 128 bits, Key size: 128/192/256 bits
+message TwofishParams {
+  // Key size in bits.
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
+  
+  // IV size in bits. Fixed at 128 (block size).
+  uint32 iv_size_bits = 2 [(buf.validate.field).uint32.const = 128];
+  
+  // Padding scheme.
+  PaddingScheme padding = 3;
+}
+
+// ============================================================================
+// Custom/Extensible Algorithm Parameters
+// ============================================================================
+
+// CustomAlgorithm provides an escape hatch for:
+// - Vendor-specific algorithms not in the standard catalog
+// - Future algorithms before formal proto schema support
+// - Experimental or non-standard cryptographic schemes
+//
+// Use cases:
+// - HSM vendor's proprietary algorithm (use KEY_TYPE_VENDOR)
+// - Pre-standard PQC algorithms during transition (use KEY_TYPE_PQ_EXPERIMENTAL)
+// - Custom hybrid schemes (use KEY_TYPE_CUSTOM or KEY_TYPE_HYBRID)
+//
+// Key Type Selection:
+// - KEY_TYPE_VENDOR (100): Vendor-specific HSM/KMS algorithms
+// - KEY_TYPE_PQ_EXPERIMENTAL (101): Pre-standard PQ algorithms (BIKE, HQC, McEliece)
+// - KEY_TYPE_CUSTOM (199): Any other custom algorithm
+//
+// IMPORTANT: Implementations SHOULD validate custom algorithms against
+// an allow-list in policy configuration.
+//
+// Example for pre-standard PQ KEM (Classic McEliece):
+//   CustomAlgorithm {
+//     vendor: "pqcrypto"
+//     name: "Classic-McEliece-6960119"
+//     key_type: KEY_TYPE_PQ_EXPERIMENTAL
+//     key_size_bits: 13568  // public key bits
+//     generic_params: {"n": 6960, "t": 119}
+//   }
+//
+// This keeps CustomAlgorithm focused on algorithm-specific data only.
+message CustomAlgorithm {
+  // Vendor identifier (e.g., "ibm", "thales", "aws").
+  // Empty string for non-vendor-specific algorithms.
+  string vendor = 1 [(buf.validate.field).string.max_len = 64];
+  
+  // Algorithm name (e.g., "AES_GCM_SIV", "XMSS", "LMS").
+  // Should follow consistent naming conventions.
+  string name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
+  
+  // Key type for this algorithm.
+  // Required for DeriveMetadata to determine key_type.
+  KeyType key_type = 3;
+  
+  // Key size in bits (if applicable).
+  // Required for DeriveMetadata to determine key_size_bits.
+  // Set to 0 if not applicable or variable.
+  uint32 key_size_bits = 4;
+  
+  // Algorithm parameters.
+  // Use generic_params for simple cases, typed_params for vendor-defined messages.
+  oneof params {
+    // Unstructured parameters as JSON-like key-value pairs.
+    // Use for simple cases or unknown parameter sets.
+    // Example: {"iv_size": 128, "mode": "SIV"}
+    google.protobuf.Struct generic_params = 10;
+    
+    // Strongly-typed parameters using Any.
+    // Allows vendors to define their own parameter messages.
+    // The type URL identifies the parameter message type.
+    // Example: type.googleapis.com/vendor.crypto.CustomCipherParams
+    google.protobuf.Any typed_params = 11;
+  }
+}
+
+// VendorAlgorithmRegistry allows vendors to register their algorithm definitions.
+// This can be loaded from vendor-specific JSON/YAML configuration files.
+//
+// Usage:
+// 1. Vendor publishes registry file with their algorithms
+// 2. CaaS loads registry at startup
+// 3. Templates can reference vendor algorithms via CustomAlgorithm
+message VendorAlgorithmRegistry {
+  // Vendor identifier (must match CustomAlgorithm.vendor).
+  string vendor_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  
+  // Vendor display name.
+  string vendor_name = 2 [(buf.validate.field).string.max_len = 256];
+  
+  // Vendor-specific algorithm definitions.
+  // Key is the algorithm name (e.g., "VENDOR_AES_GCM_SIV").
+  map<string, CustomAlgorithm> algorithms = 3;
+  
+  // Version of this vendor registry (semver recommended).
+  string version = 4 [(buf.validate.field).string.max_len = 32];
+  
+  // Human-readable description of the vendor's crypto offerings.
+  string description = 5 [(buf.validate.field).string.max_len = 2048];
+  
+  // Contact URL for vendor support.
+  string support_url = 6 [(buf.validate.field).string.max_len = 512];
+}

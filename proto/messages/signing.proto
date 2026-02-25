@@ -1,0 +1,344 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "messages/metadata.proto";
+import "types/algorithm_params.proto";
+import "types/common.proto";
+import "types/operation_params.proto";
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Signing/Verification Messages
+// ============================================================================
+
+message SignRequest {
+  string key_name = 1;
+  bytes input = 2;
+  
+  // Scope-based context parameters for domain separation.
+  // REQUIRED: Always set one option to make intent explicit.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 3;                      // Classical signatures (ECDSA, RSA-PSS, DSA)
+    SignatureDomainContext domain_context = 4;     // Context-bearing signatures (EdDSA, ML-DSA, SLH-DSA)
+    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message SignResponse {
+  bytes signature = 1;
+  OperationMetadata metadata = 2;
+}
+
+message VerifyRequest {
+  string key_name = 1;
+  bytes input = 2;
+  bytes signature = 3;
+  // Operation metadata from sign response.
+  // Contains key_version to ensure correct key is used for verification.
+  OperationMetadata metadata = 4;
+  
+  // Must match scope used during signing.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 5;                      // Classical signatures
+    SignatureDomainContext domain_context = 6;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 7;     // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message VerifyResponse {
+  bool valid = 1;
+  OperationMetadata metadata = 2;
+}
+
+message DigestSignRequest {
+  string key_name = 1;
+  bytes digest = 2;
+  
+  // Scope-based context (same as SignRequest).
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 3;                      // Classical signatures
+    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+  }
+  
+  // Hash algorithm used to compute the digest - REQUIRED.
+  // Declares which hash algorithm was used to produce the digest bytes.
+  //
+  // Security purpose:
+  //   1. Digest size validation (prevents policy bypass - SHA-1 digest can't claim to be SHA-256)
+  //   2. Policy enforcement (reject weak hash algorithms like SHA-1, MD5)
+  //   3. Audit trail (returned in OperationMetadata.used_hash_algorithm)
+  //
+  // The service validates that len(digest) matches the output size of this algorithm.
+  // Example: SHA-256 → 32 bytes, SHA-384 → 48 bytes, SHA-512 → 64 bytes
+  //
+  // PKCS#11 Reference: CKM_ECDSA (prehashed) vs CKM_ECDSA_SHA256 (hash-then-sign)
+  HashAlgorithm hash_algorithm = 6;
+  
+  // Optional: OID of the hash algorithm for extensibility.
+  // Use when hash_algorithm is HASH_ALGORITHM_OTHER or for explicit OID-based validation.
+  // Example: "2.16.840.1.101.3.4.2.1" for SHA-256, "2.16.840.1.101.3.4.2.8" for SHA3-256
+  //
+  // When both are specified, service validates they match.
+  // When only OID is specified with HASH_ALGORITHM_OTHER, service uses OID for validation.
+  string hash_algorithm_oid = 7;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DigestSignResponse {
+  bytes signature = 1;
+  OperationMetadata metadata = 2;
+}
+
+message DigestVerifyRequest {
+  string key_name = 1;
+  bytes digest = 2;
+  bytes signature = 3;
+  // Operation metadata from digest sign response.
+  // Contains key_version to ensure correct key is used for verification.
+  OperationMetadata metadata = 4;
+  
+  // Must match scope used during signing.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 5;                      // Classical signatures
+    SignatureDomainContext domain_context = 6;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 7;     // Vendor/custom scope
+  }
+
+  // Hash algorithm used to compute the digest - REQUIRED.
+  // Must match the hash_algorithm from the corresponding DigestSignRequest.
+  //
+  // Security purpose:
+  //   1. Digest size validation (SHA-1 digest can't claim to be SHA-256)
+  //   2. Policy enforcement (reject verification with weak hash algorithms)
+  //   3. Audit trail (record which hash was claimed during verification)
+  //
+  // The service validates that len(digest) matches the output size of this algorithm.
+  HashAlgorithm hash_algorithm = 8;
+
+  // Optional: OID of the hash algorithm for extensibility.
+  // Same semantics as DigestSignRequest.hash_algorithm_oid.
+  string hash_algorithm_oid = 9;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DigestVerifyResponse {
+  bool valid = 1;
+  OperationMetadata metadata = 2;
+}
+
+// Multi-part signing
+message SignInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Scope-based context for domain separation.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 3;                      // Classical signatures
+    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message SignInitResponse {
+  bool success = 1;
+}
+
+message SignUpdateRequest {
+  string operation_id = 1;
+  bytes data_chunk = 2;
+}
+
+message SignUpdateResponse {
+  bool success = 1;
+}
+
+message SignFinalRequest {
+  string operation_id = 1;
+}
+
+message SignFinalResponse {
+  bytes signature = 1;
+  OperationMetadata metadata = 2;
+}
+
+message VerifyInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Must match scope used during signing.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 3;                      // Classical signatures
+    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message VerifyInitResponse {
+  bool success = 1;
+}
+
+message VerifyUpdateRequest {
+  string operation_id = 1;
+  bytes data_chunk = 2;
+}
+
+message VerifyUpdateResponse {
+  bool success = 1;
+}
+
+message VerifyFinalRequest {
+  string operation_id = 1;
+  bytes signature = 2;
+}
+
+message VerifyFinalResponse {
+  bool valid = 1;
+  OperationMetadata metadata = 2;
+}
+
+// Message-based signing
+message SignMessageInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Scope-based context for domain separation.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 3;                      // Classical signatures
+    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message SignMessageInitResponse {
+  bool success = 1;
+}
+
+message SignMessageRequest {
+  string key_name = 1;
+  bytes message = 2;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message SignMessageResponse {
+  bytes signature = 1;
+  OperationMetadata metadata = 2;
+}
+
+message SignMessageBeginRequest {
+  string operation_id = 1;
+}
+
+message SignMessageBeginResponse {
+  bool success = 1;
+}
+
+message SignMessageNextRequest {
+  string operation_id = 1;
+  bytes message_chunk = 2;
+}
+
+message SignMessageNextResponse {
+  bool success = 1;
+}
+
+message SignMessageFinalRequest {
+  string operation_id = 1;
+}
+
+message SignMessageFinalResponse {
+  bytes signature = 1;
+  OperationMetadata metadata = 2;
+}
+
+message VerifyMessageInitRequest {
+  string key_name = 1;
+  string operation_id = 2;
+
+  // Must match scope used during signing.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_context = 3;                      // Classical signatures
+    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message VerifyMessageInitResponse {
+  bool success = 1;
+}
+
+message VerifyMessageRequest {
+  string key_name = 1;
+  bytes message = 2;
+  bytes signature = 3;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message VerifyMessageResponse {
+  bool valid = 1;
+  OperationMetadata metadata = 2;
+}
+
+message VerifyMessageBeginRequest {
+  string operation_id = 1;
+}
+
+message VerifyMessageBeginResponse {
+  bool success = 1;
+}
+
+message VerifyMessageNextRequest {
+  string operation_id = 1;
+  bytes message_chunk = 2;
+}
+
+message VerifyMessageNextResponse {
+  bool success = 1;
+}
+
+message VerifyMessageFinalRequest {
+  string operation_id = 1;
+  bytes signature = 2;
+}
+
+message VerifyMessageFinalResponse {
+  bool valid = 1;
+  OperationMetadata metadata = 2;
+}

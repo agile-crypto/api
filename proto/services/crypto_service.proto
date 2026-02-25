@@ -1,0 +1,658 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/services;services";
+
+import "google/api/annotations.proto";
+import "messages/key_management.proto";
+import "messages/encryption.proto";
+import "messages/signing.proto";
+import "messages/digest.proto";
+import "messages/key_derivation.proto";
+import "messages/key_encapsulation.proto";
+import "messages/key_wrapping.proto";
+import "messages/mac.proto";
+import "messages/random.proto";
+import "messages/policy.proto";
+
+// ============================================================================
+// Cryptographic Service - Main API
+// ============================================================================
+// 
+// This service provides cryptographic operations with:
+// - Scope-based selection (policy determines template)
+// - Explicit template_id selection (discovered via DiscoveryService)
+// - All PKCS#11 mechanisms covered
+// - Multi-part and message-based operations for streaming
+// - Algorithm-agnostic serialization via OperationMetadata
+
+service CryptoService {
+  // ==================== Key Management ====================
+  rpc CreateKey(CreateKeyRequest) returns (CreateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}"
+      body: "*"
+    };
+  }
+
+  rpc ReadKey(ReadKeyRequest) returns (ReadKeyResponse) {
+    option (google.api.http) = {
+      get: "/v1/keys/{name}"
+    };
+  }
+
+  rpc ListKeys(ListKeysRequest) returns (ListKeysResponse) {
+    option (google.api.http) = {
+      get: "/v1/keys"
+    };
+  }
+
+  rpc DeleteKey(DeleteKeyRequest) returns (DeleteKeyResponse) {
+    option (google.api.http) = {
+      delete: "/v1/keys/{name}"
+    };
+  }
+
+  rpc RotateKey(RotateKeyRequest) returns (RotateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/rotate"
+      body: "*"
+    };
+  }
+
+  rpc TransformKey(TransformKeyRequest) returns (TransformKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/transform"
+      body: "*"
+    };
+  }
+
+  rpc UpdateKeyPolicy(UpdateKeyPolicyRequest) returns (UpdateKeyPolicyResponse) {
+    option (google.api.http) = {
+      put: "/v1/keys/{name}/policy"
+      body: "*"
+    };
+  }
+
+  // MigrateKey - Move key to different provider with explicit strategy
+  //
+  // Moves a key to a different provider with explicit migration strategy.
+  // User must specify how key material is handled during migration.
+  //
+  // Strategies:
+  //   PROVIDER_SWITCH: SW→SW metadata-only change
+  //   EXTRACT_AND_IMPORT: Key crosses security boundary
+  //   WRAPPED_TRANSFER: HSM→HSM with maximum security
+  //   REKEY_AND_ARCHIVE: New key, archive old (always works)
+  //   REKEY_AND_DESTROY: New key, destroy old (careful!)
+  //
+  // See docs/TRANSFORM_KEY_PROVIDER_DESIGN.md for decision tree.
+  rpc MigrateKey(MigrateKeyRequest) returns (MigrateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/migrate"
+      body: "*"
+    };
+  }
+
+  // ValidateKeyOperation - Pre-flight check for key operations
+  //
+  // Returns which strategies are feasible for a given key and target.
+  // Use before MigrateKey to show users available options.
+  rpc ValidateKeyOperation(ValidateKeyOperationRequest) returns (ValidateKeyOperationResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/validate"
+      body: "*"
+    };
+  }
+
+  rpc ExportKey(ExportKeyRequest) returns (ExportKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/export"
+      body: "*"
+    };
+  }
+
+  rpc ImportKey(ImportKeyRequest) returns (ImportKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys:import"
+      body: "*"
+    };
+  }
+
+  // ==================== Policy Management ====================
+  rpc CreateCryptoPolicy(CreateCryptoPolicyRequest) returns (CreateCryptoPolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/policies/{name}"
+      body: "*"
+    };
+  }
+
+  rpc ReadCryptoPolicy(ReadCryptoPolicyRequest) returns (ReadCryptoPolicyResponse) {
+    option (google.api.http) = {
+      get: "/v1/policies/{name}"
+    };
+  }
+
+  rpc DeleteCryptoPolicy(DeleteCryptoPolicyRequest) returns (DeleteCryptoPolicyResponse) {
+    option (google.api.http) = {
+      delete: "/v1/policies/{name}"
+    };
+  }
+
+  rpc UpdateCryptoPolicy(UpdateCryptoPolicyRequest) returns (UpdateCryptoPolicyResponse) {
+    option (google.api.http) = {
+      put: "/v1/policies/{name}"
+      body: "*"
+    };
+  }
+
+  rpc ListCryptoPolicies(ListCryptoPoliciesRequest) returns (ListCryptoPoliciesResponse) {
+    option (google.api.http) = {
+      get: "/v1/policies"
+    };
+  }
+
+  // ==================== Policy Evaluation ====================
+  // EvaluatePolicy checks if an operation would be allowed by policy.
+  // This is a read-only operation that does not perform any cryptographic work.
+  // Useful for:
+  //   - Pre-flight authorization checks (can I encrypt with this key?)
+  //   - UI enablement (should the "Sign" button be enabled?)
+  //   - Compliance queries (what operations are allowed?)
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/policies/{policy_name}/evaluate"
+      body: "*"
+    };
+  }
+
+  // BatchEvaluatePolicy evaluates multiple policy decisions in one call.
+  // Useful for checking multiple operations/keys at once (e.g., UI initialization).
+  rpc BatchEvaluatePolicy(BatchEvaluatePolicyRequest) returns (BatchEvaluatePolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/policies/evaluate/batch"
+      body: "*"
+    };
+  }
+
+  // ==================== Single-Shot Encryption ====================
+  rpc Encrypt(EncryptRequest) returns (EncryptResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc Decrypt(DecryptRequest) returns (DecryptResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/{key_name}"
+      body: "*"
+    };
+  }
+
+  // ==================== Multi-Part Encryption ====================
+  rpc EncryptInit(EncryptInitRequest) returns (EncryptInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptUpdate(EncryptUpdateRequest) returns (EncryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptFinal(EncryptFinalRequest) returns (EncryptFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptInit(DecryptInitRequest) returns (DecryptInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptUpdate(DecryptUpdateRequest) returns (DecryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptFinal(DecryptFinalRequest) returns (DecryptFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Message-Based AEAD Encryption ====================
+  //
+  // WHEN TO USE: Encrypt/Decrypt vs Message-Based AEAD
+  // ====================================================
+  //
+  // Encrypt / Decrypt (above):
+  //   Stateless single-shot operations. Each call is independent.
+  //   Use for individual encrypt/decrypt calls (e.g., encrypting a document,
+  //   a database field, a configuration secret).
+  //   Returns full OperationMetadata with every response.
+  //
+  // Multi-Part Encrypt (EncryptInit/EncryptUpdate/EncryptFinal):
+  //   Streaming encryption for large data that doesn't fit in memory.
+  //   Mirrors PKCS#11 C_EncryptInit / C_EncryptUpdate / C_EncryptFinal.
+  //   Single key setup, multiple data chunks, one finalization.
+  //
+  // Message-Based AEAD (below):
+  //   Session-based multi-message AEAD, modeled after PKCS#11 v3.1
+  //   C_EncryptMessage / C_DecryptMessage. Amortizes key setup across
+  //   multiple independent messages within a single session.
+  //   Use for protocols that encrypt many records under one session:
+  //     - TLS record encryption (each record is a separate message)
+  //     - Database row-level encryption (each row is a separate message)
+  //     - Message queue encryption (each queue item is a separate message)
+  //
+  //   Lifecycle: EncryptMessageInit → (EncryptMessageBegin → EncryptMessageNext* → EncryptMessage)* → EncryptMessageFinal
+  //   Each Begin/Next/Message cycle processes one independent message.
+  //   The session manages key state; each message gets its own IV/nonce.
+  //
+  rpc EncryptMessageInit(EncryptMessageInitRequest) returns (EncryptMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessage(EncryptMessageRequest) returns (EncryptMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessageBegin(EncryptMessageBeginRequest) returns (EncryptMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessageNext(EncryptMessageNextRequest) returns (EncryptMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessageFinal(EncryptMessageFinalRequest) returns (EncryptMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageInit(DecryptMessageInitRequest) returns (DecryptMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessage(DecryptMessageRequest) returns (DecryptMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageBegin(DecryptMessageBeginRequest) returns (DecryptMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageNext(DecryptMessageNextRequest) returns (DecryptMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageFinal(DecryptMessageFinalRequest) returns (DecryptMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Single-Shot Signing ====================
+  rpc Sign(SignRequest) returns (SignResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc Verify(VerifyRequest) returns (VerifyResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/{key_name}"
+      body: "*"
+    };
+  }
+
+  // Sign/verify pre-hashed data (for large files, external hashing)
+  rpc DigestSign(DigestSignRequest) returns (DigestSignResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/digest/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc DigestVerify(DigestVerifyRequest) returns (DigestVerifyResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/digest/{key_name}"
+      body: "*"
+    };
+  }
+
+  // ==================== Multi-Part Signing ====================
+  rpc SignInit(SignInitRequest) returns (SignInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc SignUpdate(SignUpdateRequest) returns (SignUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignFinal(SignFinalRequest) returns (SignFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyInit(VerifyInitRequest) returns (VerifyInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyUpdate(VerifyUpdateRequest) returns (VerifyUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyFinal(VerifyFinalRequest) returns (VerifyFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Message-Based Signing ====================
+  rpc SignMessageInit(SignMessageInitRequest) returns (SignMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessage(SignMessageRequest) returns (SignMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessageBegin(SignMessageBeginRequest) returns (SignMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessageNext(SignMessageNextRequest) returns (SignMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessageFinal(SignMessageFinalRequest) returns (SignMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageInit(VerifyMessageInitRequest) returns (VerifyMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessage(VerifyMessageRequest) returns (VerifyMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageBegin(VerifyMessageBeginRequest) returns (VerifyMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageNext(VerifyMessageNextRequest) returns (VerifyMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageFinal(VerifyMessageFinalRequest) returns (VerifyMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Digest Operations ====================
+  rpc DigestInit(DigestInitRequest) returns (DigestInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/init"
+      body: "*"
+    };
+  }
+
+  rpc Digest(DigestRequest) returns (DigestResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest"
+      body: "*"
+    };
+  }
+
+  rpc DigestUpdate(DigestUpdateRequest) returns (DigestUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DigestKey(DigestKeyRequest) returns (DigestKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/key/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DigestFinal(DigestFinalRequest) returns (DigestFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== XOF (Extendable Output Function) Operations ====================
+  // XOFs produce variable-length output (SHAKE128, SHAKE256, BLAKE3, etc.)
+  // Separated from digest because they are a distinct primitive (CRYPTO_PRIMITIVE_XOF)
+  // with caller-specified output length.
+  rpc Xof(XofRequest) returns (XofResponse) {
+    option (google.api.http) = {
+      post: "/v1/xof"
+      body: "*"
+    };
+  }
+
+  rpc XofInit(XofInitRequest) returns (XofInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/xof/init"
+      body: "*"
+    };
+  }
+
+  // XOF streaming uses dedicated XofUpdateRequest/XofUpdateResponse for independent evolution
+  rpc XofUpdate(XofUpdateRequest) returns (XofUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/xof/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc XofFinal(XofFinalRequest) returns (XofFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/xof/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Dual-Function Operations ====================
+  rpc DigestEncryptUpdate(DigestEncryptUpdateRequest) returns (DigestEncryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest-encrypt/update/{digest_operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptDigestUpdate(DecryptDigestUpdateRequest) returns (DecryptDigestUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt-digest/update/{decrypt_operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignEncryptUpdate(SignEncryptUpdateRequest) returns (SignEncryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign-encrypt/update/{sign_operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptVerifyUpdate(DecryptVerifyUpdateRequest) returns (DecryptVerifyUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt-verify/update/{decrypt_operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Key Wrapping/Unwrapping ====================
+  rpc WrapKey(WrapKeyRequest) returns (WrapKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{wrapping_key_name}/wrap"
+      body: "*"
+    };
+  }
+
+  rpc UnwrapKey(UnwrapKeyRequest) returns (UnwrapKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{wrapping_key_name}/unwrap"
+      body: "*"
+    };
+  }
+
+  // ==================== Key Derivation ====================
+  rpc DeriveKey(DeriveKeyRequest) returns (DeriveKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{base_key_name}/derive"
+      body: "*"
+    };
+  }
+
+  // KeyAgreement performs a two-party key agreement (ECDH/X25519/X448/X3DH)
+  // and stores the resulting shared secret as a named key.
+  // Distinct from DeriveKey: both parties contribute a key to produce a
+  // shared secret. No explicit KDF stage is required — the agreement
+  // protocol itself produces the output (though some protocols like
+  // X9.42 DH include an integrated KDF step).
+  rpc KeyAgreement(KeyAgreementRequest) returns (KeyAgreementResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{private_key_name}/agree"
+      body: "*"
+    };
+  }
+
+  // ==================== Key Encapsulation (Post-Quantum KEMs) ====================
+  rpc EncapsulateKey(EncapsulateKeyRequest) returns (EncapsulateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{recipient_public_key_name}/encapsulate"
+      body: "*"
+    };
+  }
+
+  rpc DecapsulateKey(DecapsulateKeyRequest) returns (DecapsulateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{private_key_name}/decapsulate"
+      body: "*"
+    };
+  }
+
+  // ==================== Random Number Generation ====================
+  rpc GenerateRandom(GenerateRandomRequest) returns (GenerateRandomResponse) {
+    option (google.api.http) = {
+      post: "/v1/random/generate"
+      body: "*"
+    };
+  }
+
+  rpc SeedRandom(SeedRandomRequest) returns (SeedRandomResponse) {
+    option (google.api.http) = {
+      post: "/v1/random/seed"
+      body: "*"
+    };
+  }
+
+  // ==================== MAC Operations ====================
+  rpc GenerateMAC(GenerateMACRequest) returns (GenerateMACResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/{key_name}/generate"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMAC(VerifyMACRequest) returns (VerifyMACResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/{key_name}/verify"
+      body: "*"
+    };
+  }
+}

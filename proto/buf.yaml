@@ -1,0 +1,17 @@
+version: v1
+deps:
+  - buf.build/bufbuild/protovalidate
+  - buf.build/googleapis/googleapis
+breaking:
+  use:
+    - FILE
+lint:
+  use:
+    - BASIC
+  except:
+    # Allow legacy imports from google/api and google/protobuf
+    - IMPORT_USED
+    - PACKAGE_DIRECTORY_MATCH
+build:
+  excludes:
+    - google

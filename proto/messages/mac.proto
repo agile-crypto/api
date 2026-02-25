@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "messages/metadata.proto";
+import "types/operation_params.proto";
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// MAC (Message Authentication Code) Operations
+// ============================================================================
+
+message GenerateMACRequest {
+  string key_name = 1;
+  bytes message = 2;
+  
+  // Scope-based operation parameters.
+  // REQUIRED: Always set one option to make intent explicit.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 3;                        // Standard MACs (HMAC, CMAC, Poly1305)
+    CustomizableMacParams customizable_params = 4; // Customizable MACs (KMAC)
+    VendorMacParams vendor_params = 5;             // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message GenerateMACResponse {
+  bytes mac = 1;
+  OperationMetadata metadata = 2;
+}
+
+message VerifyMACRequest {
+  string key_name = 1;
+  bytes message = 2;
+  bytes mac = 3;
+  // Operation metadata from generate MAC response.
+  // Contains key_version to ensure correct key is used for verification.
+  OperationMetadata metadata = 4;
+  
+  // Must match scope used during MAC generation.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 5;                        // Standard MACs
+    CustomizableMacParams customizable_params = 6; // Customizable MACs (KMAC)
+    VendorMacParams vendor_params = 7;             // Vendor/custom scope
+  }
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message VerifyMACResponse {
+  bool valid = 1;
+  OperationMetadata metadata = 2;
+}

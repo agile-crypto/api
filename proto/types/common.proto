@@ -1,0 +1,765 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/types;types";
+
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Per-Primitive Scope Enums - Define Operational Interface
+// ============================================================================
+// Each enum defines operational VARIANTS for a cryptographic primitive.
+// Variants differ by what parameters the user must provide.
+
+// SignatureScope defines operational variants for digital signatures.
+// Each variant represents a different parameter interface.
+enum SignatureScope {
+  SIGNATURE_SCOPE_UNSPECIFIED = 0;
+  SIGNATURE_SCOPE_STANDARD = 1;              // Sign message directly
+  SIGNATURE_SCOPE_WITH_CONTEXT = 2;          // Sign with domain separation context
+  SIGNATURE_SCOPE_PREHASHED = 3;             // Sign pre-computed digest
+  SIGNATURE_SCOPE_PREHASHED_WITH_CONTEXT = 4; // Sign digest with context
+}
+
+// AeadScope defines operational variants for authenticated encryption.
+// NOTE: Hybrid encryption protocols (HPKE, ECIES) use this scope with a
+// hybrid template (e.g., "hpke-x25519-aes256gcm"). The template configuration
+// handles the KEM + AEAD composition; the caller's operational interface
+// (ciphertext in, plaintext out) is identical to standard AEAD.
+enum AeadScope {
+  AEAD_SCOPE_UNSPECIFIED = 0;
+  AEAD_SCOPE_STANDARD = 1;           // Standard AEAD (nonce, optional AAD)
+  AEAD_SCOPE_DETERMINISTIC = 2;      // Deterministic (no nonce, AAD required)
+  AEAD_SCOPE_STREAMING = 3;          // Streaming (segment size param)
+  AEAD_SCOPE_TWEAKABLE = 4;          // Tweakable (tweak param for disk encryption)
+}
+
+// MacScope defines operational variants for message authentication.
+enum MacScope {
+  MAC_SCOPE_UNSPECIFIED = 0;
+  MAC_SCOPE_STANDARD = 1;            // Standard MAC
+  MAC_SCOPE_STREAMING = 2;           // Streaming MAC (incremental update)
+}
+
+// KemScope defines operational variants for key encapsulation.
+enum KemScope {
+  KEM_SCOPE_UNSPECIFIED = 0;
+  KEM_SCOPE_STANDARD = 1;            // Standard KEM
+  KEM_SCOPE_HYBRID = 2;              // Hybrid classical + PQ
+}
+
+// KeyAgreementScope defines operational variants for key agreement.
+enum KeyAgreementScope {
+  KEY_AGREEMENT_SCOPE_UNSPECIFIED = 0;
+  KEY_AGREEMENT_SCOPE_STANDARD = 1;  // Standard ECDH/X25519
+  KEY_AGREEMENT_SCOPE_HYBRID = 2;    // Hybrid classical + PQ
+}
+
+// KdfScope defines operational variants for key derivation.
+// Each variant groups algorithms that share the same caller input shape,
+// enabling transparent algorithm rotation within a family.
+//
+// Scope-to-kdf_params mapping:
+//   EXTRACT_EXPAND → hkdf_params
+//   PASSWORD       → pbkdf2_params, argon2_params
+//   AGREEMENT      → ecdh_params, x942_dh_params, x3dh_params
+//   COUNTER        → sp800_108_params
+//   TLS            → tls_prf_params, tls12_kdf_params
+//   GOST           → gost_kdf_params
+//   VENDOR         → vendor_params
+enum KdfScope {
+  KDF_SCOPE_UNSPECIFIED = 0;
+  KDF_SCOPE_EXTRACT_EXPAND = 1;     // IKM + salt + info → key (HKDF)
+  KDF_SCOPE_PASSWORD = 2;           // password + salt + cost → key (PBKDF2, Argon2)
+  KDF_SCOPE_AGREEMENT = 3;          // peer_public_key → shared secret (ECDH, X25519/X448, X942, X3DH)
+  KDF_SCOPE_COUNTER = 4;            // label + context + counter_format → key (SP800-108)
+  KDF_SCOPE_TLS = 5;                // cipher_suite + seed → key material (TLS PRF, TLS 1.2)
+  KDF_SCOPE_GOST = 6;               // ukm → key (GOST R 34.11)
+  KDF_SCOPE_VENDOR = 7;             // custom parameters → key (vendor-specific)
+}
+
+// HashScope defines operational variants for hash functions.
+enum HashScope {
+  HASH_SCOPE_UNSPECIFIED = 0;
+  HASH_SCOPE_STANDARD = 1;           // Standard hash
+  HASH_SCOPE_XOF = 2;                // Extendable output function
+}
+
+// KeyWrappingScope defines operational variants for key wrapping.
+enum KeyWrappingScope {
+  KEY_WRAPPING_SCOPE_UNSPECIFIED = 0;
+  KEY_WRAPPING_SCOPE_STANDARD = 1;   // Standard key wrap
+  KEY_WRAPPING_SCOPE_WITH_PADDING = 2; // Key wrap with padding
+}
+
+// SymmetricCipherScope for legacy non-AEAD encryption.
+enum SymmetricCipherScope {
+  SYMMETRIC_CIPHER_SCOPE_UNSPECIFIED = 0;
+  SYMMETRIC_CIPHER_SCOPE_BLOCK = 1;  // Block cipher (CBC, ECB)
+  SYMMETRIC_CIPHER_SCOPE_STREAM = 2; // Stream cipher (CTR, OFB)
+}
+
+// GenericSecretScope defines the operational interface for non-cryptographic
+// secret storage. This captures the intent "manage a secret value under
+// policy governance" — secrets that don't directly participate in standard
+// crypto operations (Encrypt/Sign/MAC) but need lifecycle management,
+// rotation, and policy enforcement.
+//
+// Naming: Follows the primitive-naming convention used by all other scopes
+// (Signature, AEAD, MAC, KEM, etc.). "GenericSecret" names the *object*
+// being managed, not the *activity* of managing it.
+//
+// Design rationale: Scopes are grouped by operational parameters the caller
+// must provide. All managed secrets have the same operational interface
+// (store value, retrieve value, rotate), so there is one scope variant.
+// The *kind* of secret (opaque credential, pre-shared key, password) is a
+// template-level distinction — different templates impose different policy
+// rules (rotation intervals, complexity checks, allowed downstream operations)
+// but the caller's parameter interface is identical.
+//
+// Templates in this scope:
+//   "opaque-secret"      — API tokens, DB credentials (PKCS#11: CKO_DATA)
+//   "pre-shared-secret"  — TLS PSK, HMAC seeds, DeriveKey IKM
+//   "password"           — PBKDF2/Argon2 input (complexity/rotation enforced)
+enum GenericSecretScope {
+  GENERIC_SECRET_SCOPE_UNSPECIFIED = 0;
+  GENERIC_SECRET_SCOPE_STANDARD = 1;  // Standard generic secret management
+}
+
+// KeyLifecycleState represents the lifecycle stage of a cryptographic key.
+// Modeled after NIST SP 800-57 Part 1, Section 7.
+// PKCS#11 Reference: object destroy states and CKA attributes
+// KMIP Reference: State enumeration (Pre-Active, Active, Deactivated, etc.)
+enum KeyLifecycleState {
+  KEY_LIFECYCLE_STATE_UNSPECIFIED = 0;
+  KEY_LIFECYCLE_STATE_PRE_ACTIVE = 1;   // Generated but not yet usable
+  KEY_LIFECYCLE_STATE_ACTIVE = 2;       // Normal use (encrypt, sign, etc.)
+  KEY_LIFECYCLE_STATE_DEACTIVATED = 3;  // No new operations; existing data still decryptable
+  KEY_LIFECYCLE_STATE_COMPROMISED = 4;  // Key material may have been exposed
+  KEY_LIFECYCLE_STATE_DESTROYED = 5;    // Soft-deleted; metadata retained for audit
+  KEY_LIFECYCLE_STATE_ARCHIVED = 6;     // Read-only; restricted to decrypt/verify
+}
+
+// ============================================================================
+// Universal Security Properties - Shared by All Primitives
+// ============================================================================
+
+// NistSecurityLevel represents NIST post-quantum security levels.
+enum NistSecurityLevel {
+  NIST_SECURITY_LEVEL_UNSPECIFIED = 0;
+  NIST_SECURITY_LEVEL_1 = 1;  // AES-128 equivalent
+  NIST_SECURITY_LEVEL_2 = 2;  // SHA-256 collision resistance
+  NIST_SECURITY_LEVEL_3 = 3;  // AES-192 equivalent
+  NIST_SECURITY_LEVEL_4 = 4;  // SHA-384 collision resistance
+  NIST_SECURITY_LEVEL_5 = 5;  // AES-256 equivalent
+}
+
+// NistStatus represents algorithm standardization status.
+enum NistStatus {
+  NIST_STATUS_UNSPECIFIED = 0;
+  NIST_STATUS_APPROVED = 1;      // NIST approved/standardized
+  NIST_STATUS_RECOMMENDED = 2;   // NIST recommended
+  NIST_STATUS_ACCEPTABLE = 3;    // Acceptable for legacy use
+  NIST_STATUS_DEPRECATED = 4;    // Deprecated, avoid new use
+  NIST_STATUS_FORBIDDEN = 5;     // Not allowed
+}
+
+// UniversalSecurityProperties contains security properties applicable to all algorithms.
+// In requests: These are MINIMUM REQUIREMENTS (filters).
+// In templates: These are PROVIDED CHARACTERISTICS (capabilities).
+message UniversalSecurityProperties {
+  // Security strength in bits (e.g., 128, 192, 256).
+  // Request: Minimum required strength. Template: Provided strength.
+  uint32 security_strength_bits = 1;
+  
+  // NIST post-quantum security level (1-5).
+  // Primarily relevant for post-quantum algorithms.
+  NistSecurityLevel nist_security_level = 2;
+  
+  // Whether the algorithm is quantum-safe (resistant to quantum attacks).
+  // Request: If true, only quantum-safe algorithms match.
+  // Template: Declares quantum safety status.
+  optional bool quantum_safe = 3;
+  
+  // NIST standardization status.
+  NistStatus nist_status = 4;
+  
+  // Whether FIPS 140-2/3 approved.
+  // Request: If true, only FIPS-approved algorithms match.
+  // Template: Declares FIPS approval status.
+  optional bool fips_approved = 5;
+}
+
+// ============================================================================
+// Per-Primitive Scope Specifications
+// ============================================================================
+
+// SignatureScopeSpec specifies signature scope with typed properties.
+// Request interpretation: "I need a signature algorithm with these requirements"
+// Template interpretation: "This template provides signature with these characteristics"
+message SignatureScopeSpec {
+  // REQUIRED: Must specify a concrete scope (UNSPECIFIED not allowed)
+  SignatureScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  // OPTIONAL: Security properties (omit fields if unknown)
+  UniversalSecurityProperties security = 2;
+  
+  // Signature-specific properties (optional - nil means unknown)
+  // Non-malleable: Cannot create alternate valid signature for same message.
+  // Relevant for: Bitcoin transactions, unique signature requirements.
+  optional bool non_malleable = 3;
+  
+  // Deterministic: Same input always produces same signature.
+  // Relevant for: Reproducibility, testing, side-channel resistance.
+  optional bool deterministic = 4;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  // Use for vendor-specific, compliance, or future requirements.
+  map<string, string> additional_properties = 15;
+}
+
+// AeadScopeSpec specifies AEAD scope with typed properties.
+message AeadScopeSpec {
+  // REQUIRED: Must specify a concrete scope
+  AeadScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // AEAD-specific properties (optional - nil means unknown)
+  // Nonce misuse resistant: Safe even if nonce is reused.
+  // Examples: AES-GCM-SIV, AES-SIV
+  optional bool nonce_misuse_resistant = 3;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// MacScopeSpec specifies MAC scope with typed properties.
+message MacScopeSpec {
+  MacScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// KemScopeSpec specifies KEM scope with typed properties.
+message KemScopeSpec {
+  KemScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// KeyAgreementScopeSpec specifies key agreement scope with typed properties.
+message KeyAgreementScopeSpec {
+  KeyAgreementScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Key agreement specific properties (optional)
+  // Perfect forward secrecy support
+  optional bool forward_secrecy = 3;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// KdfScopeSpec specifies KDF scope with typed properties.
+//
+// The scope field selects which family of KDF algorithms the key supports,
+// based on the caller's input shape (see KdfScope enum for the mapping).
+// Policy then selects a specific algorithm within that family.
+message KdfScopeSpec {
+  KdfScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // KDF-specific properties (optional)
+  // Memory-hard: Resistant to hardware brute-force (Argon2, scrypt).
+  // Only meaningful when scope = KDF_SCOPE_PASSWORD.
+  optional bool memory_hard = 3;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// HashScopeSpec specifies hash scope with typed properties.
+message HashScopeSpec {
+  HashScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// KeyWrappingScopeSpec specifies key wrapping scope with typed properties.
+message KeyWrappingScopeSpec {
+  KeyWrappingScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// SymmetricCipherScopeSpec specifies symmetric cipher scope (legacy, non-AEAD).
+message SymmetricCipherScopeSpec {
+  SymmetricCipherScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// GenericSecretScopeSpec specifies generic secret scope with typed properties.
+// Request interpretation: "I need to manage a secret value with these requirements"
+// Template interpretation: "This template provides generic secret management with these characteristics"
+//
+// Example: Store a database credential under policy governance
+//   CreateKeyRequest {
+//     name: "prod-db-credential"
+//     policy: "credential-policy"
+//     scope_spec: { generic_secret: { scope: GENERIC_SECRET_SCOPE_STANDARD } }
+//     template_id: "opaque-secret"  // or let policy select via scope-based
+//   }
+message GenericSecretScopeSpec {
+  // REQUIRED: Must specify a concrete scope (UNSPECIFIED not allowed)
+  GenericSecretScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  // OPTIONAL: Security properties (e.g., minimum strength for pre-shared secrets)
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
+// ============================================================================
+// Unified ScopeSpecification - Used for Both Requests and Templates
+// ============================================================================
+
+// ScopeSpecification unifies scope and properties for a single primitive.
+//
+// DUAL INTERPRETATION:
+// - In Requests (CreateKeyRequest): Properties are REQUIREMENTS to filter templates.
+// - In Templates (TemplateInfo): Properties are CAPABILITIES the template provides.
+//
+// MATCHING SEMANTICS:
+// - Scope enum must match exactly
+// - Boolean properties: if request specifies, template must match
+// - Security properties: request is minimum, template must meet or exceed
+message ScopeSpecification {
+  oneof scope_spec {
+    option (buf.validate.oneof).required = true;
+    
+    SignatureScopeSpec signature = 1;
+    AeadScopeSpec aead = 2;
+    MacScopeSpec mac = 3;
+    KemScopeSpec kem = 4;
+    KeyAgreementScopeSpec key_agreement = 5;
+    KdfScopeSpec kdf = 6;
+    HashScopeSpec hash = 7;
+    // Note: hybrid encryption (HPKE, ECIES) uses aead scope with a hybrid template.
+    KeyWrappingScopeSpec key_wrapping = 8;
+    SymmetricCipherScopeSpec symmetric_cipher = 10;
+    GenericSecretScopeSpec generic_secret = 11;
+  }
+}
+
+// ============================================================================
+// Security Guarantees - Informational Properties (NOT for filtering)
+// ============================================================================
+//
+// These properties describe the formal security guarantees of an algorithm.
+// They are per-template (algorithm), NOT per-scope, and are NOT used for
+// template matching/filtering.
+//
+// USE CASES:
+// - Security audit: "What formal guarantees does this algorithm provide?"
+// - CBOM generation: CycloneDX cryptographic bill of materials
+// - Compliance documentation: "Prove this meets security requirements"
+// - Response metadata: "What security did you actually get?"
+//
+// NOT FOR:
+// - Template filtering (use ScopeSpecification for that)
+// - Request specification (users don't filter by IND-CCA2)
+
+// FormalSecurityNotions captures academic/theoretical security guarantees.
+message FormalSecurityNotions {
+  // ========================================================================
+  // Encryption Security Notions
+  // ========================================================================
+  
+  // IND-CPA: Indistinguishability under Chosen-Plaintext Attack
+  // Ciphertexts don't reveal which message was encrypted.
+  optional bool ind_cpa = 1;
+  
+  // IND-CCA1: Indistinguishability under Chosen-Ciphertext Attack (lunch-time)
+  // Adversary can decrypt before seeing challenge ciphertext.
+  optional bool ind_cca1 = 2;
+  
+  // IND-CCA2: Indistinguishability under Adaptive Chosen-Ciphertext Attack
+  // Adversary can decrypt before AND after seeing challenge (except challenge itself).
+  // This is the standard security notion for authenticated encryption.
+  optional bool ind_cca2 = 3;
+  
+  // NM-CPA: Non-malleability under Chosen-Plaintext Attack
+  // Cannot create related ciphertext from observed ciphertext.
+  optional bool nm_cpa = 4;
+  
+  // INT-CTXT: Integrity of Ciphertext
+  // Cannot forge valid ciphertext without the key.
+  optional bool int_ctxt = 5;
+  
+  // INT-PTXT: Integrity of Plaintext
+  // Cannot modify plaintext undetectably.
+  optional bool int_ptxt = 6;
+  
+  // ========================================================================
+  // Signature/MAC Security Notions
+  // ========================================================================
+  
+  // EUF-CMA: Existential Unforgeability under Chosen-Message Attack
+  // Cannot forge signature on any new message.
+  optional bool euf_cma = 10;
+  
+  // sUF-CMA: Strong Unforgeability under Chosen-Message Attack
+  // Cannot forge new signature even on already-signed message.
+  // Implies non-malleability (e.g., ECDSA lacks this, Ed25519 has it).
+  optional bool suf_cma = 11;
+  
+  // PRF: Pseudorandom Function
+  // Output indistinguishable from random function.
+  optional bool prf = 12;
+  
+  // ========================================================================
+  // Hash Security Notions
+  // ========================================================================
+  
+  // Pre-image resistance: Cannot find input given output.
+  optional bool preimage_resistant = 20;
+  
+  // Second pre-image resistance: Cannot find different input with same output.
+  optional bool second_preimage_resistant = 21;
+  
+  // Collision resistance: Cannot find any two inputs with same output.
+  optional bool collision_resistant = 22;
+  
+  // ========================================================================
+  // KEM/Key Agreement Notions
+  // ========================================================================
+  
+  // OW-CCA: One-wayness under Chosen-Ciphertext Attack
+  optional bool ow_cca = 30;
+}
+
+// PracticalSecurityOutcomes captures high-level security goals.
+// These describe WHAT the algorithm protects, not HOW it's proven secure.
+message PracticalSecurityOutcomes {
+  // Confidentiality: Unauthorized parties cannot read the data.
+  // True for: AEAD, Symmetric Cipher, KEM, Hybrid Encryption
+  bool confidentiality = 1;
+  
+  // Integrity: Modifications to data are detectable.
+  // True for: AEAD, MAC, Signature, Hash
+  bool integrity = 2;
+  
+  // Authenticity: Data origin is verifiable.
+  // True for: AEAD (shared-key), MAC, Signature
+  bool authenticity = 3;
+  
+  // Non-repudiation: Origin cannot be denied (requires asymmetric key).
+  // True for: Signature ONLY
+  bool non_repudiation = 4;
+}
+
+// OperationalBounds captures safe usage limits (Tink-style analysis).
+message OperationalBounds {
+  // Authentication strength in bits (e.g., 128 for GCM with 128-bit tag).
+  uint32 authentication_strength_bits = 1;
+  
+  // Maximum messages that can be safely encrypted with one key.
+  // Beyond this, collision probability becomes significant.
+  // Example: 2^32 for AES-GCM with random nonces.
+  uint64 max_messages_per_key = 2;
+  
+  // Maximum total plaintext bytes per key.
+  // Example: 64GB (2^36 bytes) for AES-GCM.
+  uint64 max_plaintext_bytes_per_key = 3;
+  
+  // Probability bound for successful attack.
+  // Example: "2^-32" stored as string for precision.
+  string attack_success_probability = 4;
+}
+
+// SecurityGuarantees bundles all informational security properties.
+//
+// ============================================================================
+// PURPOSE AND USAGE
+// ============================================================================
+//
+// This is an INFORMATIONAL property, NOT used for template filtering/matching.
+//
+// Use cases:
+//   - Audit trails: Record what security properties were in effect
+//   - CBOM generation: Export to CycloneDX cryptographic bill of materials
+//   - Documentation: Help developers understand algorithm security characteristics
+//   - Response metadata: Include in operation responses for transparency
+//   - Compliance reporting: Generate evidence for security audits
+//
+// NOT used by:
+//   - Template selection (use ScopeSpecification.security for filtering)
+//   - Policy enforcement (policies use typed filter properties)
+//   - CreateKeyRequest matching
+//
+// ============================================================================
+// SCOPE BEHAVIOR
+// ============================================================================
+//
+// SecurityGuarantees exists at TWO levels:
+//   1. TemplateInfo.security_guarantees - Shared by ALL scopes (fallback)
+//   2. ScopedCapabilities.security_guarantees - Per-scope overrides
+//
+// Resolution: Per-scope guarantees take precedence when present.
+// This allows hybrid templates to have different guarantees per scope
+// (e.g., forward_secrecy only for key agreement scope, not KEM scope).
+//
+message SecurityGuarantees {
+  // Formal cryptographic security notions.
+  FormalSecurityNotions formal = 1;
+  
+  // Practical security outcomes (high-level goals).
+  PracticalSecurityOutcomes practical = 2;
+  
+  // Operational bounds for safe usage.
+  OperationalBounds bounds = 3;
+  
+  // Extensibility: Additional security properties not covered by typed fields.
+  // Use for:
+  //   - Vendor-specific security claims (e.g., "fips_certified_module": "NCCoE-2024-001")
+  //   - Industry certifications (e.g., "pci_dss_compliant": "true", "cc_eal": "EAL4+")
+  //   - Regional compliance (e.g., "bsi_approved": "true", "anssi_qualified": "true")
+  //   - Future security notions not yet in typed structure
+  //   - Custom organizational requirements
+  map<string, string> additional_properties = 15;
+}
+
+// Key wrapping format
+enum WrapFormat {
+  WRAP_FORMAT_UNSPECIFIED = 0;
+  WRAP_FORMAT_PKCS8 = 1;
+  WRAP_FORMAT_PKCS1 = 2;
+  WRAP_FORMAT_RAW = 3;
+  WRAP_FORMAT_SPKI = 4;
+  WRAP_FORMAT_SEC1 = 5;
+}
+
+// KeyFormat specifies key material encoding formats for import/export operations.
+// Used in ExportKeyRequest, ImportKeyRequest, and ExportKeyResponse.
+//
+// PKCS#11 Reference:
+//   CKO_SECRET_KEY raw bytes → KEY_FORMAT_RAW
+//   CKK_RSA / CKK_EC private key in PKCS#8 DER → KEY_FORMAT_PKCS8
+//   EC public key in X.509 SubjectPublicKeyInfo DER → KEY_FORMAT_SPKI
+//   JSON Web Key (RFC 7517) → KEY_FORMAT_JWK
+enum KeyFormat {
+  KEY_FORMAT_UNSPECIFIED = 0;
+  KEY_FORMAT_RAW = 1;       // Raw key bytes (symmetric keys, raw EC scalars)
+  KEY_FORMAT_WRAPPED = 2;   // Key wrapped with a Key Encryption Key (KEK)
+  KEY_FORMAT_PKCS8 = 3;     // PKCS#8 DER encoding (asymmetric private keys)
+  KEY_FORMAT_SPKI = 4;      // SubjectPublicKeyInfo DER encoding (public keys)
+  KEY_FORMAT_JWK = 5;       // JSON Web Key (RFC 7517)
+  KEY_FORMAT_PEM = 6;       // PEM encoding (base64 of DER with header/footer)
+  KEY_FORMAT_SEC1 = 7;      // SEC 1 DER encoding (EC private keys, RFC 5915)
+}
+
+// CryptoErrorCode provides domain-specific error classification for cryptographic
+// operations. Used alongside gRPC status codes to provide machine-readable error
+// detail in google.rpc.Status.details.
+//
+// Usage pattern:
+//   status.details = [
+//     google.rpc.ErrorInfo {
+//       reason: "CRYPTO_ERROR_KEY_NOT_FOUND"
+//       domain: "caas.crypto.v1"
+//     }
+//   ]
+enum CryptoErrorCode {
+  CRYPTO_ERROR_UNSPECIFIED = 0;
+
+  // Key errors (1–9)
+  CRYPTO_ERROR_KEY_NOT_FOUND = 1;               // No key with the given name
+  CRYPTO_ERROR_KEY_EXPIRED = 2;                 // Key has passed its expiration time
+  CRYPTO_ERROR_KEY_VERSION_MISMATCH = 3;        // Requested key_version does not exist
+  CRYPTO_ERROR_KEY_NOT_EXPORTABLE = 4;          // Key is marked non-exportable
+  CRYPTO_ERROR_KEY_OPERATION_NOT_ALLOWED = 5;   // Key's allowed_operations does not include the requested op
+
+  // Template errors (10–19)
+  CRYPTO_ERROR_TEMPLATE_NOT_FOUND = 10;         // No template with the given template_id
+  CRYPTO_ERROR_TEMPLATE_DEPRECATED = 11;        // Template is DEPRECATED and policy disallows deprecated
+  CRYPTO_ERROR_TEMPLATE_FORBIDDEN = 12;         // Template is FORBIDDEN by policy
+  CRYPTO_ERROR_NO_MATCHING_TEMPLATE = 13;       // No template matches the provided ScopeSpecification
+
+  // Provider errors (20–29)
+  CRYPTO_ERROR_PROVIDER_NOT_FOUND = 20;         // No provider with the given provider_id
+  CRYPTO_ERROR_PROVIDER_UNAVAILABLE = 21;       // Provider is registered but currently unreachable
+  CRYPTO_ERROR_PROVIDER_INCOMPATIBLE = 22;      // Provider does not support the requested template
+  CRYPTO_ERROR_NO_MATCHING_PROVIDER = 23;       // No provider satisfies ProviderRequirements
+
+  // Policy errors (30–39)
+  CRYPTO_ERROR_POLICY_NOT_FOUND = 30;           // No policy with the given name
+  CRYPTO_ERROR_POLICY_VIOLATION = 31;           // Operation rejected by policy evaluation
+
+  // Operation errors (40–49)
+  CRYPTO_ERROR_INVALID_OPERATION_STATE = 40;    // Multi-part operation in wrong state (e.g., Update before Init)
+  CRYPTO_ERROR_OPERATION_EXPIRED = 41;          // Multi-part operation session timed out
+  CRYPTO_ERROR_AUTHENTICATION_FAILED = 42;      // AEAD tag verification or MAC verification failed
+  CRYPTO_ERROR_SIGNATURE_INVALID = 43;          // Signature verification failed
+  CRYPTO_ERROR_INCOMPATIBLE_PARAMETERS = 44;    // Operation-time params incompatible with key's template
+
+  // Migration errors (50–59)
+  CRYPTO_ERROR_MIGRATION_NOT_FEASIBLE = 50;     // Requested MigrationStrategy is not feasible for this key
+  CRYPTO_ERROR_KEY_NOT_EXTRACTABLE = 51;        // EXTRACT_AND_IMPORT strategy requires extractable key
+}
+
+// ============================================================================
+// Cryptographic Operations - Actions
+// ============================================================================
+// CryptoOperation enumerates discrete cryptographic actions.
+//
+// CryptoOperation is the ACTION being performed, regardless of intent or algorithm.
+//
+// DISTINCT FROM:
+//   - ScopeSpecification: User's intent + typed properties
+//   - CryptoPrimitive: Algorithm CATEGORY (e.g., AE, SIGNATURE)
+//
+// Used for:
+//   - TemplateInfo.supported_operations (which actions a template can perform)
+//   - Policy validation (which operations a policy allows)
+//   - Audit logging (what action was performed)
+//   - Policy evaluation API (pre-flight authorization checks)
+
+enum CryptoOperation {
+  CRYPTO_OPERATION_UNSPECIFIED = 0;
+
+  // ========================================================================
+  // Key Lifecycle Operations
+  // ========================================================================
+  CRYPTO_OPERATION_CREATE_KEY = 1;
+  CRYPTO_OPERATION_READ_KEY = 2;
+  CRYPTO_OPERATION_DELETE_KEY = 3;
+  CRYPTO_OPERATION_ROTATE_KEY = 4;
+  CRYPTO_OPERATION_TRANSFORM_KEY = 5;
+  CRYPTO_OPERATION_IMPORT_KEY = 6;
+  CRYPTO_OPERATION_EXPORT_KEY = 7;
+  CRYPTO_OPERATION_UPDATE_KEY_POLICY = 8;
+  CRYPTO_OPERATION_UPDATE_KEY_PROVIDER = 9;       // Deprecated: use MIGRATE_KEY
+  CRYPTO_OPERATION_MIGRATE_KEY = 110;             // Migrate key to another provider
+
+  // ========================================================================
+  // Encryption/Decryption Operations (PKCS#11: C_Encrypt*, C_Decrypt*)
+  // ========================================================================
+  CRYPTO_OPERATION_ENCRYPT = 10;
+  CRYPTO_OPERATION_DECRYPT = 11;
+
+  // ========================================================================
+  // Signing/Verification Operations (PKCS#11: C_Sign*, C_Verify*)
+  // ========================================================================
+  // SIGN/VERIFY: Service hashes the input, then signs/verifies.
+  // Use with standard signature templates (e.g., ecdsa-p256-sha256-der).
+  CRYPTO_OPERATION_SIGN = 20;
+  CRYPTO_OPERATION_VERIFY = 21;
+  
+  // DIGEST_SIGN/DIGEST_VERIFY: Caller provides pre-computed digest.
+  // Service signs/verifies the digest directly without hashing.
+  // Use with prehashed templates (e.g., ecdsa-p256-prehashed-der).
+  // PKCS#11 equivalent: C_Sign with CKM_ECDSA (no hash mechanism).
+  CRYPTO_OPERATION_DIGEST_SIGN = 22;
+  CRYPTO_OPERATION_DIGEST_VERIFY = 23;
+  
+  // 24, 25: SIGN_RECOVER / VERIFY_RECOVER (RSA message recovery,
+  // PKCS#11 C_SignRecoverInit / C_VerifyRecoverInit) removed as out of scope.
+
+  // ========================================================================
+  // Key Wrapping Operations (PKCS#11: C_WrapKey, C_UnwrapKey)
+  // ========================================================================
+  CRYPTO_OPERATION_WRAP_KEY = 30;
+  CRYPTO_OPERATION_UNWRAP_KEY = 31;
+
+  // ========================================================================
+  // Key Derivation Operations (PKCS#11: C_DeriveKey)
+  // ========================================================================
+  CRYPTO_OPERATION_DERIVE_KEY = 40;
+
+  // ========================================================================
+  // MAC Operations (PKCS#11: C_SignInit with MAC mechanism)
+  // ========================================================================
+  CRYPTO_OPERATION_GENERATE_MAC = 50;
+  CRYPTO_OPERATION_VERIFY_MAC = 51;
+
+  // ========================================================================
+  // Digest Operations (PKCS#11: C_Digest*)
+  // ========================================================================
+  CRYPTO_OPERATION_DIGEST = 60;
+
+  // ========================================================================
+  // Key Encapsulation Operations (PKCS#11 v3.2: C_Encapsulate, C_Decapsulate)
+  // ========================================================================
+  CRYPTO_OPERATION_ENCAPSULATE = 70;
+  CRYPTO_OPERATION_DECAPSULATE = 71;
+
+  // ========================================================================
+  // Key Agreement Operations (PKCS#11: C_DeriveKey with KA mechanism)
+  // ========================================================================
+  CRYPTO_OPERATION_KEY_AGREEMENT = 80;
+
+  // ========================================================================
+  // Random Generation (PKCS#11: C_GenerateRandom, C_SeedRandom)
+  // ========================================================================
+  CRYPTO_OPERATION_GENERATE_RANDOM = 90;
+  CRYPTO_OPERATION_SEED_RANDOM = 91;
+
+  // ========================================================================
+  // Dual-Function Operations (PKCS#11: C_DigestEncrypt*, etc.)
+  // ========================================================================
+  CRYPTO_OPERATION_DIGEST_ENCRYPT = 100;
+  CRYPTO_OPERATION_DECRYPT_DIGEST = 101;
+  CRYPTO_OPERATION_SIGN_ENCRYPT = 102;
+  CRYPTO_OPERATION_DECRYPT_VERIFY = 103;
+}

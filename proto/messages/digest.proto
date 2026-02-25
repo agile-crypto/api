@@ -1,0 +1,205 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "types/common.proto";
+import "messages/metadata.proto";
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Digest Operations
+// ============================================================================
+
+// DigestInitRequest initializes a streaming digest operation.
+// Algorithm selection via template_id (explicit) or scope_spec (intent-based).
+// When scope_spec is used, the template registry selects the best ACTIVE template
+// matching the scope and security properties.
+message DigestInitRequest {
+  // Algorithm selection: exactly one must be provided.
+  oneof algorithm_selection {
+    option (buf.validate.oneof).required = true;
+    // Explicit: specify template directly (e.g., "sha-256", "sha3-256", "sha-512")
+    string template_id = 1;
+
+    // Scope-based: template registry selects the best active template for this scope.
+    // Example: { hash: { scope: HASH_SCOPE_STANDARD, security: { security_strength_bits: 256 } } }
+    ScopeSpecification scope_spec = 2;
+  }
+  
+  // Unique identifier for this streaming operation
+  string operation_id = 10;
+  
+  // Optional: Policy name for additional validation and enforcement.
+  // If provided, validates whether this operation and selected template are allowed.
+  string policy_name = 11;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DigestInitResponse {
+  bool success = 1;
+  // The template that was selected for this operation
+  string selected_template_id = 2;
+}
+
+// DigestRequest performs a single-shot digest operation.
+// Algorithm selection via template_id (explicit) or scope_spec (intent-based).
+// When scope_spec is used, the template registry selects the best ACTIVE template
+// matching the scope and security properties.
+message DigestRequest {
+  // Algorithm selection: exactly one must be provided.
+  oneof algorithm_selection {
+    option (buf.validate.oneof).required = true;
+    // Explicit: specify template directly (e.g., "sha-256", "sha3-256", "sha-512")
+    string template_id = 1;
+
+    // Scope-based: template registry selects the best active template for this scope.
+    // Example: { hash: { scope: HASH_SCOPE_STANDARD, security: { security_strength_bits: 256 } } }
+    ScopeSpecification scope_spec = 2;
+  }
+  
+  // The data to hash
+  bytes data = 10;
+  
+  // Optional: Policy name for additional validation and enforcement.
+  // If provided, validates whether this operation and selected template are allowed.
+  string policy_name = 11;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DigestResponse {
+  bytes digest = 1;
+  OperationMetadata metadata = 2;
+}
+
+message DigestUpdateRequest {
+  string operation_id = 1;
+  bytes data_chunk = 2;
+}
+
+message DigestUpdateResponse {
+  bool success = 1;
+}
+
+message DigestKeyRequest {
+  string operation_id = 1;
+  string key_name = 2;
+}
+
+message DigestKeyResponse {
+  bool success = 1;
+}
+
+message DigestFinalRequest {
+  string operation_id = 1;
+}
+
+message DigestFinalResponse {
+  bytes digest = 1;
+  // Operation metadata for audit and tracking
+  OperationMetadata metadata = 2;
+}
+
+// ============================================================================
+// XOF (Extendable Output Function) Operations
+// ============================================================================
+// XOFs (SHAKE128, SHAKE256, BLAKE3, etc.) produce variable-length output
+// controlled by the caller. These are separated from digest operations because
+// they are a distinct primitive (CRYPTO_PRIMITIVE_XOF) with different semantics:
+// digests produce fixed-length output; XOFs produce caller-specified-length output.
+
+// XofRequest performs a single-shot XOF operation.
+// Algorithm selection via template_id (explicit) or scope_spec (intent-based with HASH_SCOPE_XOF).
+message XofRequest {
+  // Algorithm selection: exactly one must be provided.
+  oneof algorithm_selection {
+    option (buf.validate.oneof).required = true;
+    // Explicit: specify template directly (e.g., "shake-128", "shake-256")
+    string template_id = 1;
+
+    // Scope-based: template registry selects the best active XOF template.
+    // Example: { hash: { scope: HASH_SCOPE_XOF, security: { security_strength_bits: 128 } } }
+    ScopeSpecification scope_spec = 2;
+  }
+
+  // The data to process
+  bytes data = 10;
+
+  // Required: the desired output length in bytes.
+  // XOFs produce variable-length output; this field specifies how many bytes to generate.
+  uint32 output_length_bytes = 11;
+
+  // Optional: Policy name for additional validation and enforcement.
+  string policy_name = 12;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message XofResponse {
+  // The XOF output of the requested length
+  bytes output = 1;
+  OperationMetadata metadata = 2;
+}
+
+// XofInitRequest initializes a streaming XOF operation.
+// Algorithm selection via template_id (explicit) or scope_spec (intent-based with HASH_SCOPE_XOF).
+message XofInitRequest {
+  // Algorithm selection: exactly one must be provided.
+  oneof algorithm_selection {
+    option (buf.validate.oneof).required = true;
+    // Explicit: specify template directly (e.g., "shake-128", "shake-256")
+    string template_id = 1;
+
+    // Scope-based: template registry selects the best active XOF template.
+    ScopeSpecification scope_spec = 2;
+  }
+
+  // Unique identifier for this streaming operation
+  string operation_id = 10;
+
+  // Required: the desired output length in bytes.
+  uint32 output_length_bytes = 11;
+
+  // Optional: Policy name for additional validation and enforcement.
+  string policy_name = 12;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message XofInitResponse {
+  bool success = 1;
+  // The template that was selected for this operation
+  string selected_template_id = 2;
+}
+
+// XofUpdateRequest feeds a data chunk into a streaming XOF operation.
+// Dedicated type (not reusing DigestUpdateRequest) to allow independent
+// evolution of XOF and digest streaming interfaces.
+message XofUpdateRequest {
+  string operation_id = 1;
+  bytes data_chunk = 2;
+}
+
+message XofUpdateResponse {
+  bool success = 1;
+}
+
+// XofFinalRequest completes a streaming XOF operation.
+// Data chunks are fed via XofUpdateRequest.
+message XofFinalRequest {
+  string operation_id = 1;
+}
+
+message XofFinalResponse {
+  // The XOF output of the requested length
+  bytes output = 1;
+  // Operation metadata for audit and tracking
+  OperationMetadata metadata = 2;
+}

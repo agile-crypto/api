@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "messages/metadata.proto";
+import "messages/key_management.proto";
+
+// ============================================================================
+// Key Encapsulation (Post-Quantum KEMs) Messages
+// ============================================================================
+
+message EncapsulateKeyRequest {
+  string recipient_public_key_name = 1;
+  string shared_secret_name = 2;
+  string shared_secret_template_id = 3;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message EncapsulateKeyResponse {
+  bytes ciphertext = 1;
+  OperationMetadata metadata = 2;
+  // Metadata of the newly created shared secret key.
+  // Consistent with CreateKeyResponse, ImportKeyResponse, TransformKeyResponse.
+  KeyMetadata key_metadata = 3;
+}
+
+message DecapsulateKeyRequest {
+  string private_key_name = 1;
+  bytes ciphertext = 2;
+  string shared_secret_name = 3;
+  string shared_secret_template_id = 4;
+  // Operation metadata from encapsulate response
+  // Contains algorithm_parameters and other details from encapsulation
+  OperationMetadata metadata = 5;
+  
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message DecapsulateKeyResponse {
+  bool success = 1;
+  OperationMetadata metadata = 2;
+  // Metadata of the newly created shared secret key.
+  // Consistent with CreateKeyResponse, ImportKeyResponse, TransformKeyResponse.
+  KeyMetadata key_metadata = 3;
+}

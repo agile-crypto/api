@@ -1,0 +1,315 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/types;types";
+
+import "google/protobuf/timestamp.proto";
+
+// ============================================================================
+// Implementation Properties - Provider-specific characteristics
+// ============================================================================
+// 
+// These messages describe the characteristics of a provider's implementation
+// of cryptographic algorithms. Implementation properties are deployment-specific
+// and separate from algorithm properties (which are universal mathematical truths).
+//
+// Design Rationale:
+// - Algorithm properties (in TemplateInfo): "AES-256-GCM provides 256-bit security"
+// - Implementation properties (here): "Our HSM's AES-256-GCM is FIPS 140-3 Level 3 certified"
+//
+// This separation enables:
+// 1. Standard algorithm catalogs that can be shipped without modification
+// 2. Provider-specific properties declared at deployment time
+// 3. Clean CBOM (Cryptographic Bill of Materials) generation
+// 4. Independent update cycles for algorithms and implementations
+//
+// See: docs/PROVIDER_CAPABILITIES_DESIGN.md for full design rationale
+// ============================================================================
+
+// ImplementationProperties describes the characteristics of a provider's
+// implementation of cryptographic algorithms.
+message ImplementationProperties {
+  // ========================================
+  // Certifications
+  // ========================================
+  
+  // FIPS 140-2/3 certification details
+  Fips140Certification fips_140 = 1;
+  
+  // Common Criteria certified
+  optional bool common_criteria_certified = 2;
+  
+  // Security audits performed on this implementation
+  repeated AuditReport audits = 3;
+  
+  // ========================================
+  // Code Quality & Verification
+  // ========================================
+  
+  // Implementation formally verified (mathematical proof of correctness)
+  optional bool formally_verified = 4;
+  
+  // Verification framework used (e.g., "F*", "Coq", "Lean", "HACL*", "Vale")
+  string verification_framework = 5;
+  
+  // Written in memory-safe language (Rust, Go, Java vs C, C++)
+  optional bool memory_safe_language = 6;
+  
+  // Primary implementation language
+  string implementation_language = 7;
+  
+  // ========================================
+  // Side-Channel Resistance
+  // ========================================
+  
+  // Constant-time implementation (resistant to timing attacks)
+  optional bool constant_time = 8;
+  
+  // General side-channel hardening applied
+  optional bool side_channel_hardened = 9;
+  
+  // ========================================
+  // Performance Characteristics
+  // ========================================
+  
+  // Uses hardware acceleration (AES-NI, SHA extensions, etc.)
+  optional bool hardware_accelerated = 10;
+  
+  // Specific hardware features utilized
+  repeated string hardware_features = 11;  // ["aes-ni", "sha-ext", "avx2", "neon"]
+  
+  // ========================================
+  // Security Posture
+  // ========================================
+  
+  // No known unpatched CVEs affecting this implementation
+  optional bool no_known_cve = 12;
+  
+  // List of known unpatched CVEs (if any)
+  repeated string unpatched_cves = 13;
+  
+  // ========================================
+  // Extensibility
+  // ========================================
+  
+  // Additional properties not covered by typed fields
+  // Use for vendor-specific or emerging requirements
+  map<string, string> additional = 15;
+}
+
+// Fips140Certification details FIPS 140-2/3 certification status.
+message Fips140Certification {
+  // Whether the implementation is FIPS 140 certified
+  bool certified = 1;
+  
+  // Security level (1-4)
+  Fips140Level level = 2;
+  
+  // CMVP certificate number (e.g., "4282")
+  string certificate_number = 3;
+  
+  // Name of the cryptographic module (e.g., "AWS CloudHSM Client SDK")
+  string module_name = 4;
+  
+  // Validation date
+  google.protobuf.Timestamp validation_date = 5;
+  
+  // Expiration date if applicable
+  google.protobuf.Timestamp expiration_date = 6;
+}
+
+// Fips140Level represents FIPS 140-2/3 security levels.
+enum Fips140Level {
+  FIPS_140_LEVEL_UNSPECIFIED = 0;
+  FIPS_140_LEVEL_1 = 1;
+  FIPS_140_LEVEL_2 = 2;
+  FIPS_140_LEVEL_3 = 3;
+  FIPS_140_LEVEL_4 = 4;
+}
+
+// AuditReport describes a security audit performed on the implementation.
+message AuditReport {
+  // Name of the auditing firm (e.g., "Trail of Bits", "NCC Group")
+  string auditor = 1;
+  
+  // Date of the audit report (ISO 8601 format)
+  string report_date = 2;
+  
+  // Reference identifier for the report
+  string report_id = 3;
+  
+  // Scope of the audit (what was audited)
+  string scope = 4;
+  
+  // Brief summary of findings
+  string findings_summary = 5;
+  
+  // Link to public report (if available)
+  string report_url = 6;
+}
+
+// ============================================================================
+// Provider Template Support
+// ============================================================================
+
+// ProviderTemplateSupport declares a provider's support for a specific template
+// with optional implementation property overrides.
+//
+// Template IDs MUST match valid entries in the algorithm catalog (TemplateInfo).
+// This cross-reference is validated at provider registration time.
+message ProviderTemplateSupport {
+  // REQUIRED: Must match a registered TemplateInfo.template_id
+  // Examples: "aes-256-gcm-96-128", "ed25519-pure", "ml-kem-768"
+  // Validation should reject unknown template IDs
+  string template_id = 1;
+  
+  // Implementation properties for this specific template.
+  // If omitted or partially specified, inherits from provider's default_implementation.
+  // Fields set here override the defaults.
+  ImplementationProperties implementation = 2;
+  
+  // Optional notes about this template's support
+  // e.g., "Hardware acceleration requires AVX2 CPU support"
+  string notes = 3;
+  
+  // Whether this template is enabled for this provider.
+  // Allows temporarily disabling support without removing the entry.
+  // Default: true (if not specified, template is enabled)
+  bool enabled = 4;
+}
+
+// ============================================================================
+// Request-Time Filtering
+// ============================================================================
+
+// ProviderRequirements specifies implementation characteristics required
+// when creating keys or selecting providers for cryptographic operations.
+//
+// All fields are optional. Only specified fields are used for filtering.
+// A provider must satisfy ALL specified requirements to be selected.
+//
+// Example: Require FIPS Level 3 with constant-time implementation:
+//   ProviderRequirements {
+//     fips_140_certified: true
+//     min_fips_level: FIPS_140_LEVEL_3
+//     constant_time: true
+//   }
+message ProviderRequirements {
+  // ========================================
+  // Certification Requirements
+  // ========================================
+  
+  // Require FIPS 140-2/3 certified implementation
+  optional bool fips_140_certified = 1;
+  
+  // Minimum FIPS 140 security level required (only if fips_140_certified is true)
+  Fips140Level min_fips_level = 2;
+  
+  // Require Common Criteria certified implementation
+  optional bool common_criteria_certified = 3;
+  
+  // ========================================
+  // Code Quality Requirements
+  // ========================================
+  
+  // Require formally verified implementation
+  optional bool formally_verified = 4;
+  
+  // Require memory-safe implementation language
+  optional bool memory_safe = 5;
+  
+  // ========================================
+  // Side-Channel Requirements
+  // ========================================
+  
+  // Require constant-time implementation
+  optional bool constant_time = 6;
+  
+  // Require side-channel hardened implementation
+  optional bool side_channel_hardened = 7;
+  
+  // ========================================
+  // Security Posture Requirements
+  // ========================================
+  
+  // Require no known unpatched CVEs
+  optional bool no_known_cve = 8;
+  
+  // ========================================
+  // Performance Preferences
+  // ========================================
+  
+  // Prefer hardware-accelerated implementation (soft requirement)
+  // This is a preference, not a hard requirement - won't reject providers without it
+  optional bool prefer_hardware_accelerated = 9;
+  
+  // ========================================
+  // Extensibility
+  // ========================================
+  
+  // Additional requirements not covered by typed fields
+  // Use for vendor-specific or emerging requirements
+  map<string, string> additional = 15;
+}
+
+// ============================================================================
+// Provider Instance - Runtime Configuration
+// ============================================================================
+
+// ProviderInstance represents a configured, runtime-ready provider.
+// Multiple instances can exist for the same provider type (e.g., different HSM slots).
+// Instances are registered via API and stored in Vault/storage.
+//
+// Design Rationale:
+// - ProviderInfo (static): Defines what a provider TYPE can do (capabilities, schema)
+// - ProviderInstance (dynamic): A configured instance ready for use (actual credentials)
+//
+// Example: PKCS#11 provider type might have multiple instances:
+//   - "hsm-payments-slot5": Uses slot 5, for payment processing
+//   - "hsm-hr-slot8": Uses slot 8, for HR data
+//
+// Credentials are stored server-side with environment variable indirection:
+//   configuration: { "pin_env": "HSM_PAYMENTS_PIN" }  # NOT the actual PIN
+//
+// See: docs/PROVIDER_CAPABILITIES_DESIGN.md for full design rationale
+message ProviderInstance {
+  // Unique identifier for this instance (e.g., "hsm-payments-slot5")
+  string instance_id = 1;
+  
+  // References ProviderInfo.provider_id (e.g., "pkcs11")
+  // The ProviderInfo defines capabilities and configuration_schema
+  string provider_id = 2;
+  
+  // Human-readable name (e.g., "Payments HSM - Slot 5")
+  string display_name = 3;
+  
+  // Description of this instance
+  string description = 4;
+  
+  // Actual configuration values matching the provider's configuration_schema.
+  // Sensitive values should use indirection: "pin_env": "HSM_SLOT5_PIN"
+  // The schema in ProviderInfo.configuration_schema defines valid keys.
+  //
+  // Example for PKCS#11:
+  //   {
+  //     "pkcs11_library_path": "/usr/lib/softhsm/libsofthsm2.so",
+  //     "slot_id": "5",
+  //     "pin_env": "HSM_PAYMENTS_PIN"
+  //   }
+  map<string, string> configuration = 5;
+  
+  // Whether this instance is active and available for use.
+  // Disabled instances are not selected during auto-selection.
+  bool enabled = 6;
+  
+  // Optional: Override default_implementation from ProviderInfo.
+  // Useful when this specific instance has different properties than the default.
+  //
+  // Example: Two HSM partitions with different firmware versions:
+  //   - Partition A: FIPS 140-3 Level 3 certified
+  //   - Partition B: Not yet certified (newer firmware in testing)
+  //
+  // Fields set here OVERRIDE the ProviderInfo defaults.
+  ImplementationProperties implementation_override = 7;
+}
