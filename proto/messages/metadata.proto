@@ -202,12 +202,14 @@ option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 //   EncryptResponse {
 //     ciphertext: <encrypted_data || tag>,
 //     metadata: OperationMetadata {
-//       api_version: "1.0",
 //       key_version: 2,
-//       algorithm_output: {
-//         aead_output: { nonce: <12-byte nonce>, tag_length_bytes: 16 }
+//       provider_output: ProviderOutput {
+//         algorithm_output: {
+//           aead_output: { nonce: <12-byte nonce>, tag_length_bytes: 16 }
+//         },
+//         encoding: "raw"
 //       },
-//       encoding: "raw"
+//       api_version: "1.0"
 //     }
 //   }
 //   → STORAGE: Store (ciphertext, metadata) pair
@@ -220,15 +222,16 @@ option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 //        metadata: <stored OperationMetadata>,
 //        aead_params: { aad: <same_aad> }
 //      }
-//   3. Service extracts nonce from metadata.aead_output.nonce
-//   4. Service uses metadata.key_version to get correct decryption key
-//   5. Service decrypts and returns plaintext
+//   3. Service extracts provider_output from metadata
+//   4. Service extracts nonce from provider_output.aead_output.nonce
+//   5. Service uses metadata.key_version to get correct decryption key
+//   6. Service decrypts and returns plaintext
 //
 // NOTE: OperationMetadata intentionally contains ONLY key_version,
-// algorithm_output, api_version, encoding, and user_context.
+// provider_output (algorithm output + encoding), api_version, and user_context.
 // Fields such as template_id, provider_id, timestamp are NOT present
 // because this message is NOT signed (see threat model above).
-// The algorithm_output fields (nonce, tag_length) are implicitly protected
+// The provider_output fields (nonce, tag_length) are implicitly protected
 // by the AEAD authentication tag — wrong nonce causes decryption failure.
 
 // ============================================================================
@@ -350,19 +353,16 @@ message VendorOutput {
   map<string, bytes> parameters = 1;
 }
 
-message OperationMetadata {
-  // Key version that was used for this operation.
-  // Critical for backward compatibility as keys are rotated.
-  // NOTE: Using wrong version results in decryption failure or garbage plaintext.
-  //
-  // This is a CORE concept — the provider never sets it.
-  // The core fills key_version after receiving the provider's response.
-  int32 key_version = 1;
-  
+// ProviderOutput — the provider-supplied subset of operation metadata.
+//
+// Providers set ONLY these fields in their responses. 
+// This separation ensures providers cannot set fields they don't own
+// (key_version, api_version) and makes the provider contract explicit.
+//
+message ProviderOutput {
   // Typed algorithm output — system-generated parameters that must be stored
   // alongside the cryptographic artifact for later decryption/verification.
   //
-  // Replaces the untyped map<string, bytes> algorithm_parameters.
   // Each arm is one-to-one with a PKCS#11 mechanism output structure.
   //
   // MUST always be explicitly set by the provider:
@@ -373,22 +373,38 @@ message OperationMetadata {
   // reject the response.  This distinguishes "no system-generated params"
   // (intentional) from "provider bug" (forgot to return the IV).
   oneof algorithm_output {
-    NoAlgorithmOutput   no_output            = 15;  // explicit: no system-generated params
-    AeadOutput          aead_output          = 10;  // GCM, CCM, ChaCha20-Poly
-    BlockCipherOutput   block_cipher_output  = 11;  // CBC, OFB, CFB
-    CounterModeOutput   counter_mode_output  = 12;  // CTR
-    StreamCipherOutput  stream_cipher_output = 13;  // ChaCha20/Salsa20 non-AEAD
-    KdfOutput           kdf_output           = 14;  // HKDF, PBKDF2, Argon2
+    NoAlgorithmOutput   no_output            = 10;  // explicit: no system-generated params
+    AeadOutput          aead_output          = 11;  // GCM, CCM, ChaCha20-Poly
+    BlockCipherOutput   block_cipher_output  = 12;  // CBC, OFB, CFB
+    CounterModeOutput   counter_mode_output  = 13;  // CTR
+    StreamCipherOutput  stream_cipher_output = 14;  // ChaCha20/Salsa20 non-AEAD
+    KdfOutput           kdf_output           = 15;  // HKDF, PBKDF2, Argon2
     VendorOutput        vendor_output        = 16;  // proprietary/pre-standard mechanisms
   }
 
   // Artifact encoding format.
   // Documents how the cryptographic output (ciphertext, signature, wrapped key)
-  // is serialized.  Replaces algorithm_parameters["encoding"].
+  // is serialized.
   //
   // Values: "raw" (default), "der" (ASN.1), "jws" (JOSE), "cbor"
   // Different providers may use different encodings for the same algorithm.
-  string encoding = 5;
+  string encoding = 1;
+}
+
+message OperationMetadata {
+  // Key version that was used for this operation.
+  // Critical for backward compatibility as keys are rotated.
+  // NOTE: Using wrong version results in decryption failure or garbage plaintext.
+  //
+  // This is a CORE concept — the provider never sets it.
+  // The core fills key_version after receiving the provider's response.
+  int32 key_version = 1;
+
+  // Provider-supplied output — algorithm parameters and encoding.
+  // The core copies this directly from the provider response.
+  // For decrypt, the core extracts this from the stored OperationMetadata
+  // and passes it to the provider.
+  ProviderOutput provider_output = 2;
   
   // API version that produced this metadata.
   // Format: "major.minor" (e.g., "1.0", "1.1", "2.0")
