@@ -333,6 +333,23 @@ message KdfOutput {
 // This follows the same pattern as NoParams in operation_params.proto.
 message NoAlgorithmOutput {}
 
+// VendorOutput — opaque vendor-specific output for mechanisms not covered
+// by the typed arms above.
+//
+// Escape hatch for:
+//   - Proprietary HSM mechanisms (CKM_VENDOR_DEFINED range in PKCS#11)
+//   - Pre-standard algorithms not yet added to the typed taxonomy
+//   - Provider-specific artifacts (e.g., HSM audit tokens, key attestation blobs)
+//
+// The core passes this through opaquely — it cannot validate the contents.
+// Providers SHOULD migrate to typed arms once standard coverage is added.
+//
+// Keys:   Short, descriptive ASCII names (e.g., "iv", "attestation_blob")
+// Values: Raw bytes; interpretation is provider-specific
+message VendorOutput {
+  map<string, bytes> parameters = 1;
+}
+
 message OperationMetadata {
   // Key version that was used for this operation.
   // Critical for backward compatibility as keys are rotated.
@@ -362,6 +379,7 @@ message OperationMetadata {
     CounterModeOutput   counter_mode_output  = 12;  // CTR
     StreamCipherOutput  stream_cipher_output = 13;  // ChaCha20/Salsa20 non-AEAD
     KdfOutput           kdf_output           = 14;  // HKDF, PBKDF2, Argon2
+    VendorOutput        vendor_output        = 16;  // proprietary/pre-standard mechanisms
   }
 
   // Artifact encoding format.
