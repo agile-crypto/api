@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/services;services";
+
+import "google/api/annotations.proto";
+import "messages/key_management.proto";
+import "messages/policy.proto";
+
+// ============================================================================
+// Key Management Service - Key Lifecycle Operations
+// ============================================================================
+//
+// This service manages the lifecycle of cryptographic keys:
+//   - CRUD operations (create, read, list, delete)
+//   - Lifecycle operations (rotate, transform, migrate)
+//   - Import/export for interoperability
+//   - Policy binding (UpdateKeyPolicy)
+//   - Pre-flight validation (ValidateKeyOperation)
+//
+// Resource: Keys (/v1/keys/*)
+// Persona:  Key administrators
+// IAM scope: keys.create, keys.read, keys.delete, keys.rotate,
+//            keys.transform, keys.migrate, keys.export, keys.import
+//
+// All key creation supports two selection modes:
+//   - Scope-based (policy determines template) — recommended
+//   - Explicit template_id (discovered via AlgorithmDiscoveryService)
+//
+
+service KeyManagementService {
+  // ==================== Key CRUD ====================
+
+  rpc CreateKey(CreateKeyRequest) returns (CreateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}"
+      body: "*"
+    };
+  }
+
+  rpc ReadKey(ReadKeyRequest) returns (ReadKeyResponse) {
+    option (google.api.http) = {
+      get: "/v1/keys/{name}"
+    };
+  }
+
+  rpc ListKeys(ListKeysRequest) returns (ListKeysResponse) {
+    option (google.api.http) = {
+      get: "/v1/keys"
+    };
+  }
+
+  rpc DeleteKey(DeleteKeyRequest) returns (DeleteKeyResponse) {
+    option (google.api.http) = {
+      delete: "/v1/keys/{name}"
+    };
+  }
+
+  // ==================== Key Lifecycle ====================
+
+  rpc RotateKey(RotateKeyRequest) returns (RotateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/rotate"
+      body: "*"
+    };
+  }
+
+  // TransformKey changes a key's algorithm while preserving its identity.
+  // The key enabler for cryptographic agility.
+  //   retain_key_bytes=true:  Same material, different operation properties
+  //   retain_key_bytes=false: Regenerate material (required for algorithm family change)
+  rpc TransformKey(TransformKeyRequest) returns (TransformKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/transform"
+      body: "*"
+    };
+  }
+
+  // UpdateKeyPolicy modifies the crypto policy binding for a key.
+  // This is a sub-resource operation on the key, not on the policy resource.
+  rpc UpdateKeyPolicy(UpdateKeyPolicyRequest) returns (UpdateKeyPolicyResponse) {
+    option (google.api.http) = {
+      put: "/v1/keys/{name}/policy"
+      body: "*"
+    };
+  }
+
+  // MigrateKey - Move key to different provider with explicit strategy
+  //
+  // Moves a key to a different provider with explicit migration strategy.
+  // User must specify how key material is handled during migration.
+  //
+  // Strategies:
+  //   PROVIDER_SWITCH: SW→SW metadata-only change
+  //   EXTRACT_AND_IMPORT: Key crosses security boundary
+  //   WRAPPED_TRANSFER: HSM→HSM with maximum security
+  //   REKEY_AND_ARCHIVE: New key, archive old (always works)
+  //   REKEY_AND_DESTROY: New key, destroy old (careful!)
+  //
+  // See docs/TRANSFORM_KEY_PROVIDER_DESIGN.md for decision tree.
+  rpc MigrateKey(MigrateKeyRequest) returns (MigrateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/migrate"
+      body: "*"
+    };
+  }
+
+  // ValidateKeyOperation - Pre-flight check for key operations
+  //
+  // Returns which strategies are feasible for a given key and target.
+  // Use before MigrateKey to show users available options.
+  rpc ValidateKeyOperation(ValidateKeyOperationRequest) returns (ValidateKeyOperationResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/validate"
+      body: "*"
+    };
+  }
+
+  // ==================== Key Import/Export ====================
+
+  rpc ExportKey(ExportKeyRequest) returns (ExportKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/export"
+      body: "*"
+    };
+  }
+
+  rpc ImportKey(ImportKeyRequest) returns (ImportKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys:import"
+      body: "*"
+    };
+  }
+}

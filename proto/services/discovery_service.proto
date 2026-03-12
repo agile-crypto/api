@@ -54,7 +54,7 @@ import "types/templates.proto";
 //     scope_spec: {
 //       kdf: { scope: KDF_SCOPE_PASSWORD }
 //     }
-//     required_properties: {"hash_algorithm": "sha256", "iterations": "600000"}
+//     required_properties: {"hash_algorithm": "sha256"}
 //   }
 //   → Returns PBKDF2-SHA256 and other KDFs matching the criteria
 //

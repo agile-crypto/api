@@ -31,7 +31,6 @@ import "types/implementation.proto";
 //   3. User creates key: { provider_requirements: { fips_140_certified: true } }
 //   4. System matches requirements to instances, selects "hsm-payments"
 //
-// See: docs/PROVIDER_CAPABILITIES_DESIGN.md for full design rationale
 
 service ProviderService {
   // ========================================

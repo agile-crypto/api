@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/services;services";
+
+import "google/api/annotations.proto";
+import "messages/key_wrapping.proto";
+import "messages/key_derivation.proto";
+import "messages/key_encapsulation.proto";
+
+// ============================================================================
+// Key Establishment Service - Key-to-Key Cryptographic Operations
+// ============================================================================
+//
+// This service provides operations where keys act on keys — the output of
+// every RPC is a new key stored in the key store.
+//
+// Covers all four NIST key establishment categories:
+//   - Key Transport (SP 800-56B):     WrapKey / UnwrapKey
+//   - Key Agreement (SP 800-56A):     KeyAgreement (ECDH, X25519, X448)
+//   - Key Encapsulation (SP 800-56C): EncapsulateKey / DecapsulateKey (ML-KEM)
+//   - Key Derivation (SP 800-56C 4, SP 800-108): DeriveKey (HKDF, PBKDF2)
+//
+// Naming rationale: NIST SP 800-56A/B defines "key establishment" as:
+//   "The process by which keying material is made available to two or more
+//    parties, with the guarantee that no unauthorized party can gain access
+//    to the keying material."
+// SP 800-56C explicitly links key derivation as the final step that extracts
+// usable keying material from a shared secret.
+
+service KeyEstablishmentService {
+  // ==================== Key Wrapping / Transport ====================
+
+  rpc WrapKey(WrapKeyRequest) returns (WrapKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{wrapping_key_name}/wrap"
+      body: "*"
+    };
+  }
+
+  rpc UnwrapKey(UnwrapKeyRequest) returns (UnwrapKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{wrapping_key_name}/unwrap"
+      body: "*"
+    };
+  }
+
+  // ==================== Key Derivation ====================
+
+  rpc DeriveKey(DeriveKeyRequest) returns (DeriveKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{base_key_name}/derive"
+      body: "*"
+    };
+  }
+
+  // KeyAgreement performs a two-party key agreement (ECDH/X25519/X448/X3DH)
+  // and stores the resulting shared secret as a named key.
+  // Distinct from DeriveKey: both parties contribute a key to produce a
+  // shared secret. No explicit KDF stage is required — the agreement
+  // protocol itself produces the output (though some protocols like
+  // X9.42 DH include an integrated KDF step).
+  rpc KeyAgreement(KeyAgreementRequest) returns (KeyAgreementResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{private_key_name}/agree"
+      body: "*"
+    };
+  }
+
+  // ==================== Key Encapsulation (Post-Quantum KEMs) ====================
+
+  rpc EncapsulateKey(EncapsulateKeyRequest) returns (EncapsulateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{recipient_public_key_name}/encapsulate"
+      body: "*"
+    };
+  }
+
+  rpc DecapsulateKey(DecapsulateKeyRequest) returns (DecapsulateKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{private_key_name}/decapsulate"
+      body: "*"
+    };
+  }
+}

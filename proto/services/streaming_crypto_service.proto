@@ -1,0 +1,362 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/services;services";
+
+import "google/api/annotations.proto";
+import "messages/encryption.proto";
+import "messages/signing.proto";
+import "messages/digest.proto";
+
+// ============================================================================
+// Streaming Crypto Service - Multi-Part and Message-Based Operations
+// ============================================================================
+//
+// This service provides stateful, session-based cryptographic operations:
+//   - Multi-part Init/Update/Final (PKCS#11 streaming pattern)
+//   - Message-based AEAD (PKCS#11 v3.1 C_EncryptMessage/C_DecryptMessage)
+//   - Dual-function operations (simultaneous digest+encrypt, sign+encrypt)
+//
+// All operations are identified by an operation_id that tracks session state.
+//
+// WHEN TO USE THIS vs CryptoService:
+//   CryptoService:          Stateless, single request/response. Use for
+//                           individual operations (document encryption, etc.)
+//   StreamingCryptoService: Stateful, multi-step sessions. Use when:
+//                           - Data doesn't fit in memory (multi-part streaming)
+//                           - Many messages share one key setup (message-based AEAD)
+//                           - PKCS#11 interop requires Init/Update/Final pattern
+
+service StreamingCryptoService {
+  // ==================== Multi-Part Encryption ====================
+
+  rpc EncryptInit(EncryptInitRequest) returns (EncryptInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptUpdate(EncryptUpdateRequest) returns (EncryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptFinal(EncryptFinalRequest) returns (EncryptFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptInit(DecryptInitRequest) returns (DecryptInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptUpdate(DecryptUpdateRequest) returns (DecryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptFinal(DecryptFinalRequest) returns (DecryptFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Message-Based AEAD Encryption ====================
+  //
+  // Session-based multi-message AEAD, modeled after PKCS#11 v3.1
+  // C_EncryptMessage / C_DecryptMessage. Amortizes key setup across
+  // multiple independent messages within a single session.
+  // Use for protocols that encrypt many records under one session:
+  //   - TLS record encryption (each record is a separate message)
+  //   - Database row-level encryption (each row is a separate message)
+  //   - Message queue encryption (each queue item is a separate message)
+  //
+  // Lifecycle: EncryptMessageInit → (EncryptMessageBegin → EncryptMessageNext* → EncryptMessage)* → EncryptMessageFinal
+  // Each Begin/Next/Message cycle processes one independent message.
+  // The session manages key state; each message gets its own IV/nonce.
+
+  rpc EncryptMessageInit(EncryptMessageInitRequest) returns (EncryptMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessage(EncryptMessageRequest) returns (EncryptMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessageBegin(EncryptMessageBeginRequest) returns (EncryptMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessageNext(EncryptMessageNextRequest) returns (EncryptMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc EncryptMessageFinal(EncryptMessageFinalRequest) returns (EncryptMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/encrypt/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageInit(DecryptMessageInitRequest) returns (DecryptMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessage(DecryptMessageRequest) returns (DecryptMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageBegin(DecryptMessageBeginRequest) returns (DecryptMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageNext(DecryptMessageNextRequest) returns (DecryptMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptMessageFinal(DecryptMessageFinalRequest) returns (DecryptMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Multi-Part Signing ====================
+
+  rpc SignInit(SignInitRequest) returns (SignInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc SignUpdate(SignUpdateRequest) returns (SignUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignFinal(SignFinalRequest) returns (SignFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyInit(VerifyInitRequest) returns (VerifyInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyUpdate(VerifyUpdateRequest) returns (VerifyUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyFinal(VerifyFinalRequest) returns (VerifyFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Message-Based Signing ====================
+
+  rpc SignMessageInit(SignMessageInitRequest) returns (SignMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessage(SignMessageRequest) returns (SignMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessageBegin(SignMessageBeginRequest) returns (SignMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessageNext(SignMessageNextRequest) returns (SignMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignMessageFinal(SignMessageFinalRequest) returns (SignMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageInit(VerifyMessageInitRequest) returns (VerifyMessageInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessage(VerifyMessageRequest) returns (VerifyMessageResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageBegin(VerifyMessageBeginRequest) returns (VerifyMessageBeginResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/begin/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageNext(VerifyMessageNextRequest) returns (VerifyMessageNextResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/next/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMessageFinal(VerifyMessageFinalRequest) returns (VerifyMessageFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Multi-Part Digest ====================
+
+  rpc DigestInit(DigestInitRequest) returns (DigestInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/init"
+      body: "*"
+    };
+  }
+
+  rpc DigestUpdate(DigestUpdateRequest) returns (DigestUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DigestKey(DigestKeyRequest) returns (DigestKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/key/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DigestFinal(DigestFinalRequest) returns (DigestFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Multi-Part XOF ====================
+
+  rpc XofInit(XofInitRequest) returns (XofInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/xof/init"
+      body: "*"
+    };
+  }
+
+  // XOF streaming uses dedicated XofUpdateRequest/XofUpdateResponse for independent evolution
+  rpc XofUpdate(XofUpdateRequest) returns (XofUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/xof/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc XofFinal(XofFinalRequest) returns (XofFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/xof/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Dual-Function Operations ====================
+  //
+  // These operations require active multi-part sessions in both primitives.
+  // E.g., DigestEncryptUpdate requires both a DigestInit and EncryptInit session.
+
+  rpc DigestEncryptUpdate(DigestEncryptUpdateRequest) returns (DigestEncryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/digest-encrypt/update/{digest_operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptDigestUpdate(DecryptDigestUpdateRequest) returns (DecryptDigestUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt-digest/update/{decrypt_operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc SignEncryptUpdate(SignEncryptUpdateRequest) returns (SignEncryptUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/sign-encrypt/update/{sign_operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc DecryptVerifyUpdate(DecryptVerifyUpdateRequest) returns (DecryptVerifyUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/decrypt-verify/update/{decrypt_operation_id}"
+      body: "*"
+    };
+  }
+}
