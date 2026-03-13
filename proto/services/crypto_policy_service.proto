@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/services;services";
+
+import "google/api/annotations.proto";
+import "messages/policy.proto";
+
+// ============================================================================
+// Crypto Policy Service - Policy Lifecycle and Evaluation
+// ============================================================================
+//
+// This service manages cryptographic policies and provides policy evaluation:
+//   - CRUD operations on crypto policies (create, read, update, delete, list)
+//   - Policy evaluation (pre-flight checks, batch evaluation)
+//
+// Crypto policies govern which algorithms/templates are allowed for a given
+// scope, enforce security level requirements (e.g., 256-bit minimum),
+// and apply compliance constraints (e.g., FIPS-approved only).
+//
+// Note: This service manages the POLICY RESOURCE. To change which policy
+// is bound to a specific key, use KeyManagementService.UpdateKeyPolicy.
+
+service CryptoPolicyService {
+  // ==================== Policy CRUD ====================
+
+  rpc CreateCryptoPolicy(CreateCryptoPolicyRequest) returns (CreateCryptoPolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/policies/{name}"
+      body: "*"
+    };
+  }
+
+  rpc ReadCryptoPolicy(ReadCryptoPolicyRequest) returns (ReadCryptoPolicyResponse) {
+    option (google.api.http) = {
+      get: "/v1/policies/{name}"
+    };
+  }
+
+  rpc DeleteCryptoPolicy(DeleteCryptoPolicyRequest) returns (DeleteCryptoPolicyResponse) {
+    option (google.api.http) = {
+      delete: "/v1/policies/{name}"
+    };
+  }
+
+  rpc UpdateCryptoPolicy(UpdateCryptoPolicyRequest) returns (UpdateCryptoPolicyResponse) {
+    option (google.api.http) = {
+      put: "/v1/policies/{name}"
+      body: "*"
+    };
+  }
+
+  rpc ListCryptoPolicies(ListCryptoPoliciesRequest) returns (ListCryptoPoliciesResponse) {
+    option (google.api.http) = {
+      get: "/v1/policies"
+    };
+  }
+
+  // ==================== Policy Evaluation ====================
+
+  // EvaluatePolicy checks if an operation would be allowed by policy.
+  // This is a read-only operation that does not perform any cryptographic work.
+  // Useful for:
+  //   - Pre-flight authorization checks (can I encrypt with this key?)
+  //   - UI enablement (should the "Sign" button be enabled?)
+  //   - Compliance queries (what operations are allowed?)
+  rpc EvaluatePolicy(EvaluatePolicyRequest) returns (EvaluatePolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/policies/{policy_name}/evaluate"
+      body: "*"
+    };
+  }
+
+  // BatchEvaluatePolicy evaluates multiple policy decisions in one call.
+  // Useful for checking multiple operations/keys at once (e.g., UI initialization).
+  rpc BatchEvaluatePolicy(BatchEvaluatePolicyRequest) returns (BatchEvaluatePolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/policies/evaluate/batch"
+      body: "*"
+    };
+  }
+}
