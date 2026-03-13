@@ -91,13 +91,13 @@ cd proto && ./build_proto.sh
 | `StreamingCryptoService` | 43 | Multi-part and message-based stateful operations (PKCS#11 Init/Update/Final) |
 | `KeyEstablishmentService` | 6 | Key-to-key operations — wrap, unwrap, derive, agree, encapsulate, decapsulate |
 | `AlgorithmDiscoveryService` | 3 | Template and scope discovery |
-| `ProviderService` | 7 | Provider catalog and instance management |
+| `ProviderService` | 8 | Provider catalog, instance management, and matching |
 
 ### 3. Example Usage
 
 ```go
 // Step 1: Create a signing key — policy selects the algorithm (e.g., ECDSA P-256)
-keyMgmt.CreateKey(&CreateKeyRequest{
+createResp := keyMgmt.CreateKey(&CreateKeyRequest{
     Name:   "contract-signing-key",
     Policy: "production-signing",
     ScopeSpec: &ScopeSpecification{
@@ -107,6 +107,7 @@ keyMgmt.CreateKey(&CreateKeyRequest{
         },
     },
 })
+// Policy selected: createResp.KeyMetadata.TemplateId (e.g., "ecdsa-p256-sha256-der")
 
 // Step 2: Sign data — algorithm determined by policy, key never exposed
 resp := crypto.Sign(&SignRequest{
@@ -115,10 +116,8 @@ resp := crypto.Sign(&SignRequest{
     NoContext: &NoParams{},  // Classical signature (ECDSA)
 })
 
-// Response includes full metadata for verification
-fmt.Printf("Template: %s, Key Version: %d\n",
-    resp.Metadata.AlgorithmParameters["template_id"],
-    resp.Metadata.KeyVersion)
+// Response includes key version for verification replay
+fmt.Printf("Signed with key version: %d\n", resp.Metadata.KeyVersion)
 
 // Step 3: Later — migrate to post-quantum ML-DSA without changing key name
 keyMgmt.TransformKey(&TransformKeyRequest{
@@ -129,7 +128,7 @@ keyMgmt.TransformKey(&TransformKeyRequest{
             Scope:    SIGNATURE_SCOPE_STANDARD,
             Security: &UniversalSecurityProperties{
                 SecurityStrengthBits: 192,
-                QuantumSafe:          boolPtr(true),
+                QuantumSafe:          true,
             },
         },
     },
