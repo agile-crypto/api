@@ -71,9 +71,10 @@ Cryptographic agility is the ability to change cryptographic algorithms without 
 | **Scope-Based Selection** | `ScopeSpecification` with per-primitive typed scopes | Applications specify *what* they need, not *how* |
 | **Template Abstraction** | `template_id` in all requests | Decouples client from algorithm details |
 | **Policy-Driven Selection** | `scope` field lets policy determine algorithm | Security teams control algorithm selection |
+| **Preferred Properties** | `preferred_properties` filter | Fine-grained selection without knowing template IDs |
 | **TransformKey Operation** | Change algorithm without changing key identity | Zero-downtime algorithm migrations |
 | **OperationMetadata** | Every response includes algorithm details | Self-describing outputs for audit and decryption |
-| **Scope-Based Discovery** | `ListTemplates` with `ScopeSpecification` + status/standards filters | Find algorithms by characteristics |
+| **Property-Based Discovery** | `ListTemplates` with required/excluded properties | Find algorithms by characteristics |
 
 ### The Scope/Template Selection Pattern
 
@@ -112,16 +113,15 @@ The API uses **per-primitive typed scopes** via `ScopeSpecification`, a oneof th
 
 | Primitive | Scope Spec | Example Scopes |
 |-----------|------------|----------------|
-| **AEAD** | `AeadScopeSpec` | `AEAD_SCOPE_STANDARD`, `AEAD_SCOPE_DETERMINISTIC`, `AEAD_SCOPE_STREAMING` |
-| **Digital Signatures** | `SignatureScopeSpec` | `SIGNATURE_SCOPE_STANDARD`, `SIGNATURE_SCOPE_WITH_CONTEXT`, `SIGNATURE_SCOPE_PREHASHED`, `SIGNATURE_SCOPE_PREHASHED_WITH_CONTEXT` |
-| **MAC** | `MacScopeSpec` | `MAC_SCOPE_STANDARD`, `MAC_SCOPE_STREAMING` |
+| **AEAD / Symmetric Encryption** | `AeadScopeSpec` | `AEAD_SCOPE_STANDARD`, `AEAD_SCOPE_DISK`, `AEAD_SCOPE_ASYMMETRIC` |
+| **Digital Signatures** | `SignatureScopeSpec` | `SIGNATURE_SCOPE_STANDARD`, `SIGNATURE_SCOPE_PQ`, `SIGNATURE_SCOPE_HYBRID` |
+| **MAC** | `MacScopeSpec` | `MAC_SCOPE_STANDARD`, `MAC_SCOPE_CUSTOMIZABLE` |
 | **Key Encapsulation** | `KemScopeSpec` | `KEM_SCOPE_STANDARD`, `KEM_SCOPE_HYBRID` |
-| **Key Agreement** | `KeyAgreementScopeSpec` | `KEY_AGREEMENT_SCOPE_STANDARD`, `KEY_AGREEMENT_SCOPE_HYBRID` |
-| **Key Derivation** | `KdfScopeSpec` | `KDF_SCOPE_EXTRACT_EXPAND`, `KDF_SCOPE_PASSWORD`, `KDF_SCOPE_AGREEMENT`, `KDF_SCOPE_COUNTER`, `KDF_SCOPE_TLS`, `KDF_SCOPE_GOST`, `KDF_SCOPE_VENDOR` |
+| **Key Agreement** | `KeyAgreementScopeSpec` | `KEY_AGREEMENT_SCOPE_STANDARD` |
+| **Key Derivation** | `KdfScopeSpec` | `KDF_SCOPE_EXTRACT_EXPAND`, `KDF_SCOPE_PASSWORD`, `KDF_SCOPE_AGREEMENT`, `KDF_SCOPE_COUNTER`, `KDF_SCOPE_TLS` |
 | **Hash / XOF** | `HashScopeSpec` | `HASH_SCOPE_STANDARD`, `HASH_SCOPE_XOF` |
-| **Key Wrapping** | `KeyWrappingScopeSpec` | `KEY_WRAPPING_SCOPE_STANDARD`, `KEY_WRAPPING_SCOPE_WITH_PADDING` |
-| **Disk Encryption** | `DiskEncryptionScopeSpec` | `DISK_ENCRYPTION_SCOPE_STANDARD` |
-| **Symmetric Cipher** | `SymmetricCipherScopeSpec` | `SYMMETRIC_CIPHER_SCOPE_BLOCK`, `SYMMETRIC_CIPHER_SCOPE_STREAM` |
+| **Key Wrapping** | `KeyWrappingScopeSpec` | `KEY_WRAPPING_SCOPE_STANDARD` |
+| **Symmetric Cipher** | `SymmetricCipherScopeSpec` | `SYMMETRIC_CIPHER_SCOPE_STANDARD` |
 | **Generic Secret** | `GenericSecretScopeSpec` | `GENERIC_SECRET_SCOPE_STANDARD` |
 
 **Design rationale:** Scope = caller input shape. Algorithms within the same scope share the same parameter interface, enabling transparent algorithm rotation (the core agility guarantee).
@@ -161,46 +161,58 @@ The API is designed so that new algorithms, providers, and capabilities can be a
 | New algorithms | Add templates via configuration | No |
 | New CryptoScopes | Add to enum | Backward-compatible addition |
 | New digest algorithms | Add hash templates (e.g., `sha3-512-512`) | No |
+| New algorithm properties | Add to `algorithm_properties` map | No |
 | New algorithm parameters | Add to `algorithm_parameters` map | No |
 | New providers | Register at runtime | No |
 | Provider-specific config | Use `provider_configuration` map | No |
 | New encodings | Document in `algorithm_parameters["encoding"]` | No |
 
-### Typed Fields over Generic Maps
+### Map-Based Extensibility
 
-The API favors typed fields over `map<string, string>` for core schema constructs.
-Templates define algorithm truth through `AlgorithmDetails` and `ScopedCapabilities`;
-providers declare their own capabilities at runtime. Maps are reserved for
-genuinely open-ended extension points such as `provider_configuration` and `user_context`:
+The heavy use of `map<string, string>` and `map<string, bytes>` enables runtime extensibility:
 
 ```protobuf
 message TemplateInfo {
   string template_id = 1;
   string display_name = 2;
   string description = 3;
-  repeated ScopedCapabilities scoped_capabilities = 4;
+  repeated ScopeSpecification scoped_capabilities = 4;
   AlgorithmDetails algorithm = 5;
   TemplateStatus status = 6;
   string deprecation_notice = 7;
-  // fields 8, 9, 11 reserved (capabilities, available_providers, algorithm_properties removed)
-  repeated string standards = 10;
-  CycloneDXAlgorithmProperties cyclonedx = 13;
+  repeated CryptoOperation supported_operations = 8;  // Actions this template can perform
+  map<string, string> capabilities = 9;
+  repeated string available_providers = 10;
+  repeated string standards = 11;
+  map<string, string> security_properties = 12;
+  
+  // Extensible flattened search index - new properties added without schema change
+  map<string, string> algorithm_properties = 13;
 }
 
 message OperationMetadata {
+  // Key version used for this operation (critical for key rotation)
   int32 key_version = 1;
-  ProviderOutput provider_output = 2;  // Typed algorithm output + encoding
+  
+  // Algorithm-specific serialization parameters (IV, nonce, encoding, etc.)
+  // Extensible: new algorithms add their own keys without schema changes
+  map<string, bytes> algorithm_parameters = 2;
+  
+  // API version that produced this metadata (e.g., "1.0", "1.1")
+  // Critical for long-lived artifacts - enables version-aware parsing
   string api_version = 3;
-  map<string, string> user_context = 4;  // Open-ended audit context (appropriate map usage)
+  
+  // User-provided context passed through from the request (audit/logging only)
+  map<string, string> user_context = 4;
 }
 ```
 
-### Scope-Based Discovery
+### Property-Based Discovery
 
 Clients can discover algorithms by their characteristics, not just by name:
 
 ```go
-// Find all FIPS-approved, active, 256-bit signatures
+// Find all FIPS-approved, non-deprecated, 256-bit signatures
 templates := ListTemplates(ListTemplatesRequest{
   ScopeSpec: &ScopeSpecification{
     Signature: &SignatureScopeSpec{
@@ -208,7 +220,6 @@ templates := ListTemplates(ListTemplatesRequest{
       Security: &SecurityRequirements{SecurityStrengthBits: 256, FipsApproved: true},
     },
   },
-  AllowedStatuses: []TemplateStatus{TEMPLATE_STATUS_ACTIVE},
 })
 ```
 
