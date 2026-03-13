@@ -41,5 +41,9 @@ import "messages/policy.proto";
 // Service Definitions
 // ============================================================================
 import "services/crypto_service.proto";
+import "services/streaming_crypto_service.proto";
+import "services/key_management_service.proto";
+import "services/key_establishment_service.proto";
+import "services/crypto_policy_service.proto";
 import "services/provider_service.proto";
 import "services/discovery_service.proto";
