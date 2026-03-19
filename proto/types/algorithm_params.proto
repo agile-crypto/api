@@ -550,9 +550,7 @@ message Ed25519Params {
   // Ed25519 variant. Default: PURE.
   // PKCS#11: CK_EDDSA_PARAMS.phFlag (CK_FALSE=Pure, CK_TRUE=Prehash)
   Ed25519Variant variant = 1;
-  
-  // Field 2 reserved: context was removed (per-operation parameter, not a template property).
-  // Pass context in the sign/verify request instead.
+
 }
 
 // Ed448Params defines parameters for Ed448 signatures.
@@ -643,8 +641,6 @@ message MlDsaParams {
   // Recommended: true for hardware implementations.
   bool hedged = 2;
   
-  // Field 3 reserved: context was removed (per-operation parameter, not a template property).
-  // Pass context in the sign/verify request instead.
 }
 
 // SlhDsaParams defines parameters for SLH-DSA (FIPS 205) signatures.
@@ -668,8 +664,6 @@ message SlhDsaParams {
   // PKCS#11: CK_SLH_DSA_PARAMS.bDeterministic
   bool deterministic = 3;
   
-  // Field 4 reserved: context was removed (per-operation parameter, not a template property).
-  // Pass context in the sign/verify request instead.
 }
 
 // ============================================================================
@@ -712,8 +706,6 @@ message RsaOaepParams {
   // Hash for MGF. Default: same as hash.
   HashAlgorithm mgf_hash = 4;
   
-  // Field 5 reserved: label was removed (per-operation parameter, not a template property).
-  // Pass the OAEP label in the encrypt/decrypt request instead.
 }
 
 // ============================================================================
@@ -791,9 +783,6 @@ message HkdfParams {
   // PKCS#11: CK_HKDF_PARAMS.ulSaltLen
   // Salt is optional but recommended.
   uint32 salt_size_bytes = 4;
-  
-  // Field 5 reserved: info was removed (per-operation parameter, not a template property).
-  // Pass the HKDF info/context in the derive key request instead.
   
   // Output key length in bytes.
   // Must not exceed 255 * hash_output_size.

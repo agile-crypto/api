@@ -83,16 +83,6 @@ import "buf/validate/validate.proto";
 //   }
 //   → Selects a FIPS Level 3 certified provider with constant-time impl
 //
-// Example 5: Scope-based with preferred properties (soft hints)
-//   CreateKeyRequest {
-//     name: "pqc-ready-key"
-//     policy: "prod-encryption"
-//     scope_spec: { aead: { scope: AEAD_SCOPE_STANDARD } }
-//     preferred_properties: {"pqc_ready": "true", "key_size_bits": "256"}
-//   }
-//   → Policy allows: [aes-256-gcm, chacha20-poly1305]
-//   → preferred_properties: no PQC match → falls back to all candidates
-//   → Select aes-256-gcm (first by template ordering)
 message CreateKeyRequest {
   string name = 1;
   string policy = 2;            // Policy name for security governance
@@ -142,28 +132,7 @@ message CreateKeyRequest {
   //
   // If provider_id is also specified, that provider must meet these requirements.
   ProviderRequirements provider_requirements = 7;
-  
-  // Optional: Soft preference hints for scope-based template selection.
-  //
-  // When scope_spec is used and multiple policy-allowed templates match,
-  // preferred_properties provides additional filtering against
-  // TemplateInfo.algorithm_properties to narrow the candidate set.
-  // Uses AND semantics: all specified properties must match.
-  //
-  // SOFT FILTER: If no candidates match all preferences, they are ignored
-  // and selection falls back to all scope-matching, policy-allowed templates.
-  // This ensures the request succeeds whenever a valid template exists.
-  //
-  // Ignored when template_id is specified (template is already explicit).
-  //
-  // Common keys (from TemplateInfo.algorithm_properties):
-  //   "algorithm_name": "AES"           - Prefer specific algorithm family
-  //   "key_size_bits": "256"            - Prefer specific key size
-  //   "pqc_ready": "true"              - Prefer post-quantum safe templates
-  //   "standard:FIPS-186-5": "true"    - Prefer FIPS-standardized algorithms
-  //
-  // Use DiscoveryService.ListTemplates to discover available property values.
-  map<string, string> preferred_properties = 8;
+
 }
 
 message CreateKeyResponse {
@@ -313,10 +282,6 @@ message ImportKeyRequest {
     string template_id = 9;             // Explicit: specific algorithm template
   }
   
-  // Optional: Soft preference hints for scope-based template selection.
-  // Same semantics as CreateKeyRequest.preferred_properties.
-  // Ignored when template_id is specified.
-  map<string, string> preferred_properties = 10;
 }
 
 message ImportKeyResponse {
@@ -329,7 +294,7 @@ message ImportKeyResponse {
 //
 // Policy-Driven Algorithm Selection:
 // When using scope-based selection, the current policy determines which templates are allowed.
-// Use preferred_properties to filter among policy-allowed options for the scope.
+// Properties in the scope specification filter among policy-allowed options for the scope.
 //
 // Separate from UpdateKeyPolicy and MigrateKey to enable fine-grained access control:
 // - Grant transform-only access: IAM can call TransformKey but not UpdateKeyPolicy/MigrateKey
@@ -388,15 +353,6 @@ message ImportKeyResponse {
 //   }
 //   → Current policy must allow "ecdsa-p256-sha512"
 //   → Transform keeping existing key bytes
-//
-// Example 4: Transform with preferred properties
-//   TransformKeyRequest {
-//     name: "crypto-agile-key"
-//     retain_key_bytes: false
-//     scope_spec: { signature: { scope: SIGNATURE_SCOPE_STANDARD } }
-//     preferred_properties: {"pqc_ready": "true"}
-//   }
-//   → Prefers PQC-ready signing templates; falls back if unavailable
 message TransformKeyRequest {
   string name = 1;
   
@@ -422,10 +378,6 @@ message TransformKeyRequest {
     string template_id = 4;
   }
   
-  // Optional: Soft preference hints for scope-based template selection.
-  // Same semantics as CreateKeyRequest.preferred_properties.
-  // Ignored when template_id is specified.
-  map<string, string> preferred_properties = 5;
 }
 
 message TransformKeyResponse {

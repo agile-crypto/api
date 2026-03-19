@@ -244,10 +244,6 @@ message ScopedCapabilities {
   // Used by: Audit trails, CBOM generation, response metadata, documentation.
   SecurityGuarantees security_guarantees = 3;
   
-  // Per-scope capabilities. Optional.
-  // Allows scope-specific capability flags.
-  // Overrides TemplateInfo.capabilities for matching keys.
-  map<string, string> capabilities = 4;
 }
 
 // ============================================================================
@@ -306,138 +302,13 @@ message TemplateInfo {
   // Deprecation notice (required if status is DEPRECATED).
   string deprecation_notice = 7 [(buf.validate.field).string.max_len = 1024];
   
-  // ========================================================================
-  // SHARED PROPERTIES (Template-Level)
-  // ========================================================================
-  
-  // Provider-specific capabilities (key-value pairs).
-  // Per-scope capabilities in ScopedCapabilities override these if same key exists.
-  map<string, string> capabilities = 8;
-  
-  // Available crypto providers for this template. Required.
-  // At least one provider must be available.
-  repeated string available_providers = 9 [(buf.validate.field).repeated.min_items = 1];
-  
   // Applicable standards (e.g., "NIST SP 800-38D", "RFC 8032").
-  repeated string standards = 10;
-   
-  
-  // Flattened search index for property-based template discovery.
-  //
-  // ============================================================================
-  // PURPOSE AND DESIGN
-  // ============================================================================
-  //
-  // This field serves as a COMPREHENSIVE FLATTENED SEARCH INDEX that combines
-  // all searchable fields from TemplateInfo into a single map for efficient
-  // property-based discovery queries.
-  //
-  // CANONICAL SOURCE OF TRUTH:
-  //   - The original fields (Algorithm, ScopedCapabilities, etc.) are canonical
-  //   - algorithm_properties is DERIVED/COMPUTED for search convenience
-  //   - Implementations SHOULD auto-populate this field when loading templates
-  //
-  // ============================================================================
-  // FLATTENED FIELDS (with key prefixes)
-  // ============================================================================
-  //
-  // 1. AlgorithmDetails core fields (no prefix):
-  //      algorithm_name, variant, key_size_bits, key_type
-  //
-  // 2. AlgorithmDetails.parameters (no prefix):
-  //      All key-value pairs (iv_size_bits, tag_bits, hash, salt_length, etc.)
-  //
-  // 3. Operations (prefix: "op:"):
-  //      op:encrypt, op:decrypt, op:sign, op:verify, op:wrap, op:unwrap, etc.
-  //      All values are "true" for supported operations (derived from scoped_capabilities).
-  //
-  // 4. Capabilities (prefix: "capability:"):
-  //      capability:aead, capability:streaming, capability:deterministic, etc.
-  //      Values are preserved from the Capabilities map.
-  //
-  // 5. AvailableProviders (prefix: "provider:"):
-  //      provider:software, provider:hsm, provider:cloud, etc.
-  //      All values are "true" for available providers.
-  //
-  // 6. Standards (prefix: "standard:"):
-  //      standard:FIPS 197, standard:NIST SP 800-38D, standard:RFC 8032, etc.
-  //      All values are "true" for applicable standards.
-  //
-  // 7. SecurityProperties (prefix: "security:"):
-  //      security:confidentiality, security:integrity, security:authenticity,
-  //      security:non_repudiation, security:quantum_resistant, etc.
-  //      Values are preserved from the SecurityProperties map.
-  //
-  // 8. Status (no prefix):
-  //      status = "TEMPLATE_STATUS_ACTIVE", "TEMPLATE_STATUS_DEPRECATED", etc.
-  //
-  // 9. Computed discovery metadata (no prefix):
-  //      pqc_ready:      "true" if post-quantum safe. For hybrid algorithms,
-  //                      this is "true" ONLY if at least one component is a
-  //                      PQC algorithm (ML-DSA, ML-KEM, SLH-DSA, SPHINCS+).
-  //
-  //      HYBRID / COMPOSITE ALGORITHM PROPERTIES:
-  //      Hybrid algorithms combine classical + post-quantum components.
-  //      Their algorithm_properties include:
-  //        hybrid:      "true" — marks this as a hybrid/composite template
-  //        components:  Comma-separated list (e.g., "ML-DSA-65,ECDSA-P256")
-  //        pqc_ready:   "true" if any component is a PQC algorithm
-  //        combiner:    Composition strategy (e.g., "concatenation", "nesting")
-  //      security_level: NIST security level (if explicitly set)
-  //      hybrid:         "true" if hybrid/composite algorithm
-  //      components:     Comma-separated list of component algorithms (for hybrids)
-  //
-  // ============================================================================
-  // SEARCH QUERY EXAMPLES
-  // ============================================================================
-  //
-  // Basic searches:
-  //   {"algorithm_name": "AES"}                      // All AES templates
-  //   {"key_size_bits": "256"}                       // All 256-bit keys
-  //   {"pqc_ready": "true"}                          // Post-quantum templates
-  //
-  // Operation-based:
-  //   {"op:sign": "true"}                            // Templates that support signing
-  //   {"op:encrypt": "true", "op:decrypt": "true"}   // Encryption templates
-  //
-  // Provider-based:
-  //   {"provider:hsm": "true"}                       // HSM-available templates
-  //   {"provider:software": "true"}                  // Software-available templates
-  //
-  // Capability-based:
-  //   {"capability:aead": "true"}                    // AEAD-capable templates
-  //   {"capability:deterministic": "true"}          // Deterministic algorithms
-  //
-  // Security-based:
-  //   {"security:quantum_resistant": "true"}        // Quantum-resistant templates
-  //   {"security:confidentiality": "true"}          // Confidentiality-providing
-  //
-  // Complex queries (AND semantics):
-  //   {"algorithm_name": "AES", "variant": "GCM", "provider:hsm": "true"}
-  //   {"op:sign": "true", "pqc_ready": "true", "provider:software": "true"}
-  //   {"capability:aead": "true", "key_size_bits": "256", "security:integrity": "true"}
-  //
-  // Hybrid algorithm queries:
-  //   {"hybrid": "true", "pqc_ready": "true"}        // PQC-ready hybrid algorithms
-  //   {"hybrid": "true", "op:sign": "true"}          // Hybrid signature algorithms
-  //   {"components": "ML-DSA-65"}                    // Hybrids containing ML-DSA-65
-  //
-  // ============================================================================
-  // IMPLEMENTATION NOTES
-  // ============================================================================
-  //
-  // - Explicitly set values in algorithm_properties are NOT overwritten
-  // - All values are strings for consistent map-based queries
-  // - Prefixes prevent collisions (e.g., "hash" parameter vs hypothetical "hash" operation)
-  // - Query matching uses AND semantics: all criteria must match
-  //
-  map<string, string> algorithm_properties = 11;
-  
+  repeated string standards = 8;
   
   // Full CycloneDX algorithm properties for CBOM (Cryptography Bill of Materials) export.
   // This field provides direct mapping to CycloneDX v1.7 algorithmProperties
   // for seamless interoperability without modifying existing CaaS fields.
-  CycloneDXAlgorithmProperties cyclonedx = 13;
+  CycloneDXAlgorithmProperties cyclonedx = 9;
   
   // NOTE: Security levels (classical_security_level, nist_quantum_security_level)
   // are NOT needed here - they exist in ScopedCapabilities.scope.security

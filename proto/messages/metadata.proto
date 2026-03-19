@@ -174,14 +174,12 @@ option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 // ========================
 //
 // 1. DISCOVER SUPPORTED ENCODINGS:
-//    - Query TemplateInfo.algorithm_properties for encoding options
-//    - Each template documents supported formats via properties
-//    - Example: algorithm_properties: { "encodings": "raw,der,jws" }
+//    - Query TemplateInfo.algorithm details and scoped_capabilities for encoding options
+//    - Each template documents supported formats via its AlgorithmDetails
 //
 // 2. REQUEST SPECIFIC ENCODING:
-//    - Use preferred_properties in CreateKeyRequest/TransformKeyRequest
-//    - Example: preferred_properties: { "encoding": "der" }
-//    - Service selects templates supporting requested encoding
+//    - Use scope_spec properties in CreateKeyRequest/TransformKeyRequest
+//    - The service selects templates supporting the requested encoding
 //
 // 3. PARSE BASED ON METADATA:
 //    - Always use algorithm_parameters["encoding"] to parse artifacts
