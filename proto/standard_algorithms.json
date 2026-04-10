@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "description": "CaaS Standard Algorithm Catalog - Merged from category files",
-  "lastUpdated": "2026-02-20T21:45:11Z",
+  "lastUpdated": "2026-03-19T09:07:45Z",
   "templates": {
     "hybrid-x25519-mlkem768-concat": {
       "templateId": "hybrid-x25519-mlkem768-concat",
@@ -91,9 +91,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "draft-ietf-tls-hybrid-design",
         "draft-ounsworth-pq-composite-kem"
@@ -187,9 +184,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "draft-ietf-tls-hybrid-design",
         "draft-ounsworth-pq-composite-kem"
@@ -266,9 +260,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "draft-ounsworth-pq-composite-sigs"
       ]
@@ -342,9 +333,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "draft-ounsworth-pq-composite-sigs"
       ]
@@ -422,9 +410,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "draft-ounsworth-pq-composite-sigs"
       ]
@@ -469,9 +454,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 5869",
         "NIST SP 800-56C"
@@ -517,9 +499,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 5869",
         "NIST SP 800-56C"
@@ -565,9 +544,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 5869",
         "NIST SP 800-56C"
@@ -614,9 +590,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 8018",
         "NIST SP 800-132"
@@ -663,9 +636,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 8018",
         "NIST SP 800-132"
@@ -713,9 +683,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 9106"
       ]
@@ -762,9 +729,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 9106"
       ]
@@ -810,9 +774,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 203"
       ]
@@ -858,9 +819,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 203"
       ]
@@ -906,9 +864,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 203"
       ]
@@ -948,9 +903,6 @@
         "x25519": {}
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 7748"
       ]
@@ -990,9 +942,6 @@
         "x448": {}
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 7748"
       ]
@@ -1037,9 +986,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 3394",
         "NIST SP 800-38F"
@@ -1085,9 +1031,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 3394",
         "NIST SP 800-38F"
@@ -1133,9 +1076,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 3394",
         "NIST SP 800-38F"
@@ -1181,9 +1121,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 5649",
         "NIST SP 800-38F"
@@ -1229,9 +1166,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 5649",
         "NIST SP 800-38F"
@@ -1277,9 +1211,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 5649",
         "NIST SP 800-38F"
@@ -1325,9 +1256,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 2104",
         "FIPS 198-1"
@@ -1373,9 +1301,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 2104",
         "FIPS 198-1"
@@ -1421,9 +1346,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 2104",
         "FIPS 198-1"
@@ -1469,9 +1391,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 198-1",
         "FIPS 202"
@@ -1518,9 +1437,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "NIST SP 800-185"
       ]
@@ -1566,9 +1482,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "NIST SP 800-185"
       ]
@@ -1650,9 +1563,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 204"
       ]
@@ -1734,9 +1644,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 204"
       ]
@@ -1818,9 +1725,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 204"
       ]
@@ -1902,9 +1806,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 205"
       ]
@@ -1986,9 +1887,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 205"
       ]
@@ -2070,9 +1968,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 205"
       ]
@@ -2154,13 +2049,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true",
-        "quantumSafe": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 204"
       ]
@@ -2242,13 +2130,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true",
-        "quantumSafe": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 204"
       ]
@@ -2330,13 +2211,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true",
-        "quantumSafe": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 204"
       ]
@@ -2418,13 +2292,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true",
-        "quantumSafe": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 205"
       ]
@@ -2506,13 +2373,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true",
-        "quantumSafe": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 205"
       ]
@@ -2594,13 +2454,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true",
-        "quantumSafe": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "FIPS 205"
       ]
@@ -2649,10 +2502,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
@@ -2702,10 +2551,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
@@ -2755,10 +2600,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
@@ -2807,9 +2648,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "SEC 2"
       ]
@@ -2857,12 +2695,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "deterministic": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 8032",
         "FIPS 186-5"
@@ -2910,13 +2742,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "deterministic": "true",
-        "prehash": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 8032"
       ]
@@ -2963,13 +2788,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "deterministic": "true",
-        "context": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 8032"
       ]
@@ -3044,12 +2862,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "deterministic": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 8032"
       ]
@@ -3101,10 +2913,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v2.2",
         "RFC 8017",
@@ -3158,10 +2966,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v2.2",
         "RFC 8017",
@@ -3215,10 +3019,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v2.2",
         "RFC 8017",
@@ -3269,10 +3069,6 @@
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
       "deprecationNotice": "Prefer RSA-PSS for new applications",
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v1.5",
         "RFC 8017"
@@ -3320,13 +3116,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
@@ -3374,13 +3163,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
@@ -3428,13 +3210,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
@@ -3482,12 +3257,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "SEC 2"
       ]
@@ -3537,13 +3306,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v2.2",
         "RFC 8017",
@@ -3595,13 +3357,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v2.2",
         "RFC 8017",
@@ -3653,13 +3408,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v2.2",
         "RFC 8017",
@@ -3709,13 +3457,6 @@
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
       "deprecationNotice": "Prefer RSA-PSS-prehashed for new applications",
-      "capabilities": {
-        "prehashed": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "PKCS#1 v1.5",
         "RFC 8017"
@@ -3772,14 +3513,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "aead": "true",
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38D",
         "FIPS 197"
@@ -3836,14 +3569,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "aead": "true",
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38D",
         "FIPS 197"
@@ -3900,14 +3625,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "aead": "true",
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38D",
         "FIPS 197"
@@ -3956,13 +3673,6 @@
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
       "deprecationNotice": "Prefer AES-GCM for authenticated encryption",
-      "capabilities": {
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
@@ -4011,13 +3721,6 @@
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
       "deprecationNotice": "Prefer AES-GCM for authenticated encryption",
-      "capabilities": {
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
@@ -4066,13 +3769,6 @@
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
       "deprecationNotice": "Prefer AES-GCM for authenticated encryption",
-      "capabilities": {
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
@@ -4119,13 +3815,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
-      "capabilities": {
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
@@ -4172,13 +3861,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
-      "capabilities": {
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
@@ -4225,13 +3907,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACCEPTABLE",
-      "capabilities": {
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software",
-        "hsm"
-      ],
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
@@ -4284,13 +3959,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "aead": "true",
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "RFC 8439"
       ]
@@ -4343,13 +4011,6 @@
         }
       },
       "status": "TEMPLATE_STATUS_ACTIVE",
-      "capabilities": {
-        "aead": "true",
-        "streaming": "true"
-      },
-      "availableProviders": [
-        "software"
-      ],
       "standards": [
         "draft-irtf-cfrg-xchacha"
       ]
