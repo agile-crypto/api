@@ -32,7 +32,6 @@ enum AeadScope {
   AEAD_SCOPE_STANDARD = 1;           // Standard AEAD (nonce, optional AAD)
   AEAD_SCOPE_DETERMINISTIC = 2;      // Deterministic (no nonce, AAD required)
   AEAD_SCOPE_STREAMING = 3;          // Streaming (segment size param)
-  AEAD_SCOPE_TWEAKABLE = 4;          // Tweakable (tweak param for disk encryption)
 }
 
 // MacScope defines operational variants for message authentication.
@@ -93,11 +92,33 @@ enum KeyWrappingScope {
   KEY_WRAPPING_SCOPE_WITH_PADDING = 2; // Key wrap with padding
 }
 
-// SymmetricCipherScope for legacy non-AEAD encryption.
+// SymmetricCipherScope for non-AEAD symmetric encryption (legacy modes).
+// All variants use NoParams — the provider generates IVs/nonces internally.
 enum SymmetricCipherScope {
   SYMMETRIC_CIPHER_SCOPE_UNSPECIFIED = 0;
-  SYMMETRIC_CIPHER_SCOPE_BLOCK = 1;  // Block cipher (CBC, ECB)
-  SYMMETRIC_CIPHER_SCOPE_STREAM = 2; // Stream cipher (CTR, OFB)
+  SYMMETRIC_CIPHER_SCOPE_BLOCK = 1;     // Block cipher (CBC, ECB) — NoParams
+  SYMMETRIC_CIPHER_SCOPE_STREAM = 2;    // Stream cipher (CTR, OFB) — NoParams
+}
+
+// DiskEncryptionScope defines the operational interface for storage encryption.
+//
+// This is a distinct primitive from SymmetricCipher because:
+//   1. Different operational interface: requires a user-provided tweak
+//      (sector/block address) via XtsEncryptParams, whereas SymmetricCipher
+//      scopes use NoParams (provider generates IVs internally).
+//   2. Different security model: provides sector-level confidentiality for
+//      block-oriented storage devices (IEEE 1619), not stream/message
+//      confidentiality.
+//   3. Different substitution domain: the only algorithms here are XTS-mode
+//      constructions. Mixing disk encryption with generic ciphers would
+//      create substitution hazards (a policy engine should never replace
+//      AES-XTS with AES-CBC).
+//
+// Scope-to-operation_params mapping:
+//   STANDARD → XtsEncryptParams (tweak)
+enum DiskEncryptionScope {
+  DISK_ENCRYPTION_SCOPE_UNSPECIFIED = 0;
+  DISK_ENCRYPTION_SCOPE_STANDARD = 1;   // AES-XTS (IEEE 1619) — XtsEncryptParams
 }
 
 // GenericSecretScope defines the operational interface for non-cryptographic
@@ -345,6 +366,28 @@ message SymmetricCipherScopeSpec {
   map<string, string> additional_properties = 15;
 }
 
+// DiskEncryptionScopeSpec specifies disk/storage encryption scope.
+// Request interpretation: "I need storage encryption with a tweak-based interface"
+// Template interpretation: "This template provides XTS-mode storage encryption"
+//
+// Example: Create a disk encryption key
+//   CreateKeyRequest {
+//     name: "volume-encryption-key"
+//     scope_spec: { disk_encryption: { scope: DISK_ENCRYPTION_SCOPE_STANDARD } }
+//   }
+message DiskEncryptionScopeSpec {
+  // REQUIRED: Must specify a concrete scope (UNSPECIFIED not allowed)
+  DiskEncryptionScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
 // GenericSecretScopeSpec specifies generic secret scope with typed properties.
 // Request interpretation: "I need to manage a secret value with these requirements"
 // Template interpretation: "This template provides generic secret management with these characteristics"
@@ -399,6 +442,7 @@ message ScopeSpecification {
     KeyWrappingScopeSpec key_wrapping = 8;
     SymmetricCipherScopeSpec symmetric_cipher = 10;
     GenericSecretScopeSpec generic_secret = 11;
+    DiskEncryptionScopeSpec disk_encryption = 12;
   }
 }
 
