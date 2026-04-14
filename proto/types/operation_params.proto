@@ -7,6 +7,7 @@ option go_package = "github.ibm.com/citius/api/gen/go/types;types";
 import "google/protobuf/struct.proto";
 import "google/protobuf/any.proto";
 import "types/algorithm_params.proto";
+import "buf/validate/validate.proto";
 
 // ============================================================================
 // Operation-Time Parameters
@@ -51,6 +52,14 @@ message NoParams {}
 
 // AEAD scope parameters for authenticated encryption.
 // Scope: AEAD (AES-GCM, AES-CCM, ChaCha20-Poly1305, AES-GCM-SIV)
+//
+// DETERMINISTIC AEAD NOTE (AEAD_SCOPE_DETERMINISTIC):
+// When used with deterministic AEAD algorithms (AES-SIV, AES-GCM-SIV with
+// external nonce), AAD SHOULD be non-empty for meaningful domain separation.
+// Server implementations MUST reject empty AAD for deterministic AEAD scope
+// if the policy requires it. Schema-level enforcement is intentionally omitted
+// because the same AeadEncryptParams is shared with randomized AEAD scopes
+// where empty AAD is legitimate.
 message AeadEncryptParams {
   // Additional Authenticated Data - user-provided, cannot be system-generated.
   // Authenticated but not encrypted (e.g., packet headers, metadata).
@@ -70,7 +79,7 @@ message XtsEncryptParams {
   // Identifies the logical position of the data unit being encrypted.
   // Must be exactly 16 bytes (128 bits) - typically sector number or block address.
   // The tweak provides positional uniqueness without requiring unique keys per sector.
-  bytes tweak = 1;
+  bytes tweak = 1 [(buf.validate.field).bytes.len = 16];
 }
 
 // Asymmetric encryption scope parameters.
@@ -103,7 +112,9 @@ message SignatureDomainContext {
   // Used to separate signatures across different protocols/applications.
   // Empty context is valid and is the default for most algorithms.
   // Ed448 REQUIRES context (can be empty but must be explicitly set).
-  bytes context = 1;
+  // Max 255 bytes per RFC 8032 -5.2.6 (Ed448), FIPS 204 -3.2 (ML-DSA),
+  // FIPS 205 -9.2 (SLH-DSA).
+  bytes context = 1 [(buf.validate.field).bytes.max_len = 255];
 }
 
 // ============================================================================
@@ -113,49 +124,104 @@ message SignatureDomainContext {
 // Note: Unlike encryption/signing, ALL KDFs require some form of user input,
 // so there is no "NoKdfParams" marker. Each KDF has its specific requirements.
 
+// Salt source type for HKDF.
+// PKCS#11 Reference: CK_HKDF_PARAMS.ulSaltType
+enum HkdfSaltType {
+  // Unspecified — server selects default (typically SALT_TYPE_DATA).
+  HKDF_SALT_TYPE_UNSPECIFIED = 0;
+
+  // Salt is provided as raw bytes in the salt field.
+  // PKCS#11: CKF_HKDF_SALT_DATA
+  HKDF_SALT_TYPE_DATA = 1;
+
+  // No salt — equivalent to a string of zeros of length HashLen (RFC 5869 -2.2).
+  // PKCS#11: CKF_HKDF_SALT_NULL
+  HKDF_SALT_TYPE_NULL = 2;
+
+  // Salt is derived from another key (identified by name/handle).
+  // PKCS#11: CKF_HKDF_SALT_KEY — CK_HKDF_PARAMS.hSaltKey
+  // The salt_key_name field in HkdfOperationParams provides the key reference.
+  HKDF_SALT_TYPE_KEY = 3;
+}
+
 // HKDF parameters (RFC 5869).
 // Use for: HKDF-SHA256, HKDF-SHA384, HKDF-SHA512, HKDF-SHA3-*
 //
 // PKCS#11 Reference: CK_HKDF_PARAMS.pSalt, CK_HKDF_PARAMS.pInfo
 message HkdfOperationParams {
   // Salt for Extract phase.
-  // Can be system-generated if not provided (per RFC 5869: "a non-secret random value").
+  // When not set (field absence), the server SHOULD generate a random salt
+  // per RFC 5869: "a non-secret random value".
+  // When set to empty bytes (b""), treated as intentionally empty — server uses
+  // a string of zeros of length HashLen per RFC 5869 -2.2.
   // For deterministic derivation, caller should provide explicit salt.
-  bytes salt = 1;
+  optional bytes salt = 1;
   
   // Application-specific context for Expand phase - USER-PROVIDED.
   // Per RFC 5869: "application specific context and target length info".
   // This differentiates derived keys for different purposes.
   // Example: "client-write-key", "server-write-key", "iv-material"
   bytes info = 2;
+
+  // Salt source type — controls how the salt field is interpreted.
+  // PKCS#11: CK_HKDF_PARAMS.ulSaltType
+  // Default (UNSPECIFIED): treated as SALT_TYPE_DATA if salt is set,
+  // SALT_TYPE_NULL if salt is absent.
+  HkdfSaltType salt_type = 3;
+
+  // Key name for salt-from-key mode (HKDF_SALT_TYPE_KEY).
+  // PKCS#11: CK_HKDF_PARAMS.hSaltKey
+  // Only used when salt_type = HKDF_SALT_TYPE_KEY. The referenced key's
+  // raw value is used as the HKDF salt in the Extract phase.
+  string salt_key_name = 4;
 }
 
 // PBKDF2 parameters (RFC 8018).
 // Use for: PBKDF2-HMAC-SHA256, PBKDF2-HMAC-SHA512, etc.
 //
 // PKCS#11 Reference: CK_PKCS5_PBKD2_PARAMS2.pPassword, CK_PKCS5_PBKD2_PARAMS2.pSaltSourceData
+//
+// NOTE: The following PBKDF2 cost parameters are TEMPLATE-LEVEL (set at key
+// creation time in Pbkdf2Params within algorithm_params.proto) and are NOT
+// repeated here:
+//   - iteration_count: Number of PBKDF2 iterations
+//   - hash_algorithm: PRF hash function (HMAC-SHA256, HMAC-SHA512, etc.)
+//   - output_length: Derived key length in bytes
+// These are fixed per-template to ensure consistent derivation across operations.
 message Pbkdf2OperationParams {
   // User password - REQUIRED, cannot be system-generated.
   // This is the secret input from which the key is derived.
   bytes password = 1;
   
-  // Salt - can be system-generated if not provided.
-  // Should be at least 16 bytes for security.
+  // Salt - when not set (field absence), the server SHOULD generate a random salt.
+  // When set to empty bytes (b""), treated as intentionally empty (NOT RECOMMENDED).
+  // Should be at least 16 bytes (128 bits) per NIST SP 800-132 -5.1.
   // For password storage, use unique salt per password.
-  bytes salt = 2;
+  optional bytes salt = 2;
 }
 
 // Argon2 parameters (RFC 9106).
 // Use for: Argon2id, Argon2i, Argon2d
 //
 // Note: Argon2 is not in PKCS#11 v3.0, but included for completeness.
+//
+// NOTE: The following Argon2 cost parameters are TEMPLATE-LEVEL (set at key
+// creation time in Argon2Params within algorithm_params.proto) and are NOT
+// repeated here:
+//   - variant: Argon2 variant (Argon2d, Argon2i, Argon2id)
+//   - memory_cost_kib: Memory size in KiB
+//   - time_cost: Number of iterations (passes)
+//   - parallelism: Degree of parallelism (lanes)
+//   - output_length: Derived key length in bytes
+// These are fixed per-template to ensure consistent cost across operations.
 message Argon2OperationParams {
   // User password - REQUIRED.
   bytes password = 1;
   
-  // Salt - can be system-generated if not provided.
-  // Should be at least 16 bytes (128 bits) per RFC 9106.
-  bytes salt = 2;
+  // Salt - when not set (field absence), the server SHOULD generate a random salt.
+  // When set to empty bytes (b""), treated as intentionally empty (NOT RECOMMENDED).
+  // Should be at least 16 bytes (128 bits) per RFC 9106 §3.1.
+  optional bytes salt = 2;
   
   // Optional associated data (Argon2-specific "additional data" parameter).
   // Bound to the derived key but not secret.
@@ -193,8 +259,14 @@ message X942DhOperationParams {
 //
 // PKCS#11 Reference: CK_TLS_PRF_PARAMS.pLabel, CK_TLS_PRF_PARAMS.pSeed
 message TlsPrfOperationParams {
-  // PRF label string (e.g., "master secret", "key expansion").
-  // Protocol-defined string that identifies the derivation purpose.
+  // PRF label string — protocol-defined ASCII string identifying the derivation purpose.
+  // Standard label values (RFC 5246 §8.1, RFC 5705):
+  //   - "master secret"     — TLS master secret derivation (8.1)
+  //   - "key expansion"     — TLS key material generation (6.3)
+  //   - "client finished"   — Client Finished verify_data (7.4.9)
+  //   - "server finished"   — Server Finished verify_data (7.4.9)
+  //   - "EXPORTER-*"        — RFC 5705 keying material export (application-defined suffix)
+  // Custom labels MUST NOT collide with the "EXPORTER-" prefix convention.
   bytes label = 1;
   
   // PRF seed data.
@@ -211,11 +283,11 @@ message Tls12KdfOperationParams {
   // Label string for PRF.
   bytes label = 1;
   
-  // Client random from TLS handshake (exactly 32 bytes).
-  bytes client_random = 2;
+  // Client random from TLS handshake (exactly 32 bytes per RFC 5246 -7.4.1.2).
+  bytes client_random = 2 [(buf.validate.field).bytes.len = 32];
   
-  // Server random from TLS handshake (exactly 32 bytes).
-  bytes server_random = 3;
+  // Server random from TLS handshake (exactly 32 bytes per RFC 5246 -7.4.1.2).
+  bytes server_random = 3 [(buf.validate.field).bytes.len = 32];
   
   // Additional context data (for extended master secret, etc.).
   bytes context_data = 4;
@@ -269,7 +341,12 @@ enum Sp800108DataType {
 message GostKdfOperationParams {
   // User Keying Material - typically REQUIRED for GOST protocols.
   // UKM provides additional entropy and prevents key reuse attacks.
-  // Typically 8 bytes for GOST 28147-89 based schemes.
+  // Size depends on the underlying algorithm:
+  //   - GOST 28147-89 (CKM_GOSTR3410_DERIVE): 8 bytes (64 bits)
+  //   - GOST R 34.12-2015 Magma/Kuznyechik: 8 bytes typical
+  //   - RFC 4357 -5.2 (VKO GOST R 34.10-2001): 8 bytes mandatory
+  //   - RFC 7836 -4.3 (VKO GOST R 34.10-2012): 1–64 bytes
+  // Server implementations SHOULD validate UKM size against the algorithm.
   bytes ukm = 1;
 }
 
@@ -277,9 +354,21 @@ message GostKdfOperationParams {
 // Use for: Extended Triple Diffie-Hellman key agreement
 //
 // Note: X3DH is not in PKCS#11 v3.0, but included for modern messaging protocols.
+//
+// X3DH Key Resolution:
+// The X3DH protocol involves multiple key pairs (identity key, signed pre-key,
+// one-time pre-key). Resolution of these keys is handled at the request level:
+//   - The private_key_name in KeyAgreementRequest identifies the local identity key
+//   - The peer_public_key carries the recipient's identity key (IK_B)
+//   - Additional keys (SPK_B, OPK_B) are resolved by the server from the
+//     recipient's published key bundle, or provided via context
+//
+// Applications SHOULD encode the X3DH role (initiator/responder) and key
+// bundle version in the context field for reproducible agreement.
 message X3dhOperationParams {
   // Protocol-specific context for the X3DH exchange.
-  // May include application identifier, version info, etc.
+  // May include application identifier, version info, peer key bundle
+  // references, or role designation (initiator/responder).
   bytes context = 1;
 }
 
@@ -289,10 +378,27 @@ message X3dhOperationParams {
 
 // Key-agreement-based wrapping scope parameters.
 // Scope: ECDH-ES+AES-KW, ECMQV key agreement with wrapping
+//
+// JWE ECDH-ES Integration (RFC 7518 - 4.6):
+// When used with JWE ECDH-ES+AES-KW, the apu and apv fields map to the
+// "apu" and "apv" header parameters. The shared_info field can carry
+// additional KDF context beyond what apu/apv provide.
 message KeyAgreementWrapParams {
   // Shared info for KDF in key wrapping.
   // Per NIST SP 800-56A: additional context for key derivation in wrap context.
   bytes shared_info = 1;
+
+  // Agreement PartyUInfo (RFC 7518 - 4.6.2).
+  // Identifies the originator (producer) of the JWE.
+  // Used in Concat KDF (NIST SP 800-56A) as part of OtherInfo.
+  // base64url-decoded value of the JWE "apu" header parameter.
+  bytes apu = 2;
+
+  // Agreement PartyVInfo (RFC 7518 - 4.6.2).
+  // Identifies the recipient (consumer) of the JWE.
+  // Used in Concat KDF (NIST SP 800-56A) as part of OtherInfo.
+  // base64url-decoded value of the JWE "apv" header parameter.
+  bytes apv = 3;
 }
 
 // GOST key wrapping parameters.
@@ -378,7 +484,14 @@ message CustomOperationParams {
   
   // Raw binary parameters for algorithms that require opaque blobs.
   // Use when the HSM/provider expects a specific binary format.
-  // This is in addition to (not instead of) generic_params/typed_params.
+  //
+  // Precedence when both structured and raw params are set:
+  //   1. typed_params (highest) — strongly-typed, preferred by schema-aware providers
+  //   2. generic_params — JSON-like, used when typed_params is not set
+  //   3. raw_params — always passed through alongside structured params
+  // raw_params is ADDITIVE: it is forwarded to the provider in addition to
+  // whichever structured param (generic_params or typed_params) is set.
+  // Providers that don't support raw_params MUST ignore it silently.
   bytes raw_params = 20;
 }
 
