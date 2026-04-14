@@ -396,7 +396,7 @@ message OperationMetadata {
   //
   // This is a CORE concept — the provider never sets it.
   // The core fills key_version after receiving the provider's response.
-  int32 key_version = 1;
+  uint32 key_version = 1;
 
   // Provider-supplied output — algorithm parameters and encoding.
   // The core copies this directly from the provider response.

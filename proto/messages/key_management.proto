@@ -161,7 +161,7 @@ message KeyMetadata {
   // The scope specification used to create this key
   ScopeSpecification scope_spec = 3;
   string provider = 4;
-  int32 version = 5;
+  uint32 version = 5;
   google.protobuf.Timestamp created_time = 6;
   google.protobuf.Timestamp updated_time = 7;
   string policy = 8;
