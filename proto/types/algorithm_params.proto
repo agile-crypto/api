@@ -50,14 +50,15 @@ enum HashAlgorithm {
   HASH_ALGORITHM_SHAKE256 = 21;    // SHAKE256 (variable output, 256-bit security)
   
   // BLAKE2 family (RFC 7693)
+  // The following are not included
+  // BLAKE2b 160-bit: 80-bit collision resistance, below NIST 112-bit minimum 
+  // BLAKE2s 128-bit: 64-bit collision resistance, below NIST 112-bit minimum
   HASH_ALGORITHM_BLAKE2B_256 = 30; // BLAKE2b with 256-bit output
   HASH_ALGORITHM_BLAKE2B_384 = 31; // BLAKE2b with 384-bit output
   HASH_ALGORITHM_BLAKE2B_512 = 32; // BLAKE2b with 512-bit output (default)
   HASH_ALGORITHM_BLAKE2S_256 = 33; // BLAKE2s with 256-bit output (optimized for 32-bit)
-  HASH_ALGORITHM_BLAKE2B_160 = 34; // BLAKE2b with 160-bit output
-  HASH_ALGORITHM_BLAKE2S_128 = 35; // BLAKE2s with 128-bit output
-  HASH_ALGORITHM_BLAKE2S_160 = 36; // BLAKE2s with 160-bit output
-  HASH_ALGORITHM_BLAKE2S_224 = 37; // BLAKE2s with 224-bit output
+  HASH_ALGORITHM_BLAKE2S_160 = 34; // BLAKE2s with 160-bit output
+  HASH_ALGORITHM_BLAKE2S_224 = 35; // BLAKE2s with 224-bit output
   
   // BLAKE3 (newer, faster, unified)
   HASH_ALGORITHM_BLAKE3 = 40;      // BLAKE3 (256-bit output by default, extendable)
@@ -357,16 +358,16 @@ enum SlhDsaParameterSet {
   SLH_DSA_PARAMETER_SET_UNSPECIFIED = 0;
   
   // 128-bit security (NIST Level 1)
-  SLH_DSA_128S = 1;                // Small signatures (~7KB)
-  SLH_DSA_128F = 2;                // Fast signing (~17KB signatures)
+  SLH_DSA_128S = 1;                // Small signatures (7,856 bytes per FIPS 205)
+  SLH_DSA_128F = 2;                // Fast signing (17,088 bytes per FIPS 205)
   
   // 192-bit security (NIST Level 3)
-  SLH_DSA_192S = 3;                // Small signatures (~16KB)
-  SLH_DSA_192F = 4;                // Fast signing (~35KB signatures)
+  SLH_DSA_192S = 3;                // Small signatures (16,224 bytes per FIPS 205)
+  SLH_DSA_192F = 4;                // Fast signing (35,664 bytes per FIPS 205)
   
   // 256-bit security (NIST Level 5)
-  SLH_DSA_256S = 5;                // Small signatures (~29KB)
-  SLH_DSA_256F = 6;                // Fast signing (~49KB signatures)
+  SLH_DSA_256S = 5;                // Small signatures (29,792 bytes per FIPS 205)
+  SLH_DSA_256F = 6;                // Fast signing (49,856 bytes per FIPS 205)
 }
 
 // ============================================================================
@@ -413,6 +414,9 @@ message AesGcmParams {
   // IV size in bits. Default: 96 (12 bytes). NIST SP 800-38D recommended.
   // PKCS#11: CK_GCM_PARAMS.ulIvLen (bytes), ulIvBits (bits)
   // Valid values: 96 (recommended), 64, 128
+  // WARNING: 64-bit random IVs have a birthday-bound collision probability at ~2^32
+  // encryptions under one key. Use 96-bit IVs for random generation, or 64-bit only
+  // with a deterministic nonce construction (e.g., counter-based).
   uint32 iv_size_bits = 2 [(buf.validate.field).uint32 = {in: [64, 96, 128]}];
   
   // Authentication tag size in bits. Default: 128.
@@ -466,7 +470,8 @@ message AesCtrParams {
 
 // ChaCha20Poly1305Params defines parameters for ChaCha20-Poly1305 AEAD.
 // CycloneDX pattern: ChaCha20-Poly1305 (IETF) or XChaCha20-Poly1305
-// PKCS#11 Mechanisms: CKM_CHACHA20_POLY1305, CKM_XCHACHA20_POLY1305
+// PKCS#11 Mechanisms: CKM_CHACHA20_POLY1305
+// NOTE: XChaCha20-Poly1305 (192-bit nonce variant) is NOT in PKCS#11 v3.0/v3.1; software-only.
 // PKCS#11 Reference Structs: CK_CHACHA20_PARAMS, CK_SALSA20_CHACHA20_POLY1305_PARAMS
 // Key size is always 256 bits for ChaCha20.
 message ChaCha20Poly1305Params {
@@ -514,8 +519,9 @@ message EcdsaParams {
   // Elliptic curve to use. Required.
   // PKCS#11: CKA_EC_PARAMS (DER-encoded OID)
   // Implicitly determines key size bits.
-  // Valid: P-256 (1), P-384 (2), P-521 (3), secp256k1 (20)
-  EllipticCurve curve = 1 [(buf.validate.field).enum = {in: [1, 2, 3, 20]}];
+  // Valid: P-256 (1), P-384 (2), P-521 (3), secp256k1 (20),
+  //        brainpoolP256r1 (30), brainpoolP384r1 (31), brainpoolP512r1 (32)
+  EllipticCurve curve = 1 [(buf.validate.field).enum = {in: [1, 2, 3, 20, 30, 31, 32]}];
   
   // Hash algorithm for signing.
   // PKCS#11: Determines mechanism (CKM_ECDSA_SHA256, CKM_ECDSA_SHA384, etc.)
@@ -531,12 +537,15 @@ message EcdsaParams {
   // Note: Not all HSMs support deterministic ECDSA.
   bool deterministic = 4;
   
-  // Cross-field validation: curve should have appropriate hash (warning-level)
-  // P-256 → SHA-256 (1), P-384 → SHA-384 (2), P-521 → SHA-512 (3)
+  // Cross-field validation: hash must be at least as strong as curve security level.
+  // P-256/brainpoolP256r1 (128-bit) => minimum SHA-256 (1); SHA-384 (2), SHA-512 (3) also valid
+  // P-384/brainpoolP384r1 (192-bit) => minimum SHA-384 (2); SHA-512 (3) also valid
+  // P-521/brainpoolP512r1 (256-bit) => SHA-512 (3) only
+  // Hash enum ordering: SHA-256=1, SHA-384=2, SHA-512=3 (conveniently sortable)
   option (buf.validate.message).cel = {
     id: "ecdsa_curve_hash_match"
-    message: "hash algorithm should match curve security level: P-256→SHA-256, P-384→SHA-384, P-521→SHA-512"
-    expression: "this.hash == 0 || (this.curve == 1 && this.hash == 1) || (this.curve == 2 && this.hash == 2) || (this.curve == 3 && this.hash == 3) || (this.curve == 20)"
+    message: "hash must meet minimum security level: P-256/BP256>=SHA-256, P-384/BP384>=SHA-384, P-521/BP512>=SHA-512"
+    expression: "this.hash == 0 || (this.curve == 20) || ((this.curve == 1 || this.curve == 30) && this.hash >= 1u && this.hash <= 3u) || ((this.curve == 2 || this.curve == 31) && this.hash >= 2u && this.hash <= 3u) || ((this.curve == 3 || this.curve == 32) && this.hash == 3)"
   };
 }
 
@@ -551,6 +560,7 @@ message Ed25519Params {
   // PKCS#11: CK_EDDSA_PARAMS.phFlag (CK_FALSE=Pure, CK_TRUE=Prehash)
   Ed25519Variant variant = 1;
 
+
 }
 
 // Ed448Params defines parameters for Ed448 signatures.
@@ -564,11 +574,7 @@ message Ed448Params {
   // PKCS#11: CK_EDDSA_PARAMS.phFlag (CK_FALSE=Pure, CK_TRUE=Prehash)
   Ed448Variant variant = 1;
   
-  // Context string (0-255 bytes).
-  // PKCS#11: CK_EDDSA_PARAMS.pContextData, ulContextDataLen
-  // Ed448 always supports context; use empty bytes for "pure" mode.
-  bytes context = 2 [(buf.validate.field).bytes.max_len = 255];
-}
+
 
 // RsaPssParams defines parameters for RSA-PSS signatures (PKCS#1 v2.1).
 // CycloneDX pattern: RSA-PSS-{hash}-{saltLength}-{keyLength}
@@ -593,14 +599,34 @@ message RsaPssParams {
   // PKCS#11: MGF hash typically matches signature hash
   HashAlgorithm mgf_hash = 4;
   
-  // Salt length in bytes.
-  // PKCS#11: CK_RSA_PKCS_PSS_PARAMS.sLen
-  // Special values:
-  //   -1: Use hash output length (recommended, PSS default)
-  //   -2: Maximum length (for verification only)
-  //    0: No salt (not recommended)
-  // Positive: Exact salt length in bytes
-  int32 salt_length = 5 [(buf.validate.field).int32 = {gte: -2, lte: 512}];
+  // Salt length mode selection.
+  // Replaces OpenSSL-style negative values (-1, -2) with typed enum for PKCS#11 portability.
+  // PKCS#11: CK_RSA_PKCS_PSS_PARAMS.sLen is CK_ULONG (unsigned).
+  enum SaltLengthMode {
+    // Use hash output length as salt length (recommended, PSS default).
+    // Equivalent to OpenSSL RSA_PSS_SALTLEN_DIGEST.
+    SALT_LENGTH_MODE_HASH_LENGTH = 0;
+    
+    // Use maximum possible salt length (for verification compatibility).
+    // sLen = emLen - hLen - 2 (PKCS#1 v2.1 - 9.1.1).
+    // Equivalent to OpenSSL RSA_PSS_SALTLEN_MAX.
+    SALT_LENGTH_MODE_MAX = 1;
+    
+    // Use explicit salt_length_bytes value.
+    SALT_LENGTH_MODE_EXPLICIT = 2;
+  }
+  
+  SaltLengthMode salt_length_mode = 5;
+  
+  // Explicit salt length in bytes (only used when salt_length_mode = EXPLICIT).
+  uint32 salt_length_bytes = 6 [(buf.validate.field).uint32 = {lte: 512}];
+  
+  // Cross-field validation: explicit mode requires non-zero salt length
+  option (buf.validate.message).cel = {
+    id: "rsa_pss_salt_length"
+    message: "SALT_LENGTH_MODE_EXPLICIT requires salt_length_bytes > 0"
+    expression: "this.salt_length_mode != 2 || this.salt_length_bytes > 0u"
+  };
 }
 
 // RsaPkcs1v15Params defines parameters for RSA PKCS#1 v1.5 signatures.
@@ -615,7 +641,8 @@ message RsaPkcs1v15Params {
   
   // Hash algorithm. Default: SHA-256.
   // PKCS#11: Determines mechanism (CKM_SHA256_RSA_PKCS, etc.)
-  HashAlgorithm hash = 2;
+  // MD5 (101) and SHA-1 (100) excluded: collision attacks make PKCS#1 v1.5 forgery practical.
+  HashAlgorithm hash = 2 [(buf.validate.field).enum = {not_in: [100, 101]}];
 }
 
 // ============================================================================
@@ -636,10 +663,13 @@ message MlDsaParams {
   // ML_DSA_87: NIST Level 5 (256-bit security)
   MlDsaParameterSet parameter_set = 1 [(buf.validate.field).enum = {not_in: [0]}];
   
-  // Use hedged signing (adds randomness for side-channel resistance).
-  // PKCS#11: CK_ML_DSA_PARAMS.bDeterministic (inverse: CK_FALSE = hedged)
-  // Recommended: true for hardware implementations.
-  bool hedged = 2;
+  // Use deterministic signing (no added randomness).
+  // PKCS#11: CK_ML_DSA_PARAMS.bDeterministic (CK_TRUE = deterministic)
+  // Proto3 default false = hedged (randomized), matching FIPS 204 -3.6 recommendation.
+  // Hedged signing adds randomness for side-channel resistance and is preferred
+  // for hardware implementations. Set deterministic=true only when reproducible
+  // signatures are required (e.g., testing, specific compliance scenarios).
+  bool deterministic = 2;
   
 }
 
@@ -740,9 +770,12 @@ message EcdhParams {
 // PKCS#11 Key Type: CKK_EC_MONTGOMERY
 // Key size is fixed at 256 bits (32 bytes).
 message X25519Params {
-  // X25519 has no configurable parameters.
   // PKCS#11: CKA_EC_PARAMS = OID 1.3.101.110
-  // This message exists for API consistency in the oneof.
+  // Key derivation function to apply to raw shared secret.
+  // Consistent with EcdhParams.kdf. Raw X25519 output SHOULD be processed
+  // through a KDF before use as keying material (RFC 7748 -6.1).
+  // If UNSPECIFIED, raw shared secret (32 bytes) is returned.
+  EcdhKdfType kdf = 1;
 }
 
 // X448Params defines parameters for X448 key agreement (RFC 7748).
@@ -751,9 +784,12 @@ message X25519Params {
 // PKCS#11 Key Type: CKK_EC_MONTGOMERY
 // Key size is fixed at 448 bits (56 bytes).
 message X448Params {
-  // X448 has no configurable parameters.
   // PKCS#11: CKA_EC_PARAMS = OID 1.3.101.111
-  // This message exists for API consistency in the oneof.
+  // Key derivation function to apply to raw shared secret.
+  // Consistent with EcdhParams.kdf. Raw X448 output SHOULD be processed
+  // through a KDF before use as keying material (RFC 7748 -6.1).
+  // If UNSPECIFIED, raw shared secret (56 bytes) is returned.
+  EcdhKdfType kdf = 1;
 }
 
 // ============================================================================
@@ -784,9 +820,21 @@ message HkdfParams {
   // Salt is optional but recommended.
   uint32 salt_size_bytes = 4;
   
+  
   // Output key length in bytes.
-  // Must not exceed 255 * hash_output_size.
-  uint32 output_length = 6 [(buf.validate.field).uint32 = {gte: 1, lte: 16320}];
+  // RFC 5869 -2.3: output ≤ 255 × HashLen.
+  //   SHA-256 (hash=1): max 8,160 bytes (255 × 32)
+  //   SHA-384 (hash=2): max 12,240 bytes (255 × 48)
+  //   SHA-512 (hash=3): max 16,320 bytes (255 × 64)
+  // Static max of 16320 accommodates SHA-512; server MUST enforce hash-specific limit.
+  uint32 output_length = 5 [(buf.validate.field).uint32 = {gte: 1, lte: 16320}];
+  
+  // Cross-field validation: output_length ≤ 255 × HashLen for common hashes
+  option (buf.validate.message).cel = {
+    id: "hkdf_output_vs_hash"
+    message: "HKDF output_length exceeds 255 * hash_output_size for the selected hash"
+    expression: "(this.hash != 1 || this.output_length <= 8160u) && (this.hash != 2 || this.output_length <= 12240u) && (this.hash != 3 || this.output_length <= 16320u)"
+  };
 }
 
 // Pbkdf2Params defines parameters for PBKDF2 (RFC 8018).
@@ -832,8 +880,9 @@ message Argon2Params {
   uint32 iterations = 4 [(buf.validate.field).uint32.gte = 1];
   
   // Degree of parallelism. Default: 4.
-  // Number of parallel threads.
-  uint32 parallelism = 5 [(buf.validate.field).uint32 = {gte: 1, lte: 16}];
+  // Number of parallel threads. RFC 9106 permits up to 2^24 - 1;
+  // capped at 255 as a practical limit for server-side deployments.
+  uint32 parallelism = 5 [(buf.validate.field).uint32 = {gte: 1, lte: 255}];
   
   // Salt size in bytes. Default: 16 (128 bits).
   uint32 salt_size_bytes = 6 [(buf.validate.field).uint32.gte = 16];
@@ -900,18 +949,9 @@ message AesKeyWrapParams {
   bool with_padding = 2;
 }
 
-// ============================================================================
-// ============================================================================
-//
-//              PHASE 1: CORE MISSING ALGORITHMS (PKCS#11 v3.0)
-//
-// ============================================================================
-// ============================================================================
-// These algorithms complete PKCS#11 v3.0 coverage for HSM compatibility.
-// Each message includes PKCS#11 mechanism references for verification.
 
 // ============================================================================
-// Legacy Symmetric Encryption (Phase 1.1)
+// Legacy Symmetric Encryption
 // PKCS#11 Reference: pkcs11-hist-v3.0
 // ============================================================================
 
@@ -952,7 +992,7 @@ message TripleDesParams {
 }
 
 // ============================================================================
-// Classical Digital Signatures (Phase 1.2)
+// Classical Digital Signatures
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.4 (DSA)
 // ============================================================================
 
@@ -987,7 +1027,7 @@ message DsaParams {
 }
 
 // ============================================================================
-// Diffie-Hellman Key Agreement (Phase 1.3)
+// Diffie-Hellman Key Agreement
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.3 (DH)
 // ============================================================================
 
@@ -1030,7 +1070,7 @@ message DiffieHellmanParams {
 }
 
 // ============================================================================
-// NIST SP 800-108 Key Derivation (Phase 1.4)
+// NIST SP 800-108 Key Derivation
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.35 (SP 800-108)
 // ============================================================================
 
@@ -1087,7 +1127,7 @@ message Sp800108KdfParams {
 }
 
 // ============================================================================
-// TLS 1.2 Key Derivation (Phase 1.5)
+// TLS 1.2 Key Derivation
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.33 (TLS)
 // ============================================================================
 
@@ -1117,12 +1157,15 @@ message Tls12Params {
   // RandomInfo from TLS handshake.
   // PKCS#11: CK_SSL3_RANDOM_DATA embedded in TLS12 params
   message RandomInfo {
-    // Client random value (32 bytes).
+    // Client random length — always 32 bytes per TLS 1.2 spec (RFC 5246 -7.4.1.2).
     // PKCS#11: CK_SSL3_RANDOM_DATA.pClientRandom (ulClientRandomLen = 32)
+    // NOTE: This is a fixed constant; actual random bytes are provided at operation
+    // time via Tls12KdfOperationParams.client_random, not in template params.
     uint32 client_random_length = 1 [(buf.validate.field).uint32.const = 32];
     
-    // Server random value (32 bytes).
+    // Server random length — always 32 bytes per TLS 1.2 spec (RFC 5246 -7.4.1.2).
     // PKCS#11: CK_SSL3_RANDOM_DATA.pServerRandom (ulServerRandomLen = 32)
+    // NOTE: Same as above — actual random bytes in Tls12KdfOperationParams.server_random.
     uint32 server_random_length = 2 [(buf.validate.field).uint32.const = 32];
   }
   RandomInfo random_info = 3;
@@ -1138,7 +1181,7 @@ message Tls12Params {
 }
 
 // ============================================================================
-// CMAC (Cipher-based MAC) (Phase 1.6)
+// CMAC (Cipher-based MAC)
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.9 (AES), 2.10 (DES)
 // ============================================================================
 
@@ -1173,10 +1216,17 @@ message CmacParams {
     message: "CMAC output must not exceed cipher block size (128 for AES, 64 for 3DES)"
     expression: "(this.cipher == 1 && (this.output_bits <= 128u || this.output_bits == 0u)) || (this.cipher == 2 && (this.output_bits <= 64u || this.output_bits == 0u))"
   };
+  
+  // Cross-field validation: 3DES does not support 256-bit keys
+  option (buf.validate.message).cel = {
+    id: "cmac_3des_key_size"
+    message: "3DES-CMAC only supports 128-bit (2-key) or 192-bit (3-key) keys; 256-bit is AES-only"
+    expression: "this.cipher != 2 || this.key_size_bits != 256u"
+  };
 }
 
 // ============================================================================
-// AES Additional Modes (Phase 1.7)
+// AES Additional Modes
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.9 (AES)
 // ============================================================================
 
@@ -1189,17 +1239,19 @@ message AesCcmParams {
   // PKCS#11: CKA_VALUE_LEN = 16, 24, or 32 bytes
   uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {in: [128, 192, 256]}];
   
-  // Nonce length in bytes (7-13 bytes per NIST SP 800-38C).
-  // PKCS#11: CK_CCM_PARAMS.ulNonceLen (7-13)
+  // Nonce length in bits (56-104 bits, i.e. 7-13 bytes per NIST SP 800-38C).
+  // PKCS#11: CK_CCM_PARAMS.ulNonceLen (7-13 bytes); divide by 8 for PKCS#11 mapping.
   // Trade-off: longer nonce = shorter max message
-  //   13 bytes nonce → 2 bytes counter (max 64KB message)
-  //   7 bytes nonce → 8 bytes counter (max 16 EB message)
-  uint32 nonce_size_bytes = 2 [(buf.validate.field).uint32 = {gte: 7, lte: 13}];
+  //   104 bits (13 bytes) nonce => 16-bit counter (max 64KB message)
+  //   56 bits (7 bytes) nonce => 64-bit counter (max 16 EB message)
+  // NOTE: Standardized to bits for consistency with AesGcmParams.tag_size_bits/iv_size_bits.
+  uint32 nonce_size_bits = 2 [(buf.validate.field).uint32 = {in: [56, 64, 72, 80, 88, 96, 104]}];
   
-  // MAC tag length in bytes.
-  // PKCS#11: CK_CCM_PARAMS.ulMACLen (4, 6, 8, 10, 12, 14, 16)
-  // Per NIST SP 800-38C: only these even values are valid.
-  uint32 tag_size_bytes = 3 [(buf.validate.field).uint32 = {in: [4, 6, 8, 10, 12, 14, 16]}];
+  // MAC tag length in bits.
+  // PKCS#11: CK_CCM_PARAMS.ulMACLen (4-16 bytes, even values); divide by 8 for PKCS#11 mapping.
+  // Per NIST SP 800-38C: only even byte values (32-128 bits in 16-bit steps) are valid.
+  // NOTE: Standardized to bits for consistency with AesGcmParams.tag_size_bits.
+  uint32 tag_size_bits = 3 [(buf.validate.field).uint32 = {in: [32, 48, 64, 80, 96, 112, 128]}];
 }
 
 // AesXtsParams defines parameters for AES-XTS (XEX-based Tweaked Codebook mode).
@@ -1237,18 +1289,13 @@ message Poly1305Params {
   // Output is always 128 bits (16 bytes)
 }
 
-// ============================================================================
-// ============================================================================
-//
-//              PHASE 2: REGIONAL STANDARDS (PKCS#11 v3.0)
-//
-// ============================================================================
+
 // ============================================================================
 // Regional cryptographic standards for specific markets.
 // PKCS#11 Reference: pkcs11-curr-v3.0 (Camellia, ARIA, SEED, GOST)
 
 // ============================================================================
-// Asian Regional Standards (Phase 2.1-2.3)
+// Asian Regional Standards
 // ============================================================================
 
 // CamelliaParams defines parameters for Camellia cipher (Japan/EU).
@@ -1283,6 +1330,20 @@ message CamelliaParams {
   
   // Padding scheme for CBC mode.
   PaddingScheme padding = 5;
+  
+  // Cross-field: ECB requires iv_size_bits = 0
+  option (buf.validate.message).cel = {
+    id: "camellia_ecb_no_iv"
+    message: "ECB mode must not specify IV (iv_size_bits must be 0)"
+    expression: "this.mode != 1 || this.iv_size_bits == 0u"
+  };
+  
+  // Cross-field: non-ECB modes require iv_size_bits > 0
+  option (buf.validate.message).cel = {
+    id: "camellia_non_ecb_requires_iv"
+    message: "CBC and CTR modes require an IV (iv_size_bits must not be 0)"
+    expression: "this.mode == 1 || this.iv_size_bits > 0u"
+  };
 }
 
 // AriaParams defines parameters for ARIA cipher (Korean standard).
@@ -1305,12 +1366,26 @@ message AriaParams {
   }
   Mode mode = 2 [(buf.validate.field).enum = {not_in: [0]}];
   
-  // IV size in bits. 128 for CBC (block size), 0 for ECB.
+  // IV size in bits. 128 for CBC, 0 for ECB.
   // ARIA uses 128-bit block size (same as AES).
   uint32 iv_size_bits = 3 [(buf.validate.field).uint32 = {in: [0, 128]}];
   
   // Padding scheme for CBC mode.
   PaddingScheme padding = 4;
+  
+  // Cross-field: ECB requires iv_size_bits = 0
+  option (buf.validate.message).cel = {
+    id: "aria_ecb_no_iv"
+    message: "ECB mode must not specify IV (iv_size_bits must be 0)"
+    expression: "this.mode != 1 || this.iv_size_bits == 0u"
+  };
+  
+  // Cross-field: non-ECB modes require iv_size_bits > 0
+  option (buf.validate.message).cel = {
+    id: "aria_non_ecb_requires_iv"
+    message: "CBC mode requires an IV (iv_size_bits must not be 0)"
+    expression: "this.mode == 1 || this.iv_size_bits > 0u"
+  };
 }
 
 // SeedParams defines parameters for SEED cipher (Korean standard).
@@ -1342,7 +1417,7 @@ message SeedParams {
 }
 
 // ============================================================================
-// Russian Standards - GOST Family (Phase 2.4)
+// Russian Standards - GOST Family
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.34 (GOST)
 // ============================================================================
 
@@ -1358,8 +1433,8 @@ message Gost28147Params {
   enum Mode {
     MODE_UNSPECIFIED = 0;
     ECB = 1;   // CKM_GOST28147_ECB
-    CBC = 2;   // CKM_GOST28147 cipher feedback variant
-    CFB = 3;   // Cipher Feedback mode
+    CBC = 2;   // Cipher Block Chaining (no dedicated PKCS#11 mechanism; provider-specific)
+    CFB = 3;   // CKM_GOST28147 (PKCS#11 default naming maps to CFB mode)
   }
   Mode mode = 1 [(buf.validate.field).enum = {not_in: [0]}];
   
@@ -1420,17 +1495,11 @@ message Gost3410Params {
 }
 
 // ============================================================================
-// ============================================================================
-//
-//              PHASE 3: LEGACY & SPECIALIZED (PKCS#11 v3.0)
-//
-// ============================================================================
-// ============================================================================
 // Legacy algorithms for compatibility and specialized protocols.
 // PKCS#11 Reference: pkcs11-curr-v3.0 (OTP), pkcs11-hist-v3.0 (legacy ciphers)
 
 // ============================================================================
-// OTP (One-Time Password) (Phase 3.1)
+// OTP (One-Time Password)
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.36 (OTP)
 // ============================================================================
 
@@ -1443,8 +1512,9 @@ message Gost3410Params {
 message HotpParams {
   // Hash algorithm for HMAC.
   // PKCS#11: Part of key attributes (typically SHA-1 per RFC 4226)
-  // Standard uses SHA-1, but SHA-256/512 are supported.
-  HashAlgorithm hash = 1;
+  // Standard uses SHA-1 (100), SHA-256 (1), and SHA-512 (3) are supported.
+  // MD5 (101) excluded: insufficient security for OTP generation.
+  HashAlgorithm hash = 1 [(buf.validate.field).enum = {not_in: [101]}];
   
   // Number of digits in OTP output (6 or 8).
   // PKCS#11: CK_OTP_OUTPUT_LENGTH (CK_OTP_PARAM with type=CK_OTP_OUTPUT_LENGTH)
@@ -1462,8 +1532,9 @@ message HotpParams {
 // Standards: RFC 6238
 message TotpParams {
   // Hash algorithm for HMAC.
-  // Standard uses SHA-1, but SHA-256/512 are supported.
-  HashAlgorithm hash = 1;
+  // Standard uses SHA-1 (100), SHA-256 (1), and SHA-512 (3) are supported (RFC 6238 §1.2).
+  // MD5 (101) excluded: insufficient security for OTP generation.
+  HashAlgorithm hash = 1 [(buf.validate.field).enum = {not_in: [101]}];
   
   // Number of digits in OTP output (6 or 8).
   // PKCS#11: CK_OTP_OUTPUT_LENGTH
@@ -1478,7 +1549,7 @@ message TotpParams {
 }
 
 // ============================================================================
-// Signal Protocol (Phase 3.2)
+// Signal Protocol
 // PKCS#11 Reference: pkcs11-curr-v3.0 Section 2.42 (X3DH)
 // ============================================================================
 
@@ -1510,19 +1581,22 @@ message X3dhParams {
 }
 
 // ============================================================================
-// Legacy Block Ciphers (Phase 3.3)
+// Legacy Block Ciphers
 // PKCS#11 Reference: pkcs11-hist-v3.0
 // ============================================================================
 
 // BlowfishParams defines parameters for Blowfish cipher.
 // CycloneDX pattern: Blowfish-{keyLength}-CBC
-// NOTE: Superseded by AES - use for legacy compatibility only
-// Block size: 64 bits, Key size: 32-448 bits
+// NOTE: Superseded by AES - use for legacy compatibility only.
+// NOT in PKCS#11 v3.0/v3.1; software-only implementation.
+// Block size: 64 bits, Key size: 128-448 bits (min raised to 128 for NIST compliance)
 message BlowfishParams {
   option deprecated = true;  // Superseded by AES
   
-  // Key size in bits (variable: 32-448).
-  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {gte: 32, lte: 448}];
+  // Key size in bits (128-448). Minimum 128 bits enforced per NIST SP 800-131A.
+  // Original Blowfish allows 32-448, but keys below 128 bits are below
+  // the NIST minimum security strength of 112 bits.
+  uint32 key_size_bits = 1 [(buf.validate.field).uint32 = {gte: 128, lte: 448}];
   
   // IV size in bits. Fixed at 64 (block size).
   uint32 iv_size_bits = 2 [(buf.validate.field).uint32.const = 64];
@@ -1534,6 +1608,7 @@ message BlowfishParams {
 // TwofishParams defines parameters for Twofish cipher.
 // CycloneDX pattern: Twofish-{keyLength}-CBC
 // AES finalist - similar security level to AES.
+// NOT in PKCS#11 v3.0/v3.1; software-only implementation.
 // Block size: 128 bits, Key size: 128/192/256 bits
 message TwofishParams {
   // Key size in bits.
