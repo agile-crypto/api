@@ -148,6 +148,29 @@ enum GenericSecretScope {
   GENERIC_SECRET_SCOPE_STANDARD = 1;  // Standard generic secret management
 }
 
+// AsymmetricEncryptionScope defines the operational interface for public-key
+// encryption (PKE).
+//
+// Scope-to-operation_params mapping:
+//   STANDARD => AsymmetricEncryptParams (label)
+//   RAW      => NoParams (RSA-PKCS1v15: no caller params needed)
+//
+// PKCS#11 Mechanisms: CKM_RSA_PKCS_OAEP, CKM_RSA_PKCS
+enum AsymmetricEncryptionScope {
+  ASYMMETRIC_ENCRYPTION_SCOPE_UNSPECIFIED = 0;
+
+  // OAEP-padded asymmetric encryption (IND-CCA2 secure).
+  // Uses AsymmetricEncryptParams at operation time.
+  // Algorithms: RSA-OAEP (PKCS#1 v2.2)
+  ASYMMETRIC_ENCRYPTION_SCOPE_STANDARD = 1;
+
+  // Legacy PKCS#1 v1.5 asymmetric encryption.
+  // Uses NoParams at operation time (no caller-provided data).
+  // WARNING: Not IND-CCA2 secure; vulnerable to Bleichenbacher attacks.
+  // Included for backward compatibility only — prefer STANDARD (OAEP).
+  ASYMMETRIC_ENCRYPTION_SCOPE_RAW = 2;
+}
+
 // KeyLifecycleState represents the lifecycle stage of a cryptographic key.
 // Modeled after NIST SP 800-57 Part 1, Rev. 5, Section 7.
 //
@@ -422,6 +445,28 @@ message GenericSecretScopeSpec {
   map<string, string> additional_properties = 15;
 }
 
+// AsymmetricEncryptionScopeSpec specifies asymmetric encryption scope with typed properties.
+// Request interpretation: "I need asymmetric encryption with these requirements"
+// Template interpretation: "This template provides asymmetric encryption with these characteristics"
+//
+// Example: Create an RSA-OAEP encryption key
+//   CreateKeyRequest {
+//     name: "rsa-encrypt-key"
+//     scope_spec: { asymmetric_encryption: { scope: ASYMMETRIC_ENCRYPTION_SCOPE_STANDARD } }
+//   }
+message AsymmetricEncryptionScopeSpec {
+  // REQUIRED: Must specify a concrete scope (UNSPECIFIED not allowed)
+  AsymmetricEncryptionScope scope = 1 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+  
+  UniversalSecurityProperties security = 2;
+  
+  // Extensibility: Additional properties not covered by typed fields.
+  map<string, string> additional_properties = 15;
+}
+
 // ============================================================================
 // Unified ScopeSpecification - Used for Both Requests and Templates
 // ============================================================================
@@ -451,6 +496,7 @@ message ScopeSpecification {
     SymmetricCipherScopeSpec symmetric_cipher = 9;
     GenericSecretScopeSpec generic_secret = 10;
     DiskEncryptionScopeSpec disk_encryption = 11;
+    AsymmetricEncryptionScopeSpec asymmetric_encryption = 12;
   }
 
   // Note: Random generation operations (GENERATE_RANDOM, SEED_RANDOM) are stateless
