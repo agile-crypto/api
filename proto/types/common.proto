@@ -30,7 +30,7 @@ enum SignatureScope {
 enum AeadScope {
   AEAD_SCOPE_UNSPECIFIED = 0;
   AEAD_SCOPE_STANDARD = 1;           // Standard AEAD (nonce, optional AAD)
-  AEAD_SCOPE_DETERMINISTIC = 2;      // Deterministic (no nonce, AAD required)
+  AEAD_SCOPE_DETERMINISTIC = 2;      // Deterministic (no nonce, AAD strongly recommended)
   AEAD_SCOPE_STREAMING = 3;          // Streaming (segment size param)
 }
 
@@ -96,8 +96,8 @@ enum KeyWrappingScope {
 // All variants use NoParams — the provider generates IVs/nonces internally.
 enum SymmetricCipherScope {
   SYMMETRIC_CIPHER_SCOPE_UNSPECIFIED = 0;
-  SYMMETRIC_CIPHER_SCOPE_BLOCK = 1;     // Block cipher (CBC, ECB) — NoParams
-  SYMMETRIC_CIPHER_SCOPE_STREAM = 2;    // Stream cipher (CTR, OFB) — NoParams
+  SYMMETRIC_CIPHER_SCOPE_BLOCK = 1;     // Block cipher (CBC) — NoParams. ECB excluded: not IND-CPA secure.
+  SYMMETRIC_CIPHER_SCOPE_STREAM = 2;    // Streaming modes (CTR, OFB) and true stream ciphers (ChaCha20) — NoParams
 }
 
 // DiskEncryptionScope defines the operational interface for storage encryption.
@@ -149,9 +149,11 @@ enum GenericSecretScope {
 }
 
 // KeyLifecycleState represents the lifecycle stage of a cryptographic key.
-// Modeled after NIST SP 800-57 Part 1, Section 7.
-// PKCS#11 Reference: object destroy states and CKA attributes
-// KMIP Reference: State enumeration (Pre-Active, Active, Deactivated, etc.)
+// Modeled after NIST SP 800-57 Part 1, Rev. 5, Section 7.
+//
+// PKCS#11 Reference: CKA_DESTROYABLE (v3.0 -2.4.6), object lifecycle (v3.0 -7)
+// KMIP Reference: State enumeration (KMIP v2.1 -3.31): Pre-Active, Active,
+//   Deactivated, Compromised, Destroyed, Destroyed Compromised
 enum KeyLifecycleState {
   KEY_LIFECYCLE_STATE_UNSPECIFIED = 0;
   KEY_LIFECYCLE_STATE_PRE_ACTIVE = 1;   // Generated but not yet usable
@@ -159,7 +161,7 @@ enum KeyLifecycleState {
   KEY_LIFECYCLE_STATE_DEACTIVATED = 3;  // No new operations; existing data still decryptable
   KEY_LIFECYCLE_STATE_COMPROMISED = 4;  // Key material may have been exposed
   KEY_LIFECYCLE_STATE_DESTROYED = 5;    // Soft-deleted; metadata retained for audit
-  KEY_LIFECYCLE_STATE_ARCHIVED = 6;     // Read-only; restricted to decrypt/verify
+  KEY_LIFECYCLE_STATE_DESTROYED_COMPROMISED = 6; // Compromised key destroyed; metadata retained for breach audit (NIST SP 800-57 -7.3)
 }
 
 // ============================================================================
@@ -214,6 +216,13 @@ message UniversalSecurityProperties {
 
 // ============================================================================
 // Per-Primitive Scope Specifications
+// ============================================================================
+
+// ============================================================================
+// Convention: In all scope spec messages, field 15 is always reserved for
+// additional_properties (map<string, string>) as the extensibility escape hatch.
+// This uses the last single-byte varint field number for the least-frequently
+// accessed field, keeping hot fields (scope, security) at low numbers.
 // ============================================================================
 
 // SignatureScopeSpec specifies signature scope with typed properties.
@@ -438,12 +447,15 @@ message ScopeSpecification {
     KeyAgreementScopeSpec key_agreement = 5;
     KdfScopeSpec kdf = 6;
     HashScopeSpec hash = 7;
-    // Note: hybrid encryption (HPKE, ECIES) uses aead scope with a hybrid template.
     KeyWrappingScopeSpec key_wrapping = 8;
-    SymmetricCipherScopeSpec symmetric_cipher = 10;
-    GenericSecretScopeSpec generic_secret = 11;
-    DiskEncryptionScopeSpec disk_encryption = 12;
+    SymmetricCipherScopeSpec symmetric_cipher = 9;
+    GenericSecretScopeSpec generic_secret = 10;
+    DiskEncryptionScopeSpec disk_encryption = 11;
   }
+
+  // Note: Random generation operations (GENERATE_RANDOM, SEED_RANDOM) are stateless
+  // and do not require keys or scope-based template matching. They are not represented
+  // in ScopeSpecification by design.
 }
 
 // ============================================================================
@@ -530,18 +542,26 @@ message FormalSecurityNotions {
   // ========================================================================
   
   // OW-CCA: One-wayness under Chosen-Ciphertext Attack
+  // Weaker notion, applicable to legacy KEMs like RSA-KEM.
   optional bool ow_cca = 30;
+  
+  // IND-CCA2 for KEM: Indistinguishability under Adaptive Chosen-Ciphertext Attack.
+  // Primary security target for modern KEMs (ML-KEM / FIPS 203, CRYSTALS-Kyber).
+  // Strictly stronger than OW-CCA.
+  optional bool ind_cca_kem = 31;
 }
 
 // PracticalSecurityOutcomes captures high-level security goals.
 // These describe WHAT the algorithm protects, not HOW it's proven secure.
 message PracticalSecurityOutcomes {
   // Confidentiality: Unauthorized parties cannot read the data.
-  // True for: AEAD, Symmetric Cipher, KEM, Hybrid Encryption
+  // True for: AEAD, Symmetric Cipher, Hybrid Encryption
   bool confidentiality = 1;
   
   // Integrity: Modifications to data are detectable.
-  // True for: AEAD, MAC, Signature, Hash
+  // True for: AEAD, MAC, Signature
+  // Note: Hash provides integrity detection only when the digest itself is
+  // authenticated (e.g., signed or stored in a trusted location).
   bool integrity = 2;
   
   // Authenticity: Data origin is verifiable.
@@ -553,7 +573,7 @@ message PracticalSecurityOutcomes {
   bool non_repudiation = 4;
 }
 
-// OperationalBounds captures safe usage limits (Tink-style analysis).
+// OperationalBounds captures safe usage limits.
 message OperationalBounds {
   // Authentication strength in bits (e.g., 128 for GCM with 128-bit tag).
   uint32 authentication_strength_bits = 1;
@@ -568,7 +588,8 @@ message OperationalBounds {
   uint64 max_plaintext_bytes_per_key = 3;
   
   // Probability bound for successful attack.
-  // Example: "2^-32" stored as string for precision.
+  // Format: power-of-two notation "2^N" (e.g., "2^-32") or scientific "XeY" (e.g., "2.33e-10").
+  // Parsers MUST handle both forms. Stored as string to preserve precision.
   string attack_success_probability = 4;
 }
 
@@ -624,7 +645,13 @@ message SecurityGuarantees {
   map<string, string> additional_properties = 15;
 }
 
-// Key wrapping format
+// WrapFormat specifies the encoding of the inner key material before wrapping
+// (i.e., the plaintext format inside the wrapped blob).
+//
+// DISTINCT FROM KeyFormat: KeyFormat specifies encoding for import/export transport.
+// WrapFormat specifies encoding for the key-to-be-wrapped before the wrapping
+// operation is applied. The same key may use KEY_FORMAT_PKCS8 for export but
+// WRAP_FORMAT_RAW for wrapping.
 enum WrapFormat {
   WRAP_FORMAT_UNSPECIFIED = 0;
   WRAP_FORMAT_PKCS8 = 1;
@@ -638,10 +665,10 @@ enum WrapFormat {
 // Used in ExportKeyRequest, ImportKeyRequest, and ExportKeyResponse.
 //
 // PKCS#11 Reference:
-//   CKO_SECRET_KEY raw bytes → KEY_FORMAT_RAW
-//   CKK_RSA / CKK_EC private key in PKCS#8 DER → KEY_FORMAT_PKCS8
-//   EC public key in X.509 SubjectPublicKeyInfo DER → KEY_FORMAT_SPKI
-//   JSON Web Key (RFC 7517) → KEY_FORMAT_JWK
+//   CKA_VALUE attribute for CKO_SECRET_KEY objects => KEY_FORMAT_RAW
+//   CKA_VALUE in PKCS#8 DER for CKO_PRIVATE_KEY objects => KEY_FORMAT_PKCS8
+//   SubjectPublicKeyInfo DER for CKO_PUBLIC_KEY objects => KEY_FORMAT_SPKI
+//   JSON Web Key (RFC 7517) => KEY_FORMAT_JWK
 enum KeyFormat {
   KEY_FORMAT_UNSPECIFIED = 0;
   KEY_FORMAT_RAW = 1;       // Raw key bytes (symmetric keys, raw EC scalars)
@@ -700,6 +727,15 @@ enum CryptoErrorCode {
   // Migration errors (50–59)
   CRYPTO_ERROR_MIGRATION_NOT_FEASIBLE = 50;     // Requested MigrationStrategy is not feasible for this key
   CRYPTO_ERROR_KEY_NOT_EXTRACTABLE = 51;        // EXTRACT_AND_IMPORT strategy requires extractable key
+
+  // Cryptographic material errors (60–69)
+  CRYPTO_ERROR_INVALID_KEY_MATERIAL = 60;       // Malformed import, wrong curve point, not on curve
+  CRYPTO_ERROR_KEY_SIZE_MISMATCH = 61;          // Provided key doesn't match template's expected size
+  CRYPTO_ERROR_INSUFFICIENT_ENTROPY = 62;       // DRBG seeding failure or entropy source unavailable
+
+  // Resource contention errors (70–79)
+  CRYPTO_ERROR_RATE_LIMITED = 70;               // Too many operations per time window
+  CRYPTO_ERROR_CONCURRENT_ACCESS = 71;          // Key locked for rotation or other exclusive operation
 }
 
 // ============================================================================
@@ -733,8 +769,7 @@ enum CryptoOperation {
   CRYPTO_OPERATION_IMPORT_KEY = 6;
   CRYPTO_OPERATION_EXPORT_KEY = 7;
   CRYPTO_OPERATION_UPDATE_KEY_POLICY = 8;
-  CRYPTO_OPERATION_UPDATE_KEY_PROVIDER = 9;       // Deprecated: use MIGRATE_KEY
-  CRYPTO_OPERATION_MIGRATE_KEY = 110;             // Migrate key to another provider
+  CRYPTO_OPERATION_MIGRATE_KEY = 9;              // Migrate key to another provider
 
   // ========================================================================
   // Encryption/Decryption Operations (PKCS#11: C_Encrypt*, C_Decrypt*)
@@ -783,7 +818,7 @@ enum CryptoOperation {
   CRYPTO_OPERATION_DIGEST = 60;
 
   // ========================================================================
-  // Key Encapsulation Operations (PKCS#11 v3.2: C_Encapsulate, C_Decapsulate)
+  // Key Encapsulation Operations (PKCS#11 v3.1+: C_Encapsulate, C_Decapsulate)
   // ========================================================================
   CRYPTO_OPERATION_ENCAPSULATE = 70;
   CRYPTO_OPERATION_DECAPSULATE = 71;
@@ -806,4 +841,19 @@ enum CryptoOperation {
   CRYPTO_OPERATION_DECRYPT_DIGEST = 101;
   CRYPTO_OPERATION_SIGN_ENCRYPT = 102;
   CRYPTO_OPERATION_DECRYPT_VERIFY = 103;
+
+  // ========================================================================
+  // Range Convention:
+  //   1–12:   Key Lifecycle (1–10 core)
+  //   10–11:  Encryption/Decryption
+  //   20–25:  Signing/Verification
+  //   30–39:  Key Wrapping
+  //   40–49:  Key Derivation
+  //   50–59:  MAC
+  //   60–69:  Digest
+  //   70–79:  Key Encapsulation
+  //   80–89:  Key Agreement
+  //   90–99:  Random Generation
+  //   100–109: Dual-Function Operations
+  // ========================================================================
 }
