@@ -147,6 +147,7 @@ message CreateKeyResponse {
   ImplementationProperties implementation_properties = 5;
 }
 
+
 message KeyMetadata {
   string name = 1;
   string template_id = 2;
@@ -167,6 +168,8 @@ message KeyMetadata {
   bool extractable = 12;
   // Lifecycle state of the key (NIST SP 800-57, KMIP state machine).
   KeyLifecycleState lifecycle_state = 13;
+  optional bytes public_key_bytes = 14; // Public-key material for asymmetric keys
+  optional KeyFormat public_key_format = 15; // Format of public key material (e.g., RAW, PKCS8, JWK)
 }
 
 message ReadKeyRequest {
