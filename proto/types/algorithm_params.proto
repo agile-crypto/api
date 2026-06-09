@@ -573,7 +573,12 @@ message Ed448Params {
   // Ed448 variant. Default: PURE.
   // PKCS#11: CK_EDDSA_PARAMS.phFlag (CK_FALSE=Pure, CK_TRUE=Prehash)
   Ed448Variant variant = 1;
-  
+
+  // Context string (0-255 bytes).
+  // PKCS#11: CK_EDDSA_PARAMS.pContextData, ulContextDataLen
+  // Ed448 always supports context; use empty bytes for "pure" mode.
+  bytes context = 2 [(buf.validate.field).bytes.max_len = 255];
+}
 
 
 // RsaPssParams defines parameters for RSA-PSS signatures (PKCS#1 v2.1).
