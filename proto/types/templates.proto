@@ -50,10 +50,15 @@ message AlgorithmDetails {
   string oid = 1 [(buf.validate.field).string.max_len = 128];
   
   // Cryptographic primitive type (CycloneDX-aligned).
-  // Optional - can be derived from the oneof algorithm field.
-  // Explicit setting allows override for edge cases (e.g., custom algorithms).
+  // Optional — derivable from the oneof algorithm field (see DERIVATION RULES above).
+  // When explicitly set, this value takes precedence over the derived primitive,
+  // enabling override for edge cases (e.g., custom algorithms, dual-use keys).
   CryptoPrimitive primitive = 2;
-  
+
+  // Field 26 reserved: poly1305 moved to MAC section (field 74).
+  // Proto3 does not support `reserved` inside oneof, so it is declared at message level.
+  reserved 26;
+
   // Algorithm-specific parameters with type safety.
   // This is the SINGLE SOURCE OF TRUTH for algorithm configuration.
   // Each message is SELF-CONTAINED per CycloneDX naming patterns.
@@ -67,7 +72,7 @@ message AlgorithmDetails {
     ChaCha20Poly1305Params chacha20_poly1305 = 23;  // ChaCha20-Poly1305 / XChaCha20-Poly1305
     AesCcmParams aes_ccm = 24;              // AES-{128,192,256}-CCM
     AesXtsParams aes_xts = 25;              // AES-{128,256}-XTS (disk encryption)
-    // Field 26 reserved: poly1305 moved to MAC section (field 74)
+    // (Field 26 formally reserved at message level above)
     
     // ========================================================================
     // Symmetric Encryption (Legacy - NOT RECOMMENDED for new applications)
@@ -186,7 +191,7 @@ message HybridAlgorithmParams {
 
   // Component algorithms. Minimum 2 required for a hybrid.
   // Ordering is determined by HybridComponent.order.
-  repeated HybridComponent components = 2;
+  repeated HybridComponent components = 2 [(buf.validate.field).repeated.min_items = 2];
 
   // Combined key size in bits.
   // Interpretation depends on combiner_strategy:
@@ -197,15 +202,15 @@ message HybridAlgorithmParams {
 
 // HybridComponent defines one algorithm in a hybrid/composite construction.
 message HybridComponent {
-  // Algorithm parameters for this component.
-  AlgorithmDetails algorithm = 1;
+  // Algorithm parameters for this component. Required.
+  AlgorithmDetails algorithm = 1 [(buf.validate.field).required = true];
 
   // Human-readable role label for this component.
   // Conventional values: "classical", "pqc", "kdf"
   string label = 2;
 
   // 1-based position in the composition (determines input/output ordering).
-  uint32 order = 3;
+  uint32 order = 3 [(buf.validate.field).uint32.gte = 1];
 }
 
 // ============================================================================
@@ -227,7 +232,7 @@ message HybridComponent {
 message ScopedCapabilities {
   // REQUIRED: The scope this capability applies to.
   // Contains scope enum + filter properties (security_strength_bits, fips_approved, etc.)
-  ScopeSpecification scope = 1;
+  ScopeSpecification scope = 1 [(buf.validate.field).required = true];
   
   // Operations supported FOR THIS SCOPE. Required, min 1.
   // Examples:
@@ -243,7 +248,13 @@ message ScopedCapabilities {
   // INFORMATIONAL PROPERTY - NOT used for template matching/filtering during key generation.
   // Used by: Audit trails, CBOM generation, response metadata, documentation.
   SecurityGuarantees security_guarantees = 3;
-  
+
+  // Reject CRYPTO_OPERATION_UNSPECIFIED (wire value 0) in operations list.
+  option (buf.validate.message).cel = {
+    id: "no_unspecified_operations"
+    message: "operations must not contain CRYPTO_OPERATION_UNSPECIFIED"
+    expression: "this.operations.all(op, op != 0)"
+  };
 }
 
 // ============================================================================
@@ -294,7 +305,7 @@ message TemplateInfo {
   // Algorithm details. Required.
   // Template = Algorithm + Configuration. This stays template-level because
   // scopes define HOW you call the algorithm (API), not WHAT algorithm it is.
-  AlgorithmDetails algorithm = 5;
+  AlgorithmDetails algorithm = 5 [(buf.validate.field).required = true];
   
   // Template lifecycle status. Default: ACTIVE.
   TemplateStatus status = 6;
@@ -303,7 +314,10 @@ message TemplateInfo {
   string deprecation_notice = 7 [(buf.validate.field).string.max_len = 1024];
   
   // Applicable standards (e.g., "NIST SP 800-38D", "RFC 8032").
-  repeated string standards = 8;
+  repeated string standards = 8 [(buf.validate.field).repeated = {
+    max_items: 50,
+    items: { string: { min_len: 1, max_len: 256 } }
+  }];
   
   // Full CycloneDX algorithm properties for CBOM (Cryptography Bill of Materials) export.
   // This field provides direct mapping to CycloneDX v1.7 algorithmProperties
@@ -313,12 +327,27 @@ message TemplateInfo {
   // NOTE: Security levels (classical_security_level, nist_quantum_security_level)
   // are NOT needed here - they exist in ScopedCapabilities.scope.security
   // (UniversalSecurityProperties.security_strength_bits and nist_security_level)
-  
-  // Cross-field validation: deprecation_notice required when status is DEPRECATED
+
+  // Template-level security guarantees. Optional.
+  // Per-scope overrides in ScopedCapabilities.security_guarantees take precedence.
+  // Provides fallback guarantees for single-scope templates where per-scope
+  // overrides are unnecessary.
+  SecurityGuarantees security_guarantees = 10;
+
+  // Cross-field validation: deprecation_notice required when status is DEPRECATED.
+  // CEL note: 3 is the wire value for TEMPLATE_STATUS_DEPRECATED.
+  // Proto3 CEL expressions use integer wire values, not enum symbolic names.
   option (buf.validate.message).cel = {
     id: "deprecation_notice_required"
     message: "deprecation_notice is required when status is TEMPLATE_STATUS_DEPRECATED"
     expression: "this.status != 3 || this.deprecation_notice != ''"
+  };
+
+  // Cross-field validation: AlgorithmDetails.oid and CycloneDX.oid must match when both set.
+  option (buf.validate.message).cel = {
+    id: "oid_consistency"
+    message: "algorithm.oid and cyclonedx.oid must match when both are set"
+    expression: "this.cyclonedx.oid == '' || this.algorithm.oid == '' || this.cyclonedx.oid == this.algorithm.oid"
   };
 }
 
@@ -334,9 +363,14 @@ message CycloneDXAlgorithmProperties {
   string name = 1 [(buf.validate.field).string.max_len = 256];
   
   // Cryptographic primitive type.
-  // Values: drbg, mac, block-cipher, stream-cipher, signature, hash, pke, xof,
-  //         kdf, key-agree, kem, ae, combiner, key-wrap, other, unknown
-  string primitive = 2 [(buf.validate.field).string.max_len = 64];
+  // Values from CycloneDX v1.7 cryptography-defs.json §primitiveEnum.
+  string primitive = 2 [(buf.validate.field).string = {
+    in: [
+      "", "drbg", "mac", "block-cipher", "stream-cipher", "signature",
+      "hash", "pke", "xof", "kdf", "key-agree", "kem", "ae",
+      "combiner", "key-wrap", "other", "unknown"
+    ]
+  }];
   
   // Algorithm family identifier (introduced in CycloneDX v1.7).
   // Examples: AES, RSA, RSASSA-PSS, ECDSA, ECDH, ML-DSA, ML-KEM, Ed25519, X25519
@@ -351,30 +385,45 @@ message CycloneDXAlgorithmProperties {
   string elliptic_curve = 5 [(buf.validate.field).string.max_len = 64];
   
   // Block cipher mode of operation.
-  // Values: cbc, ecb, ccm, gcm, cfb, ofb, ctr, other, unknown
-  string mode = 6 [(buf.validate.field).string.max_len = 32];
-  
-  // Padding scheme.
-  // Values: pkcs5, pkcs7, pkcs1v15, oaep, raw, other, unknown
-  string padding = 7 [(buf.validate.field).string.max_len = 32];
-  
-  // Cryptographic functions the algorithm supports.
-  // Values: generate, keygen, encrypt, decrypt, digest, tag, keyderive,
-  //         sign, verify, encapsulate, decapsulate, other, unknown
-  repeated string crypto_functions = 8;
-  
-  // Classical security level in bits (e.g., 128, 192, 256).
-  uint32 classical_security_level = 9 [(buf.validate.field).uint32 = {
-    in: [0, 80, 112, 128, 192, 256]
+  // Values from CycloneDX v1.7 cryptography-defs.json §modeEnum.
+  string mode = 6 [(buf.validate.field).string = {
+    in: ["", "cbc", "ecb", "ccm", "gcm", "cfb", "ofb", "ctr", "other", "unknown"]
   }];
   
-  // NIST post-quantum security level (0-6, where 0 = none of the categories met).
-  // Per https://csrc.nist.gov/projects/post-quantum-cryptography
-  uint32 nist_quantum_security_level = 10 [(buf.validate.field).uint32.lte = 6];
+  // Padding scheme.
+  // Values from CycloneDX v1.7 cryptography-defs.json §paddingEnum.
+  string padding = 7 [(buf.validate.field).string = {
+    in: ["", "pkcs5", "pkcs7", "pkcs1v15", "oaep", "raw", "other", "unknown"]
+  }];
+  
+  // Cryptographic functions the algorithm supports.
+  // Values from CycloneDX v1.7 cryptography-defs.json §cryptoFunctionEnum.
+  repeated string crypto_functions = 8 [(buf.validate.field).repeated = {
+    max_items: 20,
+    items: { string: { in: [
+      "generate", "keygen", "encrypt", "decrypt", "digest", "tag",
+      "keyderive", "sign", "verify", "encapsulate", "decapsulate",
+      "other", "unknown"
+    ]}}
+  }];
+  
+  // Classical security level in bits.
+  // 0 = not applicable; 160 = SHA-1/3TDEA equivalent; 224 = Ed448/SHA-224/P-224.
+  uint32 classical_security_level = 9 [(buf.validate.field).uint32 = {
+    in: [0, 80, 112, 128, 160, 192, 224, 256]
+  }];
+  
+  // NIST post-quantum security level (1–5). 0 = not applicable / none met.
+  // NIST defines exactly levels 1–5; there is no level 6.
+  // Reference: https://csrc.nist.gov/projects/post-quantum-cryptography
+  uint32 nist_quantum_security_level = 10 [(buf.validate.field).uint32.lte = 5];
   
   // Certification levels achieved.
   // Values: none, fips140-1-l1 through fips140-3-l4, cc-eal1 through cc-eal7+
-  repeated string certification_level = 11;
+  repeated string certification_level = 11 [(buf.validate.field).repeated = {
+    max_items: 20,
+    items: { string: { min_len: 1, max_len: 64 } }
+  }];
   
   // Execution environment.
   // Values: software-plain-ram, software-encrypted-ram, software-tee, hardware, other, unknown
