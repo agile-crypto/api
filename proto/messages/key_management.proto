@@ -84,10 +84,13 @@ import "buf/validate/validate.proto";
 //   → Selects a FIPS Level 3 certified provider with constant-time impl
 //
 message CreateKeyRequest {
+  // Unique name to identify this key
   string name = 1;
-  string policy = 2;            // Policy name for security governance
-  string provider_id = 3;       // Optional: preferred provider (otherwise auto-selected)
-  
+  // Name of the policy to bind this key to, for security governance
+  string policy = 2;
+  // Optional: provider ID in which the key must be created. If not set, the provider is 
+  // auto-selected based on the policy and provider requirements, if set.
+  string provider_id = 3;       
   // Optional: Ad-hoc provider-specific settings for this key creation only.
   //
   // PREFERRED: Use provider_requirements (field 7) for structured provider
@@ -103,27 +106,17 @@ message CreateKeyRequest {
   // incomplete. For production deployments, prefer pre-registered
   // ProviderInstances (managed via ProviderService).
   map<string, string> provider_configuration = 4;
-  
-  // Exactly one key specification method must be provided (enforced by oneof)
-  oneof key_specification {
-    option (buf.validate.oneof).required = true;
-    // Scope-based (recommended):
-    //   The policy determines which template to use based on the scope.
-    //   Example: scope_spec.aead.scope=AEAD_SCOPE_STANDARD, policy="prod-encryption"
-    //   → Policy selects from allowed templates (e.g., "aes-256-gcm")
-    //   → Properties in scope_spec filter among policy-allowed options
-    ScopeSpecification scope_spec = 5;
-    
-    // Template-based (explicit):
-    //   Specify the algorithm directly. Policy must allow this template.
-    //   Example: template_id="ed25519", policy="signing-policy"
-    //   → Uses Ed25519 directly (policy must approve it)
-    string template_id = 6;
-  }
-  
+  // Scope specification for template selection. The scope specification describes the 
+  // scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  ScopeSpecification scope_spec = 5;
+  // Optional: explicit template ID. If set, it must match the scope specification
+  // and be allowed by the policy. If not set, the template is determined based on
+  // the scope specification and the policy.
+  optional string template_id = 6;
   // Optional: Implementation requirements for provider selection.
   // When specified, only providers meeting these requirements are considered.
-  // This filters providers AFTER template selection.
   //
   // Use cases:
   // - Require FIPS 140-3 certified implementation for compliance
@@ -132,7 +125,6 @@ message CreateKeyRequest {
   //
   // If provider_id is also specified, that provider must meet these requirements.
   ProviderRequirements provider_requirements = 7;
-
 }
 
 message CreateKeyResponse {
@@ -261,11 +253,6 @@ message ExportKeyResponse {
 // - Specific import formats
 // - Key attestation verification
 // - Restrictions on imported key usage
-//
-// Key Specification:
-// The imported key's type/algorithm is determined via key_specification:
-// - Scope-based: Policy selects appropriate template for the scope
-// - Template-based: Explicit template_id (e.g., "aes-256-gcm")
 message ImportKeyRequest {
   string name = 1;              // Name for the imported key
   string policy_name = 2;       // Policy to associate with imported key
@@ -274,13 +261,7 @@ message ImportKeyRequest {
   string unwrapping_key_name = 5; // Required if format=KEY_FORMAT_WRAPPED: KEK to unwrap with
   string provider_id = 6;       // Optional: target provider for the key
   map<string, string> provider_configuration = 7;
-  
-  // Key type specification
-  oneof key_specification {
-    option (buf.validate.oneof).required = true;
-    ScopeSpecification scope_spec = 8;  // Intent-based: policy selects template
-    string template_id = 9;             // Explicit: specific algorithm template
-  }
+  string template_id = 8;       // Template ID for the imported key (required)
   
 }
 
@@ -354,30 +335,19 @@ message ImportKeyResponse {
 //   → Current policy must allow "ecdsa-p256-sha512"
 //   → Transform keeping existing key bytes
 message TransformKeyRequest {
+  // Name of the key to be transformed
   string name = 1;
-  
   // Whether to retain the existing key bytes (true) or regenerate (false)
   bool retain_key_bytes = 2;
-  
-  // Exactly one key specification method must be provided (enforced by oneof)
-  oneof key_specification {
-    option (buf.validate.oneof).required = true;
-    // Scope-based (recommended):
-    //   The current policy determines which template to use based on the scope.
-    //   Example: scope_spec.signature { scope: SIGNATURE_SCOPE_STANDARD }
-    //   → Current policy selects from allowed templates
-    //   → Properties in scope_spec filter among policy-allowed options
-    //   → Note: Policy is NOT changed; use UpdateKeyPolicy for that
-    ScopeSpecification scope_spec = 3;
-    
-    // Template-based (explicit):
-    //   Specify the algorithm directly. Current policy must allow this template.
-    //   Example: template_id="ecdsa-p256-sha512"
-    //   → Uses ECDSA P-256 with SHA-512 (current policy must approve it)
-    //   → Note: Policy is NOT changed; use UpdateKeyPolicy for that
-    string template_id = 4;
-  }
-  
+  // Scope specification for template selection. The scope specification describes the 
+  // scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  ScopeSpecification scope_spec = 5;
+  // Optional: explicit template ID. If set, it must match the scope specification
+  // and be allowed by the policy. If not set, the template is determined based on
+  // the scope specification and the policy.
+  optional string template_id = 6;
 }
 
 message TransformKeyResponse {
@@ -549,15 +519,16 @@ message MigrateKeyRequest {
   // User must acknowledge how key material will be handled
   MigrationStrategy strategy = 4;
   
-  // Optional: Also change algorithm during migration
-  // If not specified, attempts to keep same template on target provider
-  oneof key_specification {
-    // Scope-based: Let policy select appropriate template on target
-    ScopeSpecification scope_spec = 5;
-    
-    // Template-based: Explicit algorithm for target provider
-    string template_id = 6;
-  }
+  // Optional: also change algorithm during migration with scope specification for template selection.
+  // If not specified, current template is kept on target provider. The scope specification describes the 
+  // scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  optional ScopeSpecification scope_spec = 5;
+  // Optional: also change algorithm with explicit template ID. If both a template ID and a scope specification are set, 
+  // thee template ID must match the scope specification and be allowed by the policy. If only a scope specification is set, 
+  // the template is determined based on the scope specification and the policy. If none are set, the current template is used.
+  optional string template_id = 6;
 }
 
 // ProviderTarget - Direct provider specification for migration
@@ -654,10 +625,15 @@ message ValidateKeyOperationRequest {
 
 // ValidateTransformIntent - Check transform feasibility
 message ValidateTransformIntent {
-  oneof key_specification {
-    ScopeSpecification scope_spec = 1;
-    string template_id = 2;
-  }
+  // Scope specification for template selection. The scope specification describes the 
+  // scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  ScopeSpecification scope_spec = 1;
+  // Optional: explicit template ID. If set, it must match the scope specification
+  // and be allowed by the policy. If not set, the template is determined based on
+  // the scope specification and the policy.
+  optional string template_id = 2;
   
   // Whether user prefers to retain key bytes
   bool prefer_retain_bytes = 3;
