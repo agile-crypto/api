@@ -17,26 +17,25 @@ import "buf/validate/validate.proto";
 // When scope_spec is used, the template registry selects the best ACTIVE template
 // matching the scope and security properties.
 message DigestInitRequest {
-  // Algorithm selection: exactly one must be provided.
-  oneof algorithm_selection {
-    option (buf.validate.oneof).required = true;
-    // Explicit: specify template directly (e.g., "sha-256", "sha3-256", "sha-512")
-    string template_id = 1;
-
-    // Scope-based: template registry selects the best active template for this scope.
-    // Example: { hash: { scope: HASH_SCOPE_STANDARD, security: { security_strength_bits: 256 } } }
-    ScopeSpecification scope_spec = 2;
-  }
+  // Scope specification to select the template used for computing a digest. The scope specification 
+  // describes the scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  ScopeSpecification scope_spec = 1;
+  // Optional: explicit template ID. If set, it must match the scope specification
+  // and be allowed by the policy. If not set, the template is determined based on
+  // the scope specification and the policy.
+  optional string template_id = 2;
   
   // Unique identifier for this streaming operation
-  string operation_id = 10;
+  string operation_id = 3;
   
   // Optional: Policy name for additional validation and enforcement.
   // If provided, validates whether this operation and selected template are allowed.
-  string policy_name = 11;
+  string policy_name = 4;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 15;
+  map<string, string> user_context = 5;
 }
 
 message DigestInitResponse {
@@ -50,26 +49,25 @@ message DigestInitResponse {
 // When scope_spec is used, the template registry selects the best ACTIVE template
 // matching the scope and security properties.
 message DigestRequest {
-  // Algorithm selection: exactly one must be provided.
-  oneof algorithm_selection {
-    option (buf.validate.oneof).required = true;
-    // Explicit: specify template directly (e.g., "sha-256", "sha3-256", "sha-512")
-    string template_id = 1;
-
-    // Scope-based: template registry selects the best active template for this scope.
-    // Example: { hash: { scope: HASH_SCOPE_STANDARD, security: { security_strength_bits: 256 } } }
-    ScopeSpecification scope_spec = 2;
-  }
+  // Scope specification to select the template used for computing a digest. The scope specification 
+  // describes the scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  ScopeSpecification scope_spec = 1;
+  // Optional: explicit template ID. If set, it must match the scope specification
+  // and be allowed by the policy. If not set, the template is determined based on
+  // the scope specification and the policy.
+  optional string template_id = 2;
   
   // The data to hash
-  bytes data = 10;
+  bytes data = 4;
   
   // Optional: Policy name for additional validation and enforcement.
   // If provided, validates whether this operation and selected template are allowed.
-  string policy_name = 11;
+  string policy_name = 5;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 15;
+  map<string, string> user_context = 6;
 }
 
 message DigestResponse {
@@ -116,29 +114,28 @@ message DigestFinalResponse {
 // XofRequest performs a single-shot XOF operation.
 // Algorithm selection via template_id (explicit) or scope_spec (intent-based with HASH_SCOPE_XOF).
 message XofRequest {
-  // Algorithm selection: exactly one must be provided.
-  oneof algorithm_selection {
-    option (buf.validate.oneof).required = true;
-    // Explicit: specify template directly (e.g., "shake-128", "shake-256")
-    string template_id = 1;
-
-    // Scope-based: template registry selects the best active XOF template.
-    // Example: { hash: { scope: HASH_SCOPE_XOF, security: { security_strength_bits: 128 } } }
-    ScopeSpecification scope_spec = 2;
-  }
+  // Scope specification to select the template used for computing a digest. The scope specification 
+  // describes the scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  ScopeSpecification scope_spec = 1;
+  // Optional: explicit template ID. If set, it must match the scope specification
+  // and be allowed by the policy. If not set, the template is determined based on
+  // the scope specification and the policy.
+  optional string template_id = 2;
 
   // The data to process
-  bytes data = 10;
+  bytes data = 3;
 
   // Required: the desired output length in bytes.
   // XOFs produce variable-length output; this field specifies how many bytes to generate.
-  uint32 output_length_bytes = 11;
+  uint32 output_length_bytes = 4;
 
   // Optional: Policy name for additional validation and enforcement.
-  string policy_name = 12;
+  string policy_name = 5;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 15;
+  map<string, string> user_context = 6;
 }
 
 message XofResponse {
@@ -150,27 +147,27 @@ message XofResponse {
 // XofInitRequest initializes a streaming XOF operation.
 // Algorithm selection via template_id (explicit) or scope_spec (intent-based with HASH_SCOPE_XOF).
 message XofInitRequest {
-  // Algorithm selection: exactly one must be provided.
-  oneof algorithm_selection {
-    option (buf.validate.oneof).required = true;
-    // Explicit: specify template directly (e.g., "shake-128", "shake-256")
-    string template_id = 1;
-
-    // Scope-based: template registry selects the best active XOF template.
-    ScopeSpecification scope_spec = 2;
-  }
+  // Scope specification to select the template used for computing a digest. The scope specification 
+  // describes the scope (ie. cryptographic intent) and properties that the template must satisfy.
+  // If a template is explicitly provided, the scope specification must at least 
+  // include the scope to be associated with the key.
+  ScopeSpecification scope_spec = 1;
+  // Optional: explicit template ID. If set, it must match the scope specification
+  // and be allowed by the policy. If not set, the template is determined based on
+  // the scope specification and the policy.
+  optional string template_id = 2;
 
   // Unique identifier for this streaming operation
-  string operation_id = 10;
+  string operation_id = 3;
 
   // Required: the desired output length in bytes.
-  uint32 output_length_bytes = 11;
+  uint32 output_length_bytes = 4;
 
   // Optional: Policy name for additional validation and enforcement.
-  string policy_name = 12;
+  string policy_name = 5;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 15;
+  map<string, string> user_context = 6;
 }
 
 message XofInitResponse {
