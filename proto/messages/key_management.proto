@@ -150,26 +150,28 @@ message CreateKeyResponse {
 
 message KeyMetadata {
   string name = 1;
-  string template_id = 2;
+  uint32 version = 2;
+  string key_id = 3; // Unique identifier for the key 
+  string template_id = 4;
   // The scope specification used to create this key
-  ScopeSpecification scope_spec = 3;
-  string provider = 4;
-  uint32 version = 5;
-  google.protobuf.Timestamp created_time = 6;
-  google.protobuf.Timestamp updated_time = 7;
-  string policy = 8;
-  map<string, string> provider_metadata = 9;
-  TemplateInfo template_info = 10;
+  ScopeSpecification scope_spec = 5;
+  string provider = 6;
+  
+  google.protobuf.Timestamp created_time = 7;
+  google.protobuf.Timestamp updated_time = 8;
+  string policy = 9;
+  map<string, string> provider_metadata = 10;
+  TemplateInfo template_info = 11;
   // Implementation properties of the provider (denormalized for convenience)
-  ImplementationProperties implementation_properties = 11;
+  ImplementationProperties implementation_properties = 12;
   // Whether the key material can be extracted from its provider.
   // False for non-extractable HSM keys.
   // Determines feasibility of EXTRACT_AND_IMPORT migration strategy.
-  bool extractable = 12;
+  bool extractable = 13;
   // Lifecycle state of the key (NIST SP 800-57, KMIP state machine).
-  KeyLifecycleState lifecycle_state = 13;
-  optional bytes public_key_bytes = 14; // Public-key material for asymmetric keys
-  optional KeyFormat public_key_format = 15; // Format of public key material (e.g., RAW, PKCS8, JWK)
+  KeyLifecycleState lifecycle_state = 14;
+  optional bytes public_key_bytes = 15; // Public-key material for asymmetric keys
+  optional KeyFormat public_key_format = 16; // Format of public key material (e.g., RAW, PKCS8, JWK)
 }
 
 message ReadKeyRequest {
