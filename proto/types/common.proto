@@ -181,10 +181,11 @@ enum KeyLifecycleState {
   KEY_LIFECYCLE_STATE_UNSPECIFIED = 0;
   KEY_LIFECYCLE_STATE_PRE_ACTIVE = 1;   // Generated but not yet usable
   KEY_LIFECYCLE_STATE_ACTIVE = 2;       // Normal use (encrypt, sign, etc.)
-  KEY_LIFECYCLE_STATE_DEACTIVATED = 3;  // No new operations; existing data still decryptable
-  KEY_LIFECYCLE_STATE_COMPROMISED = 4;  // Key material may have been exposed
-  KEY_LIFECYCLE_STATE_DESTROYED = 5;    // Soft-deleted; metadata retained for audit
-  KEY_LIFECYCLE_STATE_DESTROYED_COMPROMISED = 6; // Compromised key destroyed; metadata retained for breach audit (NIST SP 800-57 -7.3)
+  KEY_LIFECYCLE_STATE_SUSPENDED = 3;    // Temporarily disabled; can be reactivated
+  KEY_LIFECYCLE_STATE_DEACTIVATED = 4;  // No new operations; existing data still decryptable
+  KEY_LIFECYCLE_STATE_COMPROMISED = 5;  // Key material may have been exposed
+  KEY_LIFECYCLE_STATE_DESTROYED = 6;    // Soft-deleted; metadata retained for audit
+  KEY_LIFECYCLE_STATE_DESTROYED_COMPROMISED = 7; // Compromised key destroyed; metadata retained for breach audit (NIST SP 800-57 -7.3)
 }
 
 // ============================================================================
