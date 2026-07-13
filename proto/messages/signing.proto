@@ -194,7 +194,12 @@ message VerifyInitRequest {
     SignatureDomainContext domain_context = 4;     // Context-bearing signatures
     VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
   }
-  
+
+  // Operation metadata from the corresponding sign response.
+  // Contains key_version so verification uses the same key version that
+  // produced the signature (critical after key rotation).
+  OperationMetadata metadata = 6;
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
@@ -246,7 +251,14 @@ message SignMessageInitResponse {
 message SignMessageRequest {
   string key_name = 1;
   bytes message = 2;
-  
+
+  // Identifies the message session established by SignMessageInit.
+  // The session provides the key state and scope parameters (including
+  // any SignatureDomainContext); each call signs one independent message.
+  // PKCS#11 analogy: C_SignMessage operates on the session prepared
+  // by C_MessageSignInit.
+  string operation_id = 3;
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
@@ -306,7 +318,17 @@ message VerifyMessageRequest {
   string key_name = 1;
   bytes message = 2;
   bytes signature = 3;
-  
+
+  // Operation metadata from the corresponding sign response.
+  // Contains key_version so verification uses the same key version that
+  // produced the signature (critical after key rotation).
+  OperationMetadata metadata = 4;
+
+  // Identifies the message session established by VerifyMessageInit.
+  // The session provides the key state and scope parameters; each call
+  // verifies one independent message.
+  string operation_id = 5;
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
