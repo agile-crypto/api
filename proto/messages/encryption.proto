@@ -13,7 +13,7 @@ import "buf/validate/validate.proto";
 // ============================================================================
 
 message EncryptRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes plaintext = 2;
   
   // Scope-based operation parameters.
@@ -39,7 +39,7 @@ message EncryptResponse {
 }
 
 message DecryptRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext = 2;
   // Operation metadata from encryption response.
   // Contains key_version, template_id, algorithm_parameters, provider, and timestamp.
@@ -67,7 +67,7 @@ message DecryptResponse {
 
 // Multi-part encryption
 message EncryptInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -91,11 +91,11 @@ message EncryptInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message EncryptUpdateRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes plaintext_chunk = 2;
 }
 
@@ -104,7 +104,7 @@ message EncryptUpdateResponse {
 }
 
 message EncryptFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message EncryptFinalResponse {
@@ -113,7 +113,7 @@ message EncryptFinalResponse {
 }
 
 message DecryptInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -144,11 +144,11 @@ message DecryptInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DecryptUpdateRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext_chunk = 2;
 }
 
@@ -157,7 +157,7 @@ message DecryptUpdateResponse {
 }
 
 message DecryptFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DecryptFinalResponse {
@@ -167,7 +167,7 @@ message DecryptFinalResponse {
 
 // Message-based AEAD
 message EncryptMessageInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -191,11 +191,11 @@ message EncryptMessageInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message EncryptMessageRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes associated_data = 2;
   bytes plaintext = 3;
 
@@ -204,7 +204,7 @@ message EncryptMessageRequest {
   // encrypts one independent message with its own system-generated nonce.
   // PKCS#11 analogy: C_EncryptMessage operates on the session prepared
   // by C_MessageEncryptInit.
-  string operation_id = 4;
+  string operation_id = 4 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
@@ -216,7 +216,7 @@ message EncryptMessageResponse {
 }
 
 message EncryptMessageBeginRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes associated_data = 2;
 }
 
@@ -228,7 +228,7 @@ message EncryptMessageBeginResponse {
 }
 
 message EncryptMessageNextRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes plaintext_chunk = 2;
 }
 
@@ -237,7 +237,7 @@ message EncryptMessageNextResponse {
 }
 
 message EncryptMessageFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message EncryptMessageFinalResponse {
@@ -246,7 +246,7 @@ message EncryptMessageFinalResponse {
 }
 
 message DecryptMessageInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -270,11 +270,11 @@ message DecryptMessageInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DecryptMessageRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes associated_data = 2;
   bytes ciphertext = 3;
 
@@ -286,7 +286,7 @@ message DecryptMessageRequest {
   // Identifies the message session established by DecryptMessageInit.
   // The session provides the key state and scope parameters; each call
   // decrypts one independent message.
-  string operation_id = 5;
+  string operation_id = 5 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
@@ -298,7 +298,7 @@ message DecryptMessageResponse {
 }
 
 message DecryptMessageBeginRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes associated_data = 2;
   // Per-message metadata from the corresponding EncryptMessageBeginResponse.
   // Contains the system-generated IV/nonce for THIS message within the session.
@@ -312,7 +312,7 @@ message DecryptMessageBeginResponse {
 }
 
 message DecryptMessageNextRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext_chunk = 2;
 }
 
@@ -321,7 +321,7 @@ message DecryptMessageNextResponse {
 }
 
 message DecryptMessageFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DecryptMessageFinalResponse {
@@ -338,8 +338,8 @@ message DecryptMessageFinalResponse {
 
 // Dual-function operations
 message DigestEncryptUpdateRequest {
-  string digest_operation_id = 1;
-  string encrypt_operation_id = 2;
+  string digest_operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string encrypt_operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes plaintext_chunk = 3;
 }
 
@@ -348,8 +348,8 @@ message DigestEncryptUpdateResponse {
 }
 
 message DecryptDigestUpdateRequest {
-  string decrypt_operation_id = 1;
-  string digest_operation_id = 2;
+  string decrypt_operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string digest_operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext_chunk = 3;
 }
 
@@ -358,8 +358,8 @@ message DecryptDigestUpdateResponse {
 }
 
 message SignEncryptUpdateRequest {
-  string sign_operation_id = 1;
-  string encrypt_operation_id = 2;
+  string sign_operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string encrypt_operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes plaintext_chunk = 3;
 }
 
@@ -368,8 +368,8 @@ message SignEncryptUpdateResponse {
 }
 
 message DecryptVerifyUpdateRequest {
-  string decrypt_operation_id = 1;
-  string verify_operation_id = 2;
+  string decrypt_operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string verify_operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext_chunk = 3;
 }
 

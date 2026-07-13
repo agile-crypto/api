@@ -15,7 +15,7 @@ import "buf/validate/validate.proto";
 // ============================================================================
 
 message SignRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes input = 2;
   
   // Scope-based context parameters for domain separation.
@@ -37,7 +37,7 @@ message SignResponse {
 }
 
 message VerifyRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes input = 2;
   bytes signature = 3;
   // Operation metadata from sign response.
@@ -62,7 +62,7 @@ message VerifyResponse {
 }
 
 message DigestSignRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes digest = 2;
   
   // Scope-based context (same as SignRequest).
@@ -85,7 +85,7 @@ message DigestSignRequest {
   // Example: SHA-256 → 32 bytes, SHA-384 → 48 bytes, SHA-512 → 64 bytes
   //
   // PKCS#11 Reference: CKM_ECDSA (prehashed) vs CKM_ECDSA_SHA256 (hash-then-sign)
-  HashAlgorithm hash_algorithm = 6;
+  HashAlgorithm hash_algorithm = 6 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
   
   // Optional: OID of the hash algorithm for extensibility.
   // Use when hash_algorithm is HASH_ALGORITHM_OTHER or for explicit OID-based validation.
@@ -105,7 +105,7 @@ message DigestSignResponse {
 }
 
 message DigestVerifyRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes digest = 2;
   bytes signature = 3;
   // Operation metadata from digest sign response.
@@ -129,7 +129,7 @@ message DigestVerifyRequest {
   //   3. Audit trail (record which hash was claimed during verification)
   //
   // The service validates that len(digest) matches the output size of this algorithm.
-  HashAlgorithm hash_algorithm = 8;
+  HashAlgorithm hash_algorithm = 8 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
 
   // Optional: OID of the hash algorithm for extensibility.
   // Same semantics as DigestSignRequest.hash_algorithm_oid.
@@ -146,7 +146,7 @@ message DigestVerifyResponse {
 
 // Multi-part signing
 message SignInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -168,11 +168,11 @@ message SignInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message SignUpdateRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes data_chunk = 2;
 }
 
@@ -181,7 +181,7 @@ message SignUpdateResponse {
 }
 
 message SignFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message SignFinalResponse {
@@ -190,7 +190,7 @@ message SignFinalResponse {
 }
 
 message VerifyInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -217,11 +217,11 @@ message VerifyInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message VerifyUpdateRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes data_chunk = 2;
 }
 
@@ -230,7 +230,7 @@ message VerifyUpdateResponse {
 }
 
 message VerifyFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes signature = 2;
 }
 
@@ -241,7 +241,7 @@ message VerifyFinalResponse {
 
 // Message-based signing
 message SignMessageInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -263,11 +263,11 @@ message SignMessageInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message SignMessageRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes message = 2;
 
   // Identifies the message session established by SignMessageInit.
@@ -275,7 +275,7 @@ message SignMessageRequest {
   // any SignatureDomainContext); each call signs one independent message.
   // PKCS#11 analogy: C_SignMessage operates on the session prepared
   // by C_MessageSignInit.
-  string operation_id = 3;
+  string operation_id = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
@@ -287,7 +287,7 @@ message SignMessageResponse {
 }
 
 message SignMessageBeginRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message SignMessageBeginResponse {
@@ -295,7 +295,7 @@ message SignMessageBeginResponse {
 }
 
 message SignMessageNextRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes message_chunk = 2;
 }
 
@@ -304,7 +304,7 @@ message SignMessageNextResponse {
 }
 
 message SignMessageFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message SignMessageFinalResponse {
@@ -313,7 +313,7 @@ message SignMessageFinalResponse {
 }
 
 message VerifyMessageInitRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Field 2 previously held a client-chosen operation_id. Operation IDs are
   // now SERVER-GENERATED and returned in the Init response, preventing
   // session-ID collision and hijacking. See the corresponding InitResponse.
@@ -335,11 +335,11 @@ message VerifyMessageInitResponse {
   bool success = 1;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 2;
+  string operation_id = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message VerifyMessageRequest {
-  string key_name = 1;
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes message = 2;
   bytes signature = 3;
 
@@ -351,7 +351,7 @@ message VerifyMessageRequest {
   // Identifies the message session established by VerifyMessageInit.
   // The session provides the key state and scope parameters; each call
   // verifies one independent message.
-  string operation_id = 5;
+  string operation_id = 5 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
@@ -363,7 +363,7 @@ message VerifyMessageResponse {
 }
 
 message VerifyMessageBeginRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message VerifyMessageBeginResponse {
@@ -371,7 +371,7 @@ message VerifyMessageBeginResponse {
 }
 
 message VerifyMessageNextRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes message_chunk = 2;
 }
 
@@ -380,7 +380,7 @@ message VerifyMessageNextResponse {
 }
 
 message VerifyMessageFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes signature = 2;
 }
 

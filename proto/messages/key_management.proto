@@ -85,7 +85,7 @@ import "buf/validate/validate.proto";
 //
 message CreateKeyRequest {
   // Unique name to identify this key
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Name of the policy to bind this key to, for security governance
   string policy = 2;
   // Optional: provider ID in which the key must be created. If not set, the provider is 
@@ -149,7 +149,7 @@ message CreateKeyResponse {
 
 
 message KeyMetadata {
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   uint32 version = 2;
   string key_id = 3; // Unique identifier for the key 
   string template_id = 4;
@@ -175,7 +175,7 @@ message KeyMetadata {
 }
 
 message ReadKeyRequest {
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   optional uint32 version = 2; // Optional: specific version to read (default = latest)
 }
 
@@ -202,7 +202,7 @@ message ListKeysResponse {
 }
 
 message DeleteKeyRequest {
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DeleteKeyResponse {
@@ -211,7 +211,7 @@ message DeleteKeyResponse {
 }
 
 message RotateKeyRequest {
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message RotateKeyResponse {
@@ -239,7 +239,7 @@ message RotateKeyResponse {
 // - PKCS8: Standard PKCS#8 format for asymmetric keys
 // - JWK: JSON Web Key format
 message ExportKeyRequest {
-  string name = 1;                // Name of key to export (key's policy governs export)
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];                // Name of key to export (key's policy governs export)
   KeyFormat format = 2;           // Export format
   string wrapping_key_name = 3;   // Required if format=KEY_FORMAT_WRAPPED: KEK to wrap with
 }
@@ -260,7 +260,7 @@ message ExportKeyResponse {
 // - Key attestation verification
 // - Restrictions on imported key usage
 message ImportKeyRequest {
-  string name = 1;              // Name for the imported key
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];              // Name for the imported key
   string policy_name = 2;       // Policy to associate with imported key
   bytes key_material = 3;       // Key material to import (raw or wrapped)
   KeyFormat format = 4;         // Import format
@@ -342,7 +342,7 @@ message ImportKeyResponse {
 //   → Transform keeping existing key bytes
 message TransformKeyRequest {
   // Name of the key to be transformed
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // Whether to retain the existing key bytes (true) or regenerate (false)
   bool retain_key_bytes = 2;
   // Scope specification for template selection. The scope specification describes the 
@@ -374,8 +374,8 @@ message TransformKeyResponse {
 //   - Compliance and security requirements
 // This operation typically requires elevated privileges or admin approval.
 message UpdateKeyPolicyRequest {
-  string name = 1;
-  string new_policy = 2;  // Policy name to assign to this key
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string new_policy = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];  // Policy name to assign to this key
 }
 
 message UpdateKeyPolicyResponse {
@@ -508,7 +508,7 @@ enum MigrationStrategy {
 //   }
 message MigrateKeyRequest {
   // Name of the key to migrate
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   
   // Target provider specification (exactly one required)
   oneof target {
@@ -619,7 +619,7 @@ message MigrationResult {
 // - Build UIs with disabled/enabled options
 message ValidateKeyOperationRequest {
   // Key to validate operations for
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   
   // What the user wants to achieve
   oneof intent {

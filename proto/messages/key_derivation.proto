@@ -64,11 +64,11 @@ message DeriveKeyRequest {
   // Name of the base key to derive from.
   // The base key's template defines the KDF algorithm and output key type.
   // Base key must support CRYPTO_OPERATION_DERIVE_KEY.
-  string base_key_name = 1;
+  string base_key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Name for the newly derived key.
   // Must be unique within the key namespace.
-  string derived_key_name = 2;
+  string derived_key_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Optional: Policy for the derived key.
   // - If omitted: derived key inherits the base key's policy (recommended for most cases)
@@ -135,7 +135,7 @@ message DeriveKeyResponse {
 message KeyAgreementRequest {
   // Local private key (our side of the agreement).
   // Must support CRYPTO_OPERATION_KEY_AGREEMENT.
-  string private_key_name = 1;
+  string private_key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Peer's raw public key bytes (their side of the agreement).
   // Encoding is algorithm-specific:
@@ -146,7 +146,7 @@ message KeyAgreementRequest {
 
   // Name for the resulting shared secret key.
   // Must be unique within the key namespace.
-  string shared_secret_name = 3;
+  string shared_secret_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
   // Optional: Template for the resulting shared secret key.
   // If omitted, the private key's policy selects the appropriate output template.

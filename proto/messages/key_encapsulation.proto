@@ -6,14 +6,15 @@ option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 
 import "messages/metadata.proto";
 import "messages/key_management.proto";
+import "buf/validate/validate.proto";
 
 // ============================================================================
 // Key Encapsulation (Post-Quantum KEMs) Messages
 // ============================================================================
 
 message EncapsulateKeyRequest {
-  string recipient_public_key_name = 1;
-  string shared_secret_name = 2;
+  string recipient_public_key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string shared_secret_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string shared_secret_template_id = 3;
   
   // Optional: User-provided context for audit trail enrichment.
@@ -29,9 +30,9 @@ message EncapsulateKeyResponse {
 }
 
 message DecapsulateKeyRequest {
-  string private_key_name = 1;
+  string private_key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext = 2;
-  string shared_secret_name = 3;
+  string shared_secret_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string shared_secret_template_id = 4;
   // Operation metadata from encapsulate response
   // Contains algorithm_parameters and other details from encapsulation

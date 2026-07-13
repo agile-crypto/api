@@ -15,8 +15,8 @@ import "buf/validate/validate.proto";
 // ============================================================================
 
 message WrapKeyRequest {
-  string key_to_wrap_name = 1;
-  string wrapping_key_name = 2;
+  string key_to_wrap_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string wrapping_key_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   WrapFormat format = 3;
   
   // Scope-based operation parameters.
@@ -40,8 +40,8 @@ message WrapKeyResponse {
 
 message UnwrapKeyRequest {
   bytes wrapped_key = 1;
-  string wrapping_key_name = 2;
-  string unwrapped_key_name = 3;
+  string wrapping_key_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string unwrapped_key_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string unwrapped_key_template_id = 4;
   WrapFormat format = 5;
   // Operation metadata from wrap key response.

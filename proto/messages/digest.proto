@@ -46,7 +46,7 @@ message DigestInitResponse {
   string selected_template_id = 2;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 3;
+  string operation_id = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 // DigestRequest performs a single-shot digest operation.
@@ -81,7 +81,7 @@ message DigestResponse {
 }
 
 message DigestUpdateRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes data_chunk = 2;
 }
 
@@ -90,8 +90,8 @@ message DigestUpdateResponse {
 }
 
 message DigestKeyRequest {
-  string operation_id = 1;
-  string key_name = 2;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string key_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DigestKeyResponse {
@@ -99,7 +99,7 @@ message DigestKeyResponse {
 }
 
 message DigestFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DigestFinalResponse {
@@ -185,14 +185,14 @@ message XofInitResponse {
   string selected_template_id = 2;
   // Server-generated unique identifier for this streaming session.
   // Pass this operation_id to all subsequent calls of the session.
-  string operation_id = 3;
+  string operation_id = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 // XofUpdateRequest feeds a data chunk into a streaming XOF operation.
 // Dedicated type (not reusing DigestUpdateRequest) to allow independent
 // evolution of XOF and digest streaming interfaces.
 message XofUpdateRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes data_chunk = 2;
 }
 
@@ -203,7 +203,7 @@ message XofUpdateResponse {
 // XofFinalRequest completes a streaming XOF operation.
 // Data chunks are fed via XofUpdateRequest.
 message XofFinalRequest {
-  string operation_id = 1;
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message XofFinalResponse {
