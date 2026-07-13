@@ -225,8 +225,21 @@ message ListKeysResponse {
   string next_page_token = 2;
 }
 
+// DeleteKeyRequest - Destroy a key's material (NIST SP 800-57 §8.3)
+//
+// Destruction semantics:
+//   - Key material is ZEROIZED in the provider; this is irreversible.
+//   - By default the key transitions to DESTROYED (or DESTROYED_COMPROMISED
+//     if it was COMPROMISED) and its METADATA IS RETAINED for audit.
+//   - Set remove_metadata=true to also remove the key record entirely
+//     (permitted only where audit/retention policy allows).
 message DeleteKeyRequest {
   string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // If true, remove the key record (metadata) in addition to zeroizing
+  // material. Default false: retain metadata in DESTROYED state for audit
+  // per NIST SP 800-57 §8.3.
+  bool remove_metadata = 2;
 }
 
 message DeleteKeyResponse {
@@ -234,8 +247,21 @@ message DeleteKeyResponse {
   string message = 2; // Status message (e.g., soft-delete confirmation, remaining reference warnings)
 }
 
+// RotateKeyRequest - Generate a new version of the key
+//
+// Rotation semantics:
+//   - A new key version is generated with the SAME template and policy.
+//   - Previous versions remain available for process operations (decrypt,
+//     verify, unwrap) — see ReadKeyRequest.version — but new protect
+//     operations use the latest version.
+//   - To change algorithm during renewal, use TransformKey; to change
+//     provider, use MigrateKey.
 message RotateKeyRequest {
   string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Reason for rotation, recorded in the audit trail
+  // (e.g., "scheduled", "suspected-compromise", "personnel-change").
+  string reason = 2 [(buf.validate.field).string.max_len = 1024];
 }
 
 // UpdateKeyStateRequest - Explicit, auditable key lifecycle state transition
@@ -309,6 +335,13 @@ message ExportKeyResponse {
   bytes key_material = 1;       // Exported key (raw or wrapped based on format)
   KeyFormat format = 2;         // Format of exported key material
   KeyMetadata key_metadata = 3; // Metadata of exported key
+
+  // Key check value for integrity verification of the exported material
+  // (e.g., ANSI X9.24 KCV: leading bytes of encrypting a zero block, or an
+  // HMAC/hash over the canonical key encoding — algorithm-dependent, and
+  // documented by the provider). Allows the receiver to detect corruption
+  // in transit or at rest before using the key. Optional but RECOMMENDED.
+  bytes key_check_value = 4;
 }
 
 // ImportKeyRequest - Import key material into the service
