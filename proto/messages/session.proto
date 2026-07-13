@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package caas.crypto.v1;
+
+option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+
+import "buf/validate/validate.proto";
+
+// ============================================================================
+// Streaming Session Management
+// ============================================================================
+//
+// Multi-part and message-based operations hold server-side state (key handles,
+// partial buffers, cipher contexts) between calls. Two mechanisms bound the
+// lifetime of that state:
+//
+// 1. Explicit cancellation (CancelOperation): clients that abandon a session
+//    (user abort, application shutdown) SHOULD cancel it to release resources
+//    immediately.
+//
+// 2. Session TTL (server-enforced, MANDATORY): implementations MUST expire
+//    idle sessions after a configurable time-to-live so that crashed clients
+//    cannot exhaust server resources. Operations on an expired session fail
+//    with CRYPTO_ERROR_OPERATION_EXPIRED. The TTL is an implementation /
+//    deployment parameter; a default of a few minutes of inactivity is
+//    recommended.
+//
+// PKCS#11 analogy: C_CloseSession discards any active operation state.
+
+// CancelOperationRequest aborts an in-progress streaming session and releases
+// all server-side state associated with it.
+message CancelOperationRequest {
+  // Server-generated identifier of the session to cancel
+  // (returned by the corresponding *Init response).
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Optional: reason for cancellation, recorded in the audit trail.
+  string reason = 2 [(buf.validate.field).string.max_len = 1024];
+}
+
+message CancelOperationResponse {
+  bool success = 1;
+  // Status detail (e.g., "session not found or already expired").
+  string message = 2;
+}

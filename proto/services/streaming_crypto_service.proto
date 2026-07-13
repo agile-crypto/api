@@ -8,6 +8,7 @@ import "google/api/annotations.proto";
 import "messages/encryption.proto";
 import "messages/signing.proto";
 import "messages/digest.proto";
+import "messages/session.proto";
 
 // ============================================================================
 // Streaming Crypto Service - Multi-Part and Message-Based Operations
@@ -18,7 +19,13 @@ import "messages/digest.proto";
 //   - Message-based AEAD (PKCS#11 v3.1 C_EncryptMessage/C_DecryptMessage)
 //   - Dual-function operations (simultaneous digest+encrypt, sign+encrypt)
 //
-// All operations are identified by an operation_id that tracks session state.
+// All operations are identified by a SERVER-GENERATED operation_id returned
+// by the *Init response; clients pass it to every subsequent call.
+//
+// SESSION LIFETIME: Sessions hold server-side state. Implementations MUST
+// enforce an idle-session TTL (expired sessions fail with
+// CRYPTO_ERROR_OPERATION_EXPIRED), and clients SHOULD call CancelOperation
+// when abandoning a session. See messages/session.proto.
 //
 // WHEN TO USE THIS vs CryptoService:
 //   CryptoService:          Stateless, single request/response. Use for
@@ -356,6 +363,18 @@ service StreamingCryptoService {
   rpc DecryptVerifyUpdate(DecryptVerifyUpdateRequest) returns (DecryptVerifyUpdateResponse) {
     option (google.api.http) = {
       post: "/v1/decrypt-verify/update/{decrypt_operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Session Management ====================
+
+  // CancelOperation aborts an in-progress streaming session and releases
+  // all server-side state. Idempotent: cancelling an unknown or already
+  // expired session succeeds with an informational message.
+  rpc CancelOperation(CancelOperationRequest) returns (CancelOperationResponse) {
+    option (google.api.http) = {
+      post: "/v1/operations/{operation_id}/cancel"
       body: "*"
     };
   }

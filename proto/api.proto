@@ -36,6 +36,7 @@ import "messages/key_wrapping.proto";
 import "messages/mac.proto";
 import "messages/random.proto";
 import "messages/policy.proto";
+import "messages/session.proto";
 
 // ============================================================================
 // Service Definitions
