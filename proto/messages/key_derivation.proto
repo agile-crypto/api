@@ -81,6 +81,9 @@ message DeriveKeyRequest {
   // - Multi-tenant scenarios where derived keys belong to different tenants
   optional string policy = 3;
 
+  // Field 4 was removed (peer_public_key belongs exclusively to
+  // KeyAgreementRequest); reserved to prevent accidental reuse.
+  reserved 4;
 
   // KDF-specific user-provided operation parameters.
   // REQUIRED: Set the one matching your base key's KDF algorithm.

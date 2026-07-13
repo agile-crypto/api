@@ -841,6 +841,7 @@ enum CryptoOperation {
   
   // 24, 25: SIGN_RECOVER / VERIFY_RECOVER (RSA message recovery,
   // PKCS#11 C_SignRecoverInit / C_VerifyRecoverInit) removed as out of scope.
+  reserved 24, 25;
 
   // ========================================================================
   // Key Wrapping Operations (PKCS#11: C_WrapKey, C_UnwrapKey)

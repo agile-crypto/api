@@ -46,6 +46,10 @@ enum ProviderType {
 // - Independent update cycles for algorithms and implementations
 // - Clean CBOM generation for compliance reporting
 message ProviderInfo {
+  // Fields 4 and 7-9 were removed during earlier refactoring; reserved to
+  // prevent accidental reuse and wire-format incompatibility.
+  reserved 4, 7 to 9;
+
   // Unique identifier for this provider (e.g., "go-crypto", "openssl3-fips", "pkcs11")
   string provider_id = 1;
   
