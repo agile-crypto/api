@@ -138,8 +138,8 @@ message AuditReport {
   // Name of the auditing firm (e.g., "Trail of Bits", "NCC Group")
   string auditor = 1;
   
-  // Date of the audit report (ISO 8601 format)
-  string report_date = 2;
+  // Date of the audit report
+  google.protobuf.Timestamp report_date = 2;
   
   // Reference identifier for the report
   string report_id = 3;
