@@ -5,6 +5,7 @@ package caas.crypto.v1;
 option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 
 import "messages/metadata.proto";
+import "types/common.proto";
 import "messages/key_management.proto";
 import "types/operation_params.proto";
 import "buf/validate/validate.proto";
@@ -137,8 +138,8 @@ message KeyAgreementRequest {
   // Must support CRYPTO_OPERATION_KEY_AGREEMENT.
   string private_key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 
-  // Peer's raw public key bytes (their side of the agreement).
-  // Encoding is algorithm-specific:
+  // Peer's public key bytes (their side of the agreement).
+  // Default encoding (peer_public_key_format unset) is algorithm-native:
   //   ECDH:  uncompressed point (04 || X || Y) or compressed (02/03 || X)
   //   X25519/X448: raw 32/56-byte little-endian scalar
   //   X9.42 DH: DER-encoded SubjectPublicKeyInfo
@@ -162,6 +163,12 @@ message KeyAgreementRequest {
     VendorKdfParams vendor_params = 8;           // For vendor-specific KA algorithms
   }
   
+  // Optional: Explicit format of peer_public_key.
+  // KEY_FORMAT_UNSPECIFIED (default) = algorithm-native raw encoding as
+  // documented on peer_public_key. Use KEY_FORMAT_SPKI for DER-encoded
+  // SubjectPublicKeyInfo or KEY_FORMAT_PEM for PEM-wrapped keys.
+  KeyFormat peer_public_key_format = 9;
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
