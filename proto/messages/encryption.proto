@@ -68,7 +68,10 @@ message DecryptResponse {
 // Multi-part encryption
 message EncryptInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Scope-based operation parameters.
   oneof scope_params {
@@ -86,6 +89,9 @@ message EncryptInitRequest {
 
 message EncryptInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message EncryptUpdateRequest {
@@ -108,7 +114,10 @@ message EncryptFinalResponse {
 
 message DecryptInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Scope-based operation parameters (must match encryption).
   oneof scope_params {
@@ -133,6 +142,9 @@ message DecryptInitRequest {
 
 message DecryptInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message DecryptUpdateRequest {
@@ -156,7 +168,10 @@ message DecryptFinalResponse {
 // Message-based AEAD
 message EncryptMessageInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Scope-based operation parameters.
   oneof scope_params {
@@ -174,6 +189,9 @@ message EncryptMessageInitRequest {
 
 message EncryptMessageInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message EncryptMessageRequest {
@@ -229,7 +247,10 @@ message EncryptMessageFinalResponse {
 
 message DecryptMessageInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Scope-based operation parameters (must match encryption).
   oneof scope_params {
@@ -247,6 +268,9 @@ message DecryptMessageInitRequest {
 
 message DecryptMessageInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message DecryptMessageRequest {

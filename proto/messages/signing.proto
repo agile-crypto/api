@@ -147,7 +147,10 @@ message DigestVerifyResponse {
 // Multi-part signing
 message SignInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Scope-based context for domain separation.
   oneof scope_params {
@@ -163,6 +166,9 @@ message SignInitRequest {
 
 message SignInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message SignUpdateRequest {
@@ -185,7 +191,10 @@ message SignFinalResponse {
 
 message VerifyInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Must match scope used during signing.
   oneof scope_params {
@@ -206,6 +215,9 @@ message VerifyInitRequest {
 
 message VerifyInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message VerifyUpdateRequest {
@@ -230,7 +242,10 @@ message VerifyFinalResponse {
 // Message-based signing
 message SignMessageInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Scope-based context for domain separation.
   oneof scope_params {
@@ -246,6 +261,9 @@ message SignMessageInitRequest {
 
 message SignMessageInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message SignMessageRequest {
@@ -296,7 +314,10 @@ message SignMessageFinalResponse {
 
 message VerifyMessageInitRequest {
   string key_name = 1;
-  string operation_id = 2;
+  // Field 2 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 2;
 
   // Must match scope used during signing.
   oneof scope_params {
@@ -312,6 +333,9 @@ message VerifyMessageInitRequest {
 
 message VerifyMessageInitResponse {
   bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
 }
 
 message VerifyMessageRequest {

@@ -27,9 +27,11 @@ message DigestInitRequest {
   // the scope specification and the policy.
   optional string template_id = 2;
   
-  // Unique identifier for this streaming operation
-  string operation_id = 3;
-  
+  // Field 3 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 3;
+
   // Optional: Policy name for additional validation and enforcement.
   // If provided, validates whether this operation and selected template are allowed.
   string policy_name = 4;
@@ -42,6 +44,9 @@ message DigestInitResponse {
   bool success = 1;
   // The template that was selected for this operation
   string selected_template_id = 2;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 3;
 }
 
 // DigestRequest performs a single-shot digest operation.
@@ -157,8 +162,10 @@ message XofInitRequest {
   // the scope specification and the policy.
   optional string template_id = 2;
 
-  // Unique identifier for this streaming operation
-  string operation_id = 3;
+  // Field 3 previously held a client-chosen operation_id. Operation IDs are
+  // now SERVER-GENERATED and returned in the Init response, preventing
+  // session-ID collision and hijacking. See the corresponding InitResponse.
+  reserved 3;
 
   // Required: the desired output length in bytes.
   uint32 output_length_bytes = 4;
@@ -174,6 +181,9 @@ message XofInitResponse {
   bool success = 1;
   // The template that was selected for this operation
   string selected_template_id = 2;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 3;
 }
 
 // XofUpdateRequest feeds a data chunk into a streaming XOF operation.
