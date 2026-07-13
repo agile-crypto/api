@@ -259,6 +259,11 @@ message DecryptMessageResponse {
 message DecryptMessageBeginRequest {
   string operation_id = 1;
   bytes associated_data = 2;
+  // Per-message metadata from the corresponding EncryptMessageBeginResponse.
+  // Contains the system-generated IV/nonce for THIS message within the session.
+  // In message-based AEAD (PKCS#11 CK_GCM_MESSAGE_PARAMS / CK_CCM_MESSAGE_PARAMS),
+  // each message has its own nonce; the session alone cannot supply it.
+  OperationMetadata partial_metadata = 3;
 }
 
 message DecryptMessageBeginResponse {
