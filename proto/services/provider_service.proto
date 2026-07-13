@@ -187,7 +187,9 @@ message GetProviderInstanceResponse {
 }
 
 message UpdateProviderInstanceRequest {
-  // The instance with updated fields
+  // The instance to store. FULL-REPLACEMENT semantics: the stored instance
+  // is replaced entirely by this value (no field masking / partial update).
+  // Read-modify-write: fetch via GetProviderInstance, modify, then update.
   ProviderInstance instance = 1;
 }
 

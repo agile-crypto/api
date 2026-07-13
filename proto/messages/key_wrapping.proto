@@ -17,7 +17,11 @@ import "buf/validate/validate.proto";
 message WrapKeyRequest {
   string key_to_wrap_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string wrapping_key_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  WrapFormat format = 3;
+  // Encoding of the key material before wrapping.
+  // WRAP_FORMAT_UNSPECIFIED (default) = server selects the natural format
+  // for the key type (RAW for symmetric keys, PKCS8 for private keys);
+  // the format actually used is reported in the response metadata.
+  WrapFormat format = 3 [(buf.validate.field).enum.defined_only = true];
   
   // Scope-based operation parameters.
   // REQUIRED: Always set one option to make intent explicit.

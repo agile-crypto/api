@@ -108,8 +108,12 @@ message ProviderInfo {
 }
 
 // ConfigurationParameter describes a configuration option for a provider.
+// Used as map values in ProviderInfo.configuration_schema.
 message ConfigurationParameter {
-  // Parameter name (e.g., "pkcs11_library_path")
+  // Parameter name (e.g., "pkcs11_library_path").
+  // MUST equal the map key under which this entry is stored in
+  // configuration_schema; the duplication makes the message self-describing
+  // when passed around outside the map.
   string name = 1;
   
   // Parameter type (e.g., "string", "int", "bool")

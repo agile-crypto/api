@@ -908,7 +908,7 @@ enum CryptoOperation {
 
   // ========================================================================
   // Range Convention:
-  //   1–12:   Key Lifecycle (1–10 core)
+  //   1–9, 12–19: Key Lifecycle
   //   10–11:  Encryption/Decryption
   //   20–25:  Signing/Verification
   //   30–39:  Key Wrapping
