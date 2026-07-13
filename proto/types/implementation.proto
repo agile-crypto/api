@@ -173,10 +173,11 @@ message ProviderTemplateSupport {
   // e.g., "Hardware acceleration requires AVX2 CPU support"
   string notes = 3;
   
-  // Whether this template is enabled for this provider.
+  // Whether this template is disabled for this provider.
   // Allows temporarily disabling support without removing the entry.
-  // Default: true (if not specified, template is enabled)
-  bool enabled = 4;
+  // Named "disabled" (not "enabled") so the proto3 default (false) matches
+  // the intended default: an entry without this field is ENABLED.
+  bool disabled = 4;
 }
 
 // ============================================================================
@@ -299,9 +300,11 @@ message ProviderInstance {
   //   }
   map<string, string> configuration = 5;
   
-  // Whether this instance is active and available for use.
+  // Whether this instance is disabled (not available for use).
   // Disabled instances are not selected during auto-selection.
-  bool enabled = 6;
+  // Named "disabled" (not "enabled") so the proto3 default (false) matches
+  // the intended default: a newly registered instance is ENABLED.
+  bool disabled = 6;
   
   // Optional: Override default_implementation from ProviderInfo.
   // Useful when this specific instance has different properties than the default.

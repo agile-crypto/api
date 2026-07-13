@@ -217,8 +217,10 @@ message MatchProvidersRequest {
   // Optional: Implementation requirements to filter by
   ProviderRequirements requirements = 2;
   
-  // Optional: Only return enabled instances (default: true)
-  bool enabled_only = 3;
+  // Optional: Also include disabled instances in matching.
+  // Named so the proto3 default (false) matches the intended default:
+  // by default only enabled instances are matched.
+  bool include_disabled = 3;
 }
 
 message MatchProvidersResponse {

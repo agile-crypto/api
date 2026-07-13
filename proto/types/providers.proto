@@ -87,9 +87,10 @@ message ProviderInfo {
   // If a template's implementation field is omitted or partial,
   // it inherits from default_implementation.
   //
-  // Example:
+  // Example (entries are enabled unless disabled is set):
   //   template_support: [
-  //     { template_id: "aes-256-gcm-96-128", enabled: true },
+  //     { template_id: "aes-256-gcm-96-128" },
+  //     { template_id: "3des-cbc", disabled: true },
   //     { template_id: "ml-kem-768", implementation: { fips_140: { certified: false } } }
   //   ]
   repeated ProviderTemplateSupport template_support = 11;
