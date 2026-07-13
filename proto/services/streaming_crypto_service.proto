@@ -8,6 +8,7 @@ import "google/api/annotations.proto";
 import "messages/encryption.proto";
 import "messages/signing.proto";
 import "messages/digest.proto";
+import "messages/mac.proto";
 import "messages/session.proto";
 
 // ============================================================================
@@ -276,6 +277,52 @@ service StreamingCryptoService {
   rpc VerifyMessageFinal(VerifyMessageFinalRequest) returns (VerifyMessageFinalResponse) {
     option (google.api.http) = {
       post: "/v1/verify/message/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  // ==================== Multi-Part MAC ====================
+  // Streaming MAC generation/verification (MAC_SCOPE_STREAMING).
+  // PKCS#11: C_SignInit/Update/Final, C_VerifyInit/Update/Final with MAC mechanisms.
+
+  rpc GenerateMACInit(GenerateMACInitRequest) returns (GenerateMACInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/generate/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc GenerateMACUpdate(GenerateMACUpdateRequest) returns (GenerateMACUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/generate/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc GenerateMACFinal(GenerateMACFinalRequest) returns (GenerateMACFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/generate/final/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMACInit(VerifyMACInitRequest) returns (VerifyMACInitResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/verify/init/{key_name}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMACUpdate(VerifyMACUpdateRequest) returns (VerifyMACUpdateResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/verify/update/{operation_id}"
+      body: "*"
+    };
+  }
+
+  rpc VerifyMACFinal(VerifyMACFinalRequest) returns (VerifyMACFinalResponse) {
+    option (google.api.http) = {
+      post: "/v1/mac/verify/final/{operation_id}"
       body: "*"
     };
   }

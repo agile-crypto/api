@@ -58,3 +58,100 @@ message VerifyMACResponse {
   bool valid = 1;
   OperationMetadata metadata = 2;
 }
+
+// ============================================================================
+// Streaming MAC Operations (MAC_SCOPE_STREAMING)
+// ============================================================================
+// Multi-part MAC generation/verification for data that doesn't fit in memory.
+// PKCS#11 analogy: C_SignInit/C_SignUpdate/C_SignFinal and
+// C_VerifyInit/C_VerifyUpdate/C_VerifyFinal with a MAC mechanism
+// (CKM_SHA256_HMAC, CKM_AES_CMAC, ...).
+// Operation IDs are server-generated and returned by the Init response.
+
+message GenerateMACInitRequest {
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Scope-based operation parameters (same options as GenerateMACRequest).
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 2;                        // Standard MACs (HMAC, CMAC, Poly1305)
+    CustomizableMacParams customizable_params = 3; // Customizable MACs (KMAC)
+    VendorMacParams vendor_params = 4;             // Vendor/custom scope
+  }
+
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message GenerateMACInitResponse {
+  bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
+}
+
+message GenerateMACUpdateRequest {
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  bytes data_chunk = 2;
+}
+
+message GenerateMACUpdateResponse {
+  bool success = 1;
+}
+
+message GenerateMACFinalRequest {
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+}
+
+message GenerateMACFinalResponse {
+  bytes mac = 1;
+  OperationMetadata metadata = 2;
+}
+
+message VerifyMACInitRequest {
+  string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Must match scope used during MAC generation.
+  oneof scope_params {
+    option (buf.validate.oneof).required = true;
+    NoParams no_params = 2;                        // Standard MACs
+    CustomizableMacParams customizable_params = 3; // Customizable MACs (KMAC)
+    VendorMacParams vendor_params = 4;             // Vendor/custom scope
+  }
+
+  // Operation metadata from the corresponding generate MAC response.
+  // Contains key_version so verification uses the same key version that
+  // produced the MAC (critical after key rotation).
+  OperationMetadata metadata = 5;
+
+  // Optional: User-provided context for audit trail enrichment.
+  map<string, string> user_context = 15;
+}
+
+message VerifyMACInitResponse {
+  bool success = 1;
+  // Server-generated unique identifier for this streaming session.
+  // Pass this operation_id to all subsequent calls of the session.
+  string operation_id = 2;
+}
+
+message VerifyMACUpdateRequest {
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  bytes data_chunk = 2;
+}
+
+message VerifyMACUpdateResponse {
+  bool success = 1;
+}
+
+message VerifyMACFinalRequest {
+  string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  bytes mac = 2;
+}
+
+message VerifyMACFinalResponse {
+  // Result of MAC comparison. Implementations MUST use a constant-time
+  // comparison to avoid timing side channels.
+  bool valid = 1;
+  OperationMetadata metadata = 2;
+}
