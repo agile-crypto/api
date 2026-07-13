@@ -6,48 +6,83 @@ option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 
 import "types/common.proto";
 import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
 
 // ============================================================================
 // Policy Management Messages
 // ============================================================================
 
+// DESIGN NOTE — Abstract policy document:
+// The policy document is deliberately an opaque string, not a typed message.
+// The API treats policy as an ABSTRACT OBJECT (governance mechanism
+// independent of any specific policy language), so deployments can adopt
+// JSON, Rego, Cedar, or vendor languages without schema changes. The `format`
+// field identifies the language so tooling and consumers can parse it;
+// the server validates the document against the declared format.
 message CreateCryptoPolicyRequest {
-  string name = 1;
-  string policy_document = 2;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  string policy_document = 2 [(buf.validate.field).string.min_len = 1];
+
+  // Policy document format identifier (e.g., "json", "rego", "cedar").
+  // Optional: if empty, the server's default policy format is assumed.
+  string format = 3 [(buf.validate.field).string.max_len = 64];
 }
 
 message CreateCryptoPolicyResponse {
   bool success = 1;
   string message = 2;
+  // Initial policy version (1 on creation). See UpdateCryptoPolicyRequest
+  // for optimistic-concurrency semantics.
+  int64 version = 3;
 }
 
 message ReadCryptoPolicyRequest {
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message ReadCryptoPolicyResponse {
   string name = 1;
   string policy_document = 2;
+  // Policy document format identifier (e.g., "json", "rego", "cedar").
+  string format = 3;
+  // Current policy version; pass as expected_version for safe updates.
+  int64 version = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
 }
 
 message DeleteCryptoPolicyRequest {
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DeleteCryptoPolicyResponse {
   bool success = 1;
+  // Status detail; the server MUST reject deletion (referential integrity)
+  // while keys are still bound to this policy and say so here.
+  string message = 2;
 }
 
 message UpdateCryptoPolicyRequest {
   // Name of the policy to update.
-  string name = 1;
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   // New policy document content. Replaces the existing document entirely.
-  string policy_document = 2;
+  string policy_document = 2 [(buf.validate.field).string.min_len = 1];
+  // Policy document format identifier (e.g., "json", "rego", "cedar").
+  string format = 3 [(buf.validate.field).string.max_len = 64];
+
+  // Optimistic concurrency control. If set (> 0), the update is applied only
+  // when the stored version equals expected_version; otherwise the server
+  // rejects with CRYPTO_ERROR_POLICY_VERSION_CONFLICT so concurrent updates
+  // cannot silently overwrite each other. If 0/unset, last-writer-wins
+  // (NOT RECOMMENDED for shared governance artifacts).
+  int64 expected_version = 4;
 }
 
 message UpdateCryptoPolicyResponse {
   bool success = 1;
   string message = 2;
+  // New policy version after the update.
+  int64 version = 3;
 }
 
 message ListCryptoPoliciesRequest {
@@ -72,6 +107,10 @@ message PolicySummary {
   string name = 1;
   google.protobuf.Timestamp created_at = 2;
   google.protobuf.Timestamp updated_at = 3;
+  // Current policy version (audit trails, optimistic concurrency).
+  int64 version = 4;
+  // Policy document format identifier (e.g., "json", "rego", "cedar").
+  string format = 5;
 }
 
 // ============================================================================

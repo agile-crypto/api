@@ -777,6 +777,7 @@ enum CryptoErrorCode {
   // Policy errors (30–39)
   CRYPTO_ERROR_POLICY_NOT_FOUND = 30;           // No policy with the given name
   CRYPTO_ERROR_POLICY_VIOLATION = 31;           // Operation rejected by policy evaluation
+  CRYPTO_ERROR_POLICY_VERSION_CONFLICT = 32;    // expected_version does not match stored policy version
 
   // Operation errors (40–49)
   CRYPTO_ERROR_INVALID_OPERATION_STATE = 40;    // Multi-part operation in wrong state (e.g., Update before Init)
