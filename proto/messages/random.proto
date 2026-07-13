@@ -5,6 +5,7 @@ package caas.crypto.v1;
 option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 
 import "messages/metadata.proto";
+import "buf/validate/validate.proto";
 
 // ============================================================================
 // Random Number Generation
@@ -29,8 +30,10 @@ import "messages/metadata.proto";
 // - Which providers are permitted
 // - Minimum RNG quality requirements (e.g., hardware RNG only)
 message GenerateRandomRequest {
-  // Required: Number of random bytes to generate (max: implementation-defined)
-  uint32 num_bytes = 1;
+  // Required: Number of random bytes to generate.
+  // Bounded to 1 MiB per request to prevent resource-exhaustion abuse;
+  // callers needing more entropy should issue multiple requests.
+  uint32 num_bytes = 1 [(buf.validate.field).uint32 = {gte: 1, lte: 1048576}];
   
   // Optional: Specific RNG provider (e.g., "software", "hsm", "cloud-kms")
   // If not specified, uses the default provider

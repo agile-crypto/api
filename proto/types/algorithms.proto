@@ -9,6 +9,7 @@ option go_package = "github.ibm.com/citius/api/gen/go/types;types";
 
 import "google/protobuf/timestamp.proto";
 import "types/templates.proto";
+import "buf/validate/validate.proto";
 
 // ============================================================================
 // STANDARD ALGORITHM CATALOG
@@ -64,7 +65,7 @@ import "types/templates.proto";
 // This message is populated from the standard_algorithms.json spec file.
 message StandardAlgorithmCatalog {
   // Catalog version (semantic versioning)
-  string version = 1;
+  string version = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
   
   // Last updated timestamp
   google.protobuf.Timestamp last_updated = 2;
@@ -85,7 +86,7 @@ message StandardAlgorithmCatalog {
 // This provides a structured view of algorithm variants for discovery.
 message AlgorithmFamilySpec {
   // Algorithm family identifier (e.g., "AES", "ML-KEM", "ECDSA")
-  string family = 1;
+  string family = 1 [(buf.validate.field).string = {min_len: 1, max_len: 128}];
   
   // Human-readable family name (e.g., "Advanced Encryption Standard")
   string display_name = 2;

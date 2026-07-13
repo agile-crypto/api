@@ -134,7 +134,8 @@ message XofRequest {
 
   // Required: the desired output length in bytes.
   // XOFs produce variable-length output; this field specifies how many bytes to generate.
-  uint32 output_length_bytes = 4;
+  // Bounded to 1 MiB per request to prevent resource-exhaustion abuse.
+  uint32 output_length_bytes = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 1048576}];
 
   // Optional: Policy name for additional validation and enforcement.
   string policy_name = 5;
@@ -168,7 +169,8 @@ message XofInitRequest {
   reserved 3;
 
   // Required: the desired output length in bytes.
-  uint32 output_length_bytes = 4;
+  // Bounded to 1 MiB per request to prevent resource-exhaustion abuse.
+  uint32 output_length_bytes = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 1048576}];
 
   // Optional: Policy name for additional validation and enforcement.
   string policy_name = 5;
