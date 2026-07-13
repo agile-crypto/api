@@ -299,19 +299,31 @@ message SignMessageBeginResponse {
 message SignMessageNextRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes message_chunk = 2;
+  // Marks the final chunk of the current message (PKCS#11: the signature is
+  // returned by the last C_SignMessageNext call). When true, the response
+  // carries the signature and metadata for this message. The session stays
+  // open for further messages.
+  bool end_of_message = 3;
 }
 
 message SignMessageNextResponse {
   bool success = 1;
+  // Set only on the end_of_message call: signature over the whole message.
+  bytes signature = 2;
+  // Set only on the end_of_message call: metadata (key_version, encoding).
+  OperationMetadata metadata = 3;
 }
 
+// SignMessageFinal ends the message-based SESSION (PKCS#11
+// C_MessageSignFinal). It carries no signature: per-message signatures are
+// returned by the end_of_message SignMessageNext call (or single-shot
+// SignMessage).
 message SignMessageFinalRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message SignMessageFinalResponse {
-  bytes signature = 1;
-  OperationMetadata metadata = 2;
+  bool success = 1;
 }
 
 message VerifyMessageInitRequest {
@@ -375,18 +387,30 @@ message VerifyMessageBeginResponse {
 message VerifyMessageNextRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes message_chunk = 2;
+  // Marks the final chunk of the current message (PKCS#11: the signature is
+  // supplied to the last C_VerifyMessageNext call). When true, signature
+  // must be set and the response carries the verification result. The
+  // session stays open for further messages.
+  bool end_of_message = 3;
+  // Signature to verify — set only on the end_of_message call.
+  bytes signature = 4;
 }
 
 message VerifyMessageNextResponse {
   bool success = 1;
+  // Set only on the end_of_message call: result of signature verification.
+  bool valid = 2;
+  // Set only on the end_of_message call: metadata (key_version, encoding).
+  OperationMetadata metadata = 3;
 }
 
+// VerifyMessageFinal ends the message-based SESSION (PKCS#11
+// C_MessageVerifyFinal). Per-message results are returned by the
+// end_of_message VerifyMessageNext call (or single-shot VerifyMessage).
 message VerifyMessageFinalRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  bytes signature = 2;
 }
 
 message VerifyMessageFinalResponse {
-  bool valid = 1;
-  OperationMetadata metadata = 2;
+  bool success = 1;
 }

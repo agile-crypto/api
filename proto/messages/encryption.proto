@@ -234,19 +234,30 @@ message EncryptMessageBeginResponse {
 message EncryptMessageNextRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes plaintext_chunk = 2;
+  // Marks the final chunk of the current message (PKCS#11 CKF_END_OF_MESSAGE).
+  // When true, the response's ciphertext_chunk carries the remaining
+  // ciphertext plus the authentication tag, completing the message started
+  // by EncryptMessageBegin. The session stays open for further messages.
+  bool end_of_message = 3;
 }
 
 message EncryptMessageNextResponse {
+  // Ciphertext for this chunk. On the end_of_message call this includes the
+  // remaining ciphertext and the authentication tag (standard AEAD
+  // convention: Ciphertext || Tag).
   bytes ciphertext_chunk = 1;
 }
 
+// EncryptMessageFinal ends the message-based SESSION (PKCS#11
+// C_MessageEncryptFinal). It carries no ciphertext: per-message output is
+// completed by the end_of_message EncryptMessageNext call (or single-shot
+// EncryptMessage), and per-message metadata comes from EncryptMessageBegin.
 message EncryptMessageFinalRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message EncryptMessageFinalResponse {
-  bytes ciphertext_final = 1;
-  OperationMetadata metadata = 2;
+  bool success = 1;
 }
 
 message DecryptMessageInitRequest {
@@ -318,26 +329,35 @@ message DecryptMessageBeginResponse {
 message DecryptMessageNextRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext_chunk = 2;
+  // Marks the final chunk of the current message (PKCS#11 CKF_END_OF_MESSAGE).
+  // The final chunk includes the authentication tag; the server verifies it
+  // before returning the last plaintext. The session stays open for further
+  // messages.
+  bool end_of_message = 3;
 }
 
 message DecryptMessageNextResponse {
+  // Plaintext for this chunk.
+  //
+  // IND-CCA2 SECURITY NOTE: On the end_of_message call, authentication
+  // failure MUST be reported as a gRPC error
+  // (CRYPTO_ERROR_AUTHENTICATION_FAILED) — never as plaintext plus a flag.
+  // Plaintext chunks released by earlier Next calls are necessarily
+  // unauthenticated; callers MUST buffer and MUST NOT act on them until the
+  // end_of_message response confirms tag verification.
   bytes plaintext_chunk = 1;
 }
 
+// DecryptMessageFinal ends the message-based SESSION (PKCS#11
+// C_MessageDecryptFinal). It carries no plaintext: per-message output and
+// tag verification are completed by the end_of_message DecryptMessageNext
+// call (or single-shot DecryptMessage).
 message DecryptMessageFinalRequest {
   string operation_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
 message DecryptMessageFinalResponse {
-  // Final plaintext chunk and authentication tag verification.
-  //
-  // IND-CCA2 SECURITY NOTE: Authentication failure MUST be reported as a
-  // gRPC error (CRYPTO_ERROR_AUTHENTICATION_FAILED), never as a boolean flag
-  // alongside plaintext. Returning plaintext with verified=false would violate
-  // IND-CCA2 security — an attacker could observe partial decryption results.
-  // If this response is returned, authentication has already succeeded.
-  bytes plaintext_final = 1;
-  OperationMetadata metadata = 2;
+  bool success = 1;
 }
 
 // Dual-function operations

@@ -93,9 +93,16 @@ service StreamingCryptoService {
   //   - Database row-level encryption (each row is a separate message)
   //   - Message queue encryption (each queue item is a separate message)
   //
-  // Lifecycle: EncryptMessageInit → (EncryptMessageBegin → EncryptMessageNext* → EncryptMessage)* → EncryptMessageFinal
-  // Each Begin/Next/Message cycle processes one independent message.
-  // The session manages key state; each message gets its own IV/nonce.
+  // Lifecycle:
+  //   EncryptMessageInit
+  //     → ( EncryptMessage                                   // single-shot message
+  //       | EncryptMessageBegin → EncryptMessageNext*        // multi-part message;
+  //         (last Next sets end_of_message = true)           //   last Next emits tag
+  //       )*
+  //   → EncryptMessageFinal                                  // session teardown only
+  // Each single-shot call or Begin→Next(end_of_message) cycle processes one
+  // independent message; the session manages key state and each message gets
+  // its own IV/nonce (returned by EncryptMessageBegin / EncryptMessage).
 
   rpc EncryptMessageInit(EncryptMessageInitRequest) returns (EncryptMessageInitResponse) {
     option (google.api.http) = {
@@ -212,6 +219,20 @@ service StreamingCryptoService {
   }
 
   // ==================== Message-Based Signing ====================
+  //
+  // Session-based multi-message signing, modeled after PKCS#11 v3.1
+  // C_SignMessage / C_VerifyMessage. Amortizes key setup across messages.
+  //
+  // Lifecycle:
+  //   SignMessageInit
+  //     → ( SignMessage                                      // single-shot message
+  //       | SignMessageBegin → SignMessageNext*              // multi-part message;
+  //         (last Next sets end_of_message = true            //   last Next returns
+  //          and returns the signature)                      //   the signature
+  //       )*
+  //   → SignMessageFinal                                     // session teardown only
+  // Verification mirrors this; the signature is supplied to the last
+  // VerifyMessageNext call (end_of_message = true).
 
   rpc SignMessageInit(SignMessageInitRequest) returns (SignMessageInitResponse) {
     option (google.api.http) = {
