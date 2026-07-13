@@ -188,6 +188,19 @@ enum KeyLifecycleState {
   KEY_LIFECYCLE_STATE_DESTROYED_COMPROMISED = 7; // Compromised key destroyed; metadata retained for breach audit (NIST SP 800-57 -7.3)
 }
 
+// KeyOrigin records how a key's material came into existence.
+// PKCS#11 analogy: CKA_LOCAL (TRUE for locally generated keys) combined with
+// the creating mechanism. Origin is immutable for the life of the key and is
+// essential for audit: imported (BYOK) material has a different trust story
+// than provider-generated material.
+enum KeyOrigin {
+  KEY_ORIGIN_UNSPECIFIED = 0;
+  KEY_ORIGIN_GENERATED = 1;  // Generated inside the provider (CKA_LOCAL=TRUE)
+  KEY_ORIGIN_IMPORTED = 2;   // Imported via ImportKey (BYOK)
+  KEY_ORIGIN_DERIVED = 3;    // Produced by DeriveKey/KeyAgreement/Encapsulate
+  KEY_ORIGIN_UNWRAPPED = 4;  // Produced by UnwrapKey
+}
+
 // ============================================================================
 // Universal Security Properties - Shared by All Primitives
 // ============================================================================

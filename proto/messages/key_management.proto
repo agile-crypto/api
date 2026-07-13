@@ -192,6 +192,10 @@ message KeyMetadata {
   // If unset, the key does not expire automatically (NOT RECOMMENDED —
   // policies SHOULD enforce a maximum cryptoperiod).
   optional google.protobuf.Timestamp expiration_time = 18;
+
+  // How the key material came into existence (generated, imported, derived,
+  // unwrapped). Immutable; set by the server at creation time.
+  KeyOrigin origin = 19;
 }
 
 message ReadKeyRequest {
@@ -325,7 +329,14 @@ message ImportKeyRequest {
   string provider_id = 6;       // Optional: target provider for the key
   map<string, string> provider_configuration = 7;
   string template_id = 8;       // Template ID for the imported key (required)
-  
+
+  // Optional: attestation over the imported key material (BYOK).
+  // Provider/vendor-specific evidence that the key was generated in a trusted
+  // environment (e.g., HSM attestation blob, signed key provenance statement).
+  // The governing policy may REQUIRE attestation for import; the server
+  // verifies it before accepting the key. Imported keys are recorded with
+  // KeyMetadata.origin = KEY_ORIGIN_IMPORTED regardless.
+  bytes key_attestation = 9;
 }
 
 message ImportKeyResponse {
