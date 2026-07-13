@@ -77,6 +77,16 @@ service KeyManagementService {
     };
   }
 
+  // UpdateKeyState performs an explicit, auditable lifecycle state transition
+  // (activate, suspend, reactivate, deactivate, mark compromised) per
+  // NIST SP 800-57 Part 1 §7. Destruction goes through DeleteKey.
+  rpc UpdateKeyState(UpdateKeyStateRequest) returns (UpdateKeyStateResponse) {
+    option (google.api.http) = {
+      post: "/v1/keys/{name}/state"
+      body: "*"
+    };
+  }
+
   // UpdateKeyPolicy modifies the crypto policy binding for a key.
   // This is a sub-resource operation on the key, not on the policy resource.
   rpc UpdateKeyPolicy(UpdateKeyPolicyRequest) returns (UpdateKeyPolicyResponse) {

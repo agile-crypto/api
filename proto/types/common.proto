@@ -747,6 +747,7 @@ enum CryptoErrorCode {
   CRYPTO_ERROR_KEY_VERSION_MISMATCH = 3;        // Requested key_version does not exist
   CRYPTO_ERROR_KEY_NOT_EXPORTABLE = 4;          // Key is marked non-exportable
   CRYPTO_ERROR_KEY_OPERATION_NOT_ALLOWED = 5;   // Key's allowed_operations does not include the requested op
+  CRYPTO_ERROR_INVALID_KEY_STATE_TRANSITION = 6; // Requested lifecycle transition violates the SP 800-57/KMIP state machine
 
   // Template errors (10–19)
   CRYPTO_ERROR_TEMPLATE_NOT_FOUND = 10;         // No template with the given template_id
@@ -817,6 +818,7 @@ enum CryptoOperation {
   CRYPTO_OPERATION_EXPORT_KEY = 7;
   CRYPTO_OPERATION_UPDATE_KEY_POLICY = 8;
   CRYPTO_OPERATION_MIGRATE_KEY = 9;              // Migrate key to another provider
+  CRYPTO_OPERATION_UPDATE_KEY_STATE = 12;        // Explicit lifecycle state transition (NIST SP 800-57 §7)
 
   // ========================================================================
   // Encryption/Decryption Operations (PKCS#11: C_Encrypt*, C_Decrypt*)

@@ -234,6 +234,43 @@ message RotateKeyRequest {
   string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
 }
 
+// UpdateKeyStateRequest - Explicit, auditable key lifecycle state transition
+//
+// NIST SP 800-57 Part 1 §7 requires explicit, auditable transitions between
+// key states. This RPC covers transitions not implied by other operations:
+//   PRE_ACTIVE  → ACTIVE        (activate)
+//   ACTIVE      → SUSPENDED     (temporarily disable)
+//   SUSPENDED   → ACTIVE        (reactivate)
+//   ACTIVE      → DEACTIVATED   (retire from protect operations)
+//   any         → COMPROMISED   (mark exposure; process ops per policy only)
+//
+// Destruction transitions (→ DESTROYED / DESTROYED_COMPROMISED) go through
+// DeleteKey, which performs material zeroization.
+//
+// The server MUST validate the transition against the SP 800-57 / KMIP state
+// machine and reject invalid transitions with
+// CRYPTO_ERROR_INVALID_KEY_STATE_TRANSITION (e.g., COMPROMISED → ACTIVE,
+// DESTROYED → anything).
+message UpdateKeyStateRequest {
+  string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Target lifecycle state. Required, must be a concrete state.
+  KeyLifecycleState target_state = 2 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+
+  // Reason for the transition, recorded in the audit trail.
+  // REQUIRED for transitions to COMPROMISED (breach documentation).
+  string reason = 3 [(buf.validate.field).string.max_len = 1024];
+}
+
+message UpdateKeyStateResponse {
+  bool success = 1;
+  string message = 2;
+  KeyMetadata key_metadata = 3;
+}
+
 message RotateKeyResponse {
   bool success = 1;
   string message = 2;
