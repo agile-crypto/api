@@ -125,6 +125,13 @@ message CreateKeyRequest {
   //
   // If provider_id is also specified, that provider must meet these requirements.
   ProviderRequirements provider_requirements = 7;
+
+  // Optional cryptoperiod bounds (NIST SP 800-57 Part 1 §5.3).
+  // If unset, defaults come from the governing policy (which SHOULD define
+  // a maximum cryptoperiod). See KeyMetadata.activation_time/expiration_time
+  // for enforcement semantics.
+  optional google.protobuf.Timestamp activation_time = 8;
+  optional google.protobuf.Timestamp expiration_time = 9;
 }
 
 message CreateKeyResponse {
@@ -172,6 +179,19 @@ message KeyMetadata {
   KeyLifecycleState lifecycle_state = 14;
   optional bytes public_key_bytes = 15; // Public-key material for asymmetric keys
   optional KeyFormat public_key_format = 16; // Format of public key material (e.g., RAW, PKCS8, JWK)
+
+  // Cryptoperiod (NIST SP 800-57 Part 1 §5.3): the time span during which
+  // the key is authorized for use.
+  //
+  // Start of the key's originator-usage period. If unset, the key is usable
+  // from creation. Keys before activation are in PRE_ACTIVE state.
+  optional google.protobuf.Timestamp activation_time = 17;
+  // End of the key's usage period. After expiration, protect operations
+  // (encrypt, sign, wrap) MUST fail with CRYPTO_ERROR_KEY_EXPIRED; process
+  // operations (decrypt, verify, unwrap) remain available per policy.
+  // If unset, the key does not expire automatically (NOT RECOMMENDED —
+  // policies SHOULD enforce a maximum cryptoperiod).
+  optional google.protobuf.Timestamp expiration_time = 18;
 }
 
 message ReadKeyRequest {
