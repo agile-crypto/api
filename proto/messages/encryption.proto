@@ -119,7 +119,14 @@ message DecryptInitRequest {
     AsymmetricEncryptParams asymmetric_params = 6; // Asymmetric encryption scope
     VendorEncryptionParams vendor_params = 7;      // Vendor/custom scope
   }
-  
+
+  // Operation metadata from the encryption that produced the ciphertext
+  // (EncryptFinalResponse.metadata or EncryptResponse.metadata).
+  // Contains key_version and provider_output with the system-generated
+  // IV/nonce required to initialize decryption. Without this, the server
+  // cannot recover the IV/nonce used during multi-part encryption.
+  OperationMetadata metadata = 8;
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
