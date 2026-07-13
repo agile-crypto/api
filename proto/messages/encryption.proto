@@ -180,7 +180,14 @@ message EncryptMessageRequest {
   string key_name = 1;
   bytes associated_data = 2;
   bytes plaintext = 3;
-  
+
+  // Identifies the message session established by EncryptMessageInit.
+  // The session provides the key state and scope parameters; each call
+  // encrypts one independent message with its own system-generated nonce.
+  // PKCS#11 analogy: C_EncryptMessage operates on the session prepared
+  // by C_MessageEncryptInit.
+  string operation_id = 4;
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
@@ -246,7 +253,17 @@ message DecryptMessageRequest {
   string key_name = 1;
   bytes associated_data = 2;
   bytes ciphertext = 3;
-  
+
+  // Per-message metadata from the corresponding EncryptMessageResponse.
+  // Contains key_version and provider_output with the system-generated
+  // IV/nonce required to decrypt this message.
+  OperationMetadata metadata = 4;
+
+  // Identifies the message session established by DecryptMessageInit.
+  // The session provides the key state and scope parameters; each call
+  // decrypts one independent message.
+  string operation_id = 5;
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
