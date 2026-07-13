@@ -25,7 +25,7 @@ import "buf/validate/validate.proto";
 //
 // Design Pattern:
 // Each operation type uses a `oneof` field to group algorithm-specific parameters.
-// An explicit empty marker message (e.g., NoEncryptionParams) is used for algorithms
+// An explicit empty marker message (the shared NoParams) is used for algorithms
 // that don't require user-provided parameters, making intent explicit and
 // distinguishing "forgot to set" from "intentionally no params needed".
 // ============================================================================

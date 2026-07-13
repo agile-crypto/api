@@ -45,8 +45,8 @@ message DecapsulateKeyRequest {
   bytes ciphertext = 2;
   string shared_secret_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string shared_secret_template_id = 4;
-  // Operation metadata from encapsulate response
-  // Contains algorithm_parameters and other details from encapsulation
+  // Operation metadata relayed from the encapsulate response.
+  // Contains provider_output (ciphertext encoding) and api_version.
   OperationMetadata metadata = 5;
   
   // Optional: User-provided context for audit trail enrichment.

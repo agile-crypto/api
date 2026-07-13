@@ -50,8 +50,8 @@ message UnwrapKeyRequest {
   string unwrapped_key_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string unwrapped_key_template_id = 4;
   WrapFormat format = 5;
-  // Operation metadata from wrap key response.
-  // Contains key_version and algorithm_parameters from wrapping operation.
+  // Operation metadata from the wrap key response.
+  // Contains key_version and provider_output from the wrapping operation.
   OperationMetadata metadata = 6;
   
   // Must match scope used during wrapping.

@@ -43,9 +43,11 @@ message EncryptResponse {
 message DecryptRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   bytes ciphertext = 2;
-  // Operation metadata from encryption response.
-  // Contains key_version, template_id, algorithm_parameters, provider, and timestamp.
-  // The algorithm_parameters field within metadata includes IV/nonce needed for decryption.
+  // Operation metadata from the encryption response.
+  // Contains key_version and provider_output; the provider_output's typed
+  // algorithm output (e.g., aead_output.nonce) carries the IV/nonce needed
+  // for decryption. Template/provider identity is deliberately NOT carried
+  // here (see the threat model in metadata.proto).
   OperationMetadata metadata = 3;
   
   // Scope-based operation parameters (must match encryption).

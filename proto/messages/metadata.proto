@@ -24,7 +24,7 @@ option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 //   * Interoperability across different implementations
 //   * Long-term storage or cross-system exchange
 //
-// The algorithm_parameters map documents which encoding is used for each artifact.
+// ProviderOutput.encoding (below) documents which encoding is used for each artifact.
 //
 // SECURITY NOTE: Metadata Does NOT Require Signing
 // ================================================
@@ -61,137 +61,47 @@ option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 // CRYPTOGRAPHIC ARTIFACT ENCODING GUIDANCE
 // ==========================================
 //
-// The algorithm_parameters map documents encoding and format information for artifacts.
-// Different implementations may use different encodings; the spec accommodates both.
+// System-generated parameters and artifact encoding are carried in the typed
+// ProviderOutput message (defined below), NOT in a free-form map:
 //
-// ENCRYPTION ARTIFACTS:
-// =====================
-// For AEAD operations (AES-GCM, ChaCha20-Poly1305, etc.):
-//   Format: IV || Ciphertext || AuthenticationTag (concatenated)
-//   algorithm_parameters: {
-//     "iv": <generated_iv_bytes>,     // MUST be included for decryption
-//     "tag_length_bytes": "16",       // Tag length (usually 16 for 128-bit)
-//     "encoding": "raw"               // No wrapper encoding
-//   }
+//   - provider_output.algorithm_output (oneof): the system-generated
+//     parameters that must be stored for later decryption/verification,
+//     typed per PKCS#11 mechanism output structure:
+//       aead_output          { nonce, tag_length_bytes }   AES-GCM/CCM, ChaCha20-Poly1305
+//       block_cipher_output  { iv }                        CBC, OFB, CFB
+//       counter_mode_output  { counter_block, counter_bits } CTR
+//       stream_cipher_output { nonce, block_counter }      ChaCha20/Salsa20 (non-AEAD)
+//       kdf_output           { salt, iv }                  HKDF, PBKDF2, Argon2, SP800-108
+//       no_output            {}                            signatures, asymmetric enc,
+//                                                          key wrapping, MACs, key agreement
+//       vendor_output        { parameters map }            proprietary mechanisms
 //
-// For RSA-OAEP encryption:
-//   Format: Raw OAEP ciphertext or ASN.1-wrapped
-//   algorithm_parameters: {
-//     "encoding": "raw",              // Or "der" if ASN.1-wrapped
-//     "hash_algorithm": "sha256"      // Hash used in OAEP padding
-//   }
+//   - provider_output.encoding (string): how the cryptographic artifact
+//     (ciphertext, signature, wrapped key) is serialized:
+//       "raw"  — native byte format (default; most efficient)
+//                AEAD convention: Ciphertext || AuthenticationTag
+//                ECDSA/EdDSA: r || s concatenated; ML-DSA/SLH-DSA: FIPS native
+//       "der"  — ASN.1 DER (X.509/PKI interoperability;
+//                ECDSA: SEQUENCE { r INTEGER, s INTEGER })
+//       "jws"  — JSON Web Signature/Encryption serialization (REST/JOSE)
+//       "cbor" — CBOR encoding (bandwidth-constrained/IoT)
 //
-// For custom symmetric ciphers with IV/nonce:
-//   algorithm_parameters: {
-//     "iv": <nonce>,
-//     "mode": "cbc",
-//     "padding": "pkcs7",
-//     "encoding": "raw"
-//   }
-//
-// SIGNATURE ARTIFACTS:
-// ====================
-// For ECDSA/EdDSA signatures:
-//   Format: Raw (r || s) or ASN.1/DER encoded
-//   algorithm_parameters: {
-//     "encoding": "raw",    // (r || s concatenated) OR
-//     "encoding": "der",    // ASN.1 DER: SEQUENCE { r INTEGER, s INTEGER }
-//     "hash_algorithm": "sha256"
-//   }
-//
-// For RSA-PSS signatures:
-//   Format: Raw or ASN.1-wrapped
-//   algorithm_parameters: {
-//     "encoding": "raw",    // Raw signature OR
-//     "encoding": "der",    // ASN.1 DER
-//     "hash_algorithm": "sha256",
-//     "salt_length_bytes": "32"
-//   }
-//
-// For post-quantum signatures (ML-DSA, SLH-DSA):
-//   Format: Raw or vendor-specific encoding
-//   algorithm_parameters: {
-//     "encoding": "raw",    // Native format (most efficient)
-//     "signature_length_bytes": "2420",  // For ML-DSA-65
-//     "public_key_length_bytes": "1952"
-//   }
-//
-// For hybrid signatures (ML-DSA+ECDSA):
-//   Format: Component signatures concatenated or structured
-//   algorithm_parameters: {
-//     "encoding": "concatenated",  // ml_dsa_sig || ecdsa_sig
-//     "component_1": "ml-dsa-65",
-//     "component_1_length": "2420",
-//     "component_2": "ecdsa-p256-sha256",
-//     "component_2_encoding": "der"
-//   }
-//
-// KEY DERIVATION ARTIFACTS:
-// ==========================
-// DeriveKeyResponse includes derived key metadata (not the key material itself):
-//   algorithm_parameters: {
-//     "salt": <derived_salt>,         // If applicable
-//     "iterations": "600000",         // PBKDF2 iterations
-//     "memory_mb": "256",             // Argon2 memory
-//     "hash_algorithm": "sha256"
-//   }
-//
-// KEY WRAPPING ARTIFACTS:
-// =======================
-// For RFC 3394 AES-KW:
-//   Format: Raw wrapped key
-//   algorithm_parameters: {
-//     "wrapping_key_template": "aes-256-kw",
-//     "original_key_length": "32",
-//     "encoding": "raw"
-//   }
-//
-// For RSA-OAEP key wrapping:
-//   algorithm_parameters: {
-//     "wrapping_key_template": "rsa-oaep-4096-sha256",
-//     "encoding": "raw"
-//   }
-//
-// INTEROPERABILITY PATTERNS:
-// ===========================
-//
-// Pattern 1: Standard Format (ASN.1/DER for X.509 compatibility)
-//   Use when integrating with existing PKI infrastructure.
-//   Services SHOULD support DER encoding for public operations.
-//   algorithm_parameters: { "encoding": "der" }
-//
-// Pattern 2: Raw Format (Most efficient, vendor-specific)
-//   Use for high-performance internal operations.
-//   algorithm_parameters: { "encoding": "raw" }
-//
-// Pattern 3: JSON Web Format (JWS/JOSE for REST APIs)
-//   Use for REST/OpenAPI endpoints.
-//   algorithm_parameters: { "encoding": "jws" }
-//
-// Pattern 4: CBOR (For mobile/IoT constraints)
-//   Use for bandwidth-constrained environments.
-//   algorithm_parameters: { "encoding": "cbor" }
+// Algorithm identity (template, hash, salt lengths, hybrid composition) is
+// NOT repeated here — it is defined by the key's template
+// (ReadKey → key_metadata.template_id → AlgorithmDetails).
 //
 // IMPLEMENTATION GUIDANCE:
 // ========================
 //
-// 1. DISCOVER SUPPORTED ENCODINGS:
-//    - Query TemplateInfo.algorithm details and scoped_capabilities for encoding options
-//    - Each template documents supported formats via its AlgorithmDetails
+// 1. PARSE BASED ON METADATA:
+//    - Use provider_output.encoding to parse artifacts
+//    - Never assume encoding from template_id alone — different providers
+//      may use different encodings for the same template
 //
-// 2. REQUEST SPECIFIC ENCODING:
-//    - Use scope_spec properties in CreateKeyRequest/TransformKeyRequest
-//    - The service selects templates supporting the requested encoding
-//
-// 3. PARSE BASED ON METADATA:
-//    - Always use algorithm_parameters["encoding"] to parse artifacts
-//    - Never assume encoding based on template_id alone
-//    - Different providers may use different encodings for same template
-//
-// 4. STORE WITH METADATA:
-//    - Store artifacts alongside OperationMetadata
-//    - Include algorithm_parameters with artifact for future parsing
-//    - Enables graceful migration if encoding changes
+// 2. STORE WITH METADATA:
+//    - Store artifacts alongside their OperationMetadata
+//    - The typed algorithm_output preserves IV/nonce/salt for the artifact's
+//      whole lifetime, enabling graceful migration if encodings change
 //
 // EXAMPLE: Complete Encryption/Decryption Round-trip
 // ====================================================
