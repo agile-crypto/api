@@ -135,11 +135,22 @@ message PolicySummary {
 //   5. If scope provided: validate scope is allowed by policy
 //   6. Return detailed result with reasoning
 message EvaluatePolicyRequest {
+  // At least one context field (key_name, template_id, scope_spec,
+  // provider_id, or properties) must be provided for meaningful evaluation.
+  option (buf.validate.message).cel = {
+    id: "evaluation_context_required"
+    message: "at least one of key_name, template_id, scope_spec, provider_id, or properties must be provided"
+    expression: "this.key_name != '' || this.template_id != '' || has(this.scope_spec) || this.provider_id != '' || size(this.properties) > 0"
+  };
+
   // Policy to evaluate against. Required.
-  string policy_name = 1;
-  
+  string policy_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
   // Operation being evaluated. Required.
-  CryptoOperation operation = 2;
+  CryptoOperation operation = 2 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
   
   // ========================================================================
   // Context: At least one of these should be provided for meaningful evaluation
@@ -254,8 +265,11 @@ message PolicyDecisionDetails {
 // BatchEvaluatePolicyRequest evaluates multiple policy decisions in one call.
 // Useful for checking multiple operations/keys at once (e.g., UI initialization).
 message BatchEvaluatePolicyRequest {
-  // List of policy evaluations to perform
-  repeated EvaluatePolicyRequest evaluations = 1;
+  // List of policy evaluations to perform (bounded to keep request cost predictable)
+  repeated EvaluatePolicyRequest evaluations = 1 [(buf.validate.field).repeated = {
+    min_items: 1,
+    max_items: 100
+  }];
 }
 
 message BatchEvaluatePolicyResponse {
