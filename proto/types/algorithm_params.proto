@@ -1517,6 +1517,13 @@ message Gost3410Params {
 // PKCS#11 Key Type: CKK_HOTP
 // PKCS#11 Reference Struct: CK_OTP_PARAMS, CK_OTP_PARAM
 // Standards: RFC 4226
+//
+// SCOPE STATUS: HOTP/TOTP templates are currently CATALOG-ONLY. There is no
+// OtpScope in ScopeSpecification and no OTP operations in CryptoOperation,
+// so these templates cannot be selected through scope-based discovery or
+// executed through the service RPCs. OTP generation/verification is treated
+// as an authentication concern pending a design decision on whether it
+// belongs in this cryptographic API (tracked in the audit as H-TPL-1).
 message HotpParams {
   // Hash algorithm for HMAC.
   // PKCS#11: Part of key attributes (typically SHA-1 per RFC 4226)
@@ -1538,6 +1545,13 @@ message HotpParams {
 // PKCS#11: Uses CKM_HOTP with time-based counter (CK_OTP_TIME param)
 // PKCS#11 Reference Struct: CK_OTP_PARAMS with CK_OTP_TIME parameter
 // Standards: RFC 6238
+//
+// SCOPE STATUS: HOTP/TOTP templates are currently CATALOG-ONLY. There is no
+// OtpScope in ScopeSpecification and no OTP operations in CryptoOperation,
+// so these templates cannot be selected through scope-based discovery or
+// executed through the service RPCs. OTP generation/verification is treated
+// as an authentication concern pending a design decision on whether it
+// belongs in this cryptographic API (tracked in the audit as H-TPL-1).
 message TotpParams {
   // Hash algorithm for HMAC.
   // Standard uses SHA-1 (100), SHA-256 (1), and SHA-512 (3) are supported (RFC 6238 §1.2).
