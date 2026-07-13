@@ -55,6 +55,9 @@ message VerifyMACRequest {
 }
 
 message VerifyMACResponse {
+  // Result of MAC comparison. Implementations MUST use a constant-time
+  // comparison (e.g., crypto/subtle ConstantTimeCompare) to avoid timing
+  // side channels that would let an attacker forge MACs byte-by-byte.
   bool valid = 1;
   OperationMetadata metadata = 2;
 }

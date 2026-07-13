@@ -22,6 +22,15 @@ message EncapsulateKeyRequest {
 }
 
 message EncapsulateKeyResponse {
+  // KEM ciphertext (encapsulated shared secret).
+  //
+  // ALGORITHM RESOLUTION: The KEM algorithm is NOT carried in this response
+  // by design (metadata is unauthenticated — see metadata.proto threat model).
+  // The decapsulator resolves the algorithm from its own private key's
+  // template (ReadKey => key_metadata.template_id). The ciphertext byte
+  // encoding is documented by metadata.provider_output.encoding ("raw" is
+  // the FIPS 203 native encoding for ML-KEM). Relay the metadata alongside
+  // the ciphertext to the decapsulating party.
   bytes ciphertext = 1;
   OperationMetadata metadata = 2;
   // Metadata of the newly created shared secret key.
