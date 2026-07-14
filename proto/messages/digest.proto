@@ -29,17 +29,12 @@ message DigestInitRequest {
   // the scope specification and the policy.
   optional string template_id = 2;
   
-  // Field 3 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 3;
-
   // Optional: Policy name for additional validation and enforcement.
   // If provided, validates whether this operation and selected template are allowed.
-  string policy_name = 4;
+  string policy_name = 3;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 5;
+  map<string, string> user_context = 15;
 }
 
 message DigestInitResponse {
@@ -67,14 +62,14 @@ message DigestRequest {
   optional string template_id = 2;
   
   // The data to hash
-  bytes data = 4;
+  bytes data = 3;
   
   // Optional: Policy name for additional validation and enforcement.
   // If provided, validates whether this operation and selected template are allowed.
-  string policy_name = 5;
+  string policy_name = 4;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 6;
+  map<string, string> user_context = 15;
 }
 
 message DigestResponse {
@@ -143,7 +138,7 @@ message XofRequest {
   string policy_name = 5;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 6;
+  map<string, string> user_context = 15;
 }
 
 message XofResponse {
@@ -165,20 +160,15 @@ message XofInitRequest {
   // the scope specification and the policy.
   optional string template_id = 2;
 
-  // Field 3 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 3;
-
   // Required: the desired output length in bytes.
   // Bounded to 1 MiB per request to prevent resource-exhaustion abuse.
-  uint32 output_length_bytes = 4 [(buf.validate.field).uint32 = {gte: 1, lte: 1048576}];
+  uint32 output_length_bytes = 3 [(buf.validate.field).uint32 = {gte: 1, lte: 1048576}];
 
   // Optional: Policy name for additional validation and enforcement.
-  string policy_name = 5;
+  string policy_name = 4;
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 6;
+  map<string, string> user_context = 15;
 }
 
 message XofInitResponse {
