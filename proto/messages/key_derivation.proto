@@ -84,30 +84,26 @@ message DeriveKeyRequest {
   // - Multi-tenant scenarios where derived keys belong to different tenants
   optional string policy = 3;
 
-  // Field 4 was removed (peer_public_key belongs exclusively to
-  // KeyAgreementRequest); reserved to prevent accidental reuse.
-  reserved 4;
-
   // KDF-specific user-provided operation parameters.
   // REQUIRED: Set the one matching your base key's KDF algorithm.
   // Each KDF params message contains only the fields relevant to that KDF.
   oneof kdf_params {
     option (buf.validate.oneof).required = true;
-    HkdfOperationParams hkdf_params = 5;           // For HKDF-SHA256, HKDF-SHA512, etc.
-    Pbkdf2OperationParams pbkdf2_params = 6;       // For PBKDF2-HMAC-SHA*
-    Argon2OperationParams argon2_params = 7;       // For Argon2id, Argon2i, Argon2d
-    EcdhOperationParams ecdh_params = 8;           // For ECDH, X25519, X448
-    X942DhOperationParams x942_dh_params = 9;      // For X9.42 DH
-    TlsPrfOperationParams tls_prf_params = 10;     // For TLS 1.0/1.1 PRF
-    Tls12KdfOperationParams tls12_kdf_params = 11; // For TLS 1.2 KDF
-    Sp800108OperationParams sp800_108_params = 12; // For NIST SP 800-108 KDF
-    GostKdfOperationParams gost_kdf_params = 13;   // For GOST key derivation
-    X3dhOperationParams x3dh_params = 14;          // For Signal X3DH protocol
-    VendorKdfParams vendor_params = 15;            // For custom/vendor KDF algorithms
+    HkdfOperationParams hkdf_params = 4;           // For HKDF-SHA256, HKDF-SHA512, etc.
+    Pbkdf2OperationParams pbkdf2_params = 5;       // For PBKDF2-HMAC-SHA*
+    Argon2OperationParams argon2_params = 6;       // For Argon2id, Argon2i, Argon2d
+    EcdhOperationParams ecdh_params = 7;           // For ECDH, X25519, X448
+    X942DhOperationParams x942_dh_params = 8;      // For X9.42 DH
+    TlsPrfOperationParams tls_prf_params = 9;     // For TLS 1.0/1.1 PRF
+    Tls12KdfOperationParams tls12_kdf_params = 10; // For TLS 1.2 KDF
+    Sp800108OperationParams sp800_108_params = 11; // For NIST SP 800-108 KDF
+    GostKdfOperationParams gost_kdf_params = 12;   // For GOST key derivation
+    X3dhOperationParams x3dh_params = 13;          // For Signal X3DH protocol
+    VendorKdfParams vendor_params = 14;            // For custom/vendor KDF algorithms
   }
   
   // Optional: User-provided context for audit trail enrichment.
-  map<string, string> user_context = 20;
+  map<string, string> user_context = 15;
 }
 
 message DeriveKeyResponse {
