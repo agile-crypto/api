@@ -76,7 +76,7 @@ enum KdfScope {
   KDF_SCOPE_AGREEMENT = 3;          // peer_public_key → shared secret (ECDH, X25519/X448, X942, X3DH)
   KDF_SCOPE_COUNTER = 4;            // label + context + counter_format → key (SP800-108)
   KDF_SCOPE_TLS = 5;                // cipher_suite + seed → key material (TLS PRF, TLS 1.2)
-  KDF_SCOPE_GOST = 6;               // ukm → key (GOST R 34.11)
+  KDF_SCOPE_GOST = 6;               // ukm → key (VKO GOST R 34.10, RFC 4357/7836)
   KDF_SCOPE_VENDOR = 7;             // custom parameters → key (vendor-specific)
 }
 
@@ -857,10 +857,6 @@ enum CryptoOperation {
   CRYPTO_OPERATION_DIGEST_SIGN = 22;
   CRYPTO_OPERATION_DIGEST_VERIFY = 23;
   
-  // 24, 25: SIGN_RECOVER / VERIFY_RECOVER (RSA message recovery,
-  // PKCS#11 C_SignRecoverInit / C_VerifyRecoverInit) removed as out of scope.
-  reserved 24, 25;
-
   // ========================================================================
   // Key Wrapping Operations (PKCS#11: C_WrapKey, C_UnwrapKey)
   // ========================================================================

@@ -57,10 +57,6 @@ message AlgorithmDetails {
   // enabling override for edge cases (e.g., custom algorithms, dual-use keys).
   CryptoPrimitive primitive = 2;
 
-  // Field 26 reserved: poly1305 moved to MAC section (field 74).
-  // Proto3 does not support `reserved` inside oneof, so it is declared at message level.
-  reserved 26;
-
   // Algorithm-specific parameters with type safety.
   // This is the SINGLE SOURCE OF TRUTH for algorithm configuration.
   // Each message is SELF-CONTAINED per CycloneDX naming patterns.
@@ -74,7 +70,6 @@ message AlgorithmDetails {
     ChaCha20Poly1305Params chacha20_poly1305 = 23;  // ChaCha20-Poly1305 / XChaCha20-Poly1305
     AesCcmParams aes_ccm = 24;              // AES-{128,192,256}-CCM
     AesXtsParams aes_xts = 25;              // AES-{128,256}-XTS (disk encryption)
-    // (Field 26 formally reserved at message level above)
     
     // ========================================================================
     // Symmetric Encryption (Legacy - NOT RECOMMENDED for new applications)

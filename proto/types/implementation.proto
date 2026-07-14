@@ -33,10 +33,6 @@ import "buf/validate/validate.proto";
 // ImplementationProperties describes the characteristics of a provider's
 // implementation of cryptographic algorithms.
 message ImplementationProperties {
-  // Field 14 was removed during earlier refactoring; reserved to prevent
-  // accidental reuse (field 15 is the additional-properties convention slot).
-  reserved 14;
-
   // ========================================
   // Certifications
   // ========================================

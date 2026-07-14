@@ -572,12 +572,6 @@ message Ed25519Params {
 // PKCS#11 Reference Struct: CK_EDDSA_PARAMS
 // Key size is fixed at 456 bits (57 bytes).
 message Ed448Params {
-  // Field 2 previously held a template-level context string. The signing
-  // context is a PER-OPERATION parameter, supplied at sign/verify time via
-  // SignatureDomainContext (operation_params.proto), consistent with
-  // Ed25519ctx, ML-DSA, and SLH-DSA. Reserved to prevent reuse.
-  reserved 2;
-
   // Ed448 variant. Default: PURE.
   // PKCS#11: CK_EDDSA_PARAMS.phFlag (CK_FALSE=Pure, CK_TRUE=Prehash)
   // Per RFC 8032 §5.2, Ed448 always accepts a context (default empty);
