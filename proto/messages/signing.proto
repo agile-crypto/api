@@ -149,17 +149,12 @@ message DigestVerifyResponse {
 // Multi-part signing
 message SignInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Scope-based context for domain separation.
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_context = 3;                      // Classical signatures
-    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
-    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+    NoParams no_context = 2;                      // Classical signatures
+    SignatureDomainContext domain_context = 3;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 4;     // Vendor/custom scope
   }
   
   // Optional: User-provided context for audit trail enrichment.
@@ -193,23 +188,18 @@ message SignFinalResponse {
 
 message VerifyInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Must match scope used during signing.
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_context = 3;                      // Classical signatures
-    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
-    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+    NoParams no_context = 2;                      // Classical signatures
+    SignatureDomainContext domain_context = 3;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 4;     // Vendor/custom scope
   }
 
   // Operation metadata from the corresponding sign response.
   // Contains key_version so verification uses the same key version that
   // produced the signature (critical after key rotation).
-  OperationMetadata metadata = 6;
+  OperationMetadata metadata = 5;
 
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
@@ -244,17 +234,12 @@ message VerifyFinalResponse {
 // Message-based signing
 message SignMessageInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Scope-based context for domain separation.
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_context = 3;                      // Classical signatures
-    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
-    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+    NoParams no_context = 2;                      // Classical signatures
+    SignatureDomainContext domain_context = 3;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 4;     // Vendor/custom scope
   }
   
   // Optional: User-provided context for audit trail enrichment.
@@ -328,17 +313,12 @@ message SignMessageFinalResponse {
 
 message VerifyMessageInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Must match scope used during signing.
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_context = 3;                      // Classical signatures
-    SignatureDomainContext domain_context = 4;     // Context-bearing signatures
-    VendorSignatureContext vendor_context = 5;     // Vendor/custom scope
+    NoParams no_context = 2;                      // Classical signatures
+    SignatureDomainContext domain_context = 3;     // Context-bearing signatures
+    VendorSignatureContext vendor_context = 4;     // Vendor/custom scope
   }
   
   // Optional: User-provided context for audit trail enrichment.

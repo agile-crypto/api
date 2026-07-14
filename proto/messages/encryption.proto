@@ -72,19 +72,14 @@ message DecryptResponse {
 // Multi-part encryption
 message EncryptInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Scope-based operation parameters.
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_params = 3;                        // Simple symmetric
-    AeadEncryptParams aead_params = 4;             // AEAD scope
-    XtsEncryptParams xts_params = 5;               // Storage encryption scope
-    AsymmetricEncryptParams asymmetric_params = 6; // Asymmetric encryption scope
-    VendorEncryptionParams vendor_params = 7;      // Vendor/custom scope
+    NoParams no_params = 2;                        // Simple symmetric
+    AeadEncryptParams aead_params = 3;             // AEAD scope
+    XtsEncryptParams xts_params = 4;               // Storage encryption scope
+    AsymmetricEncryptParams asymmetric_params = 5; // Asymmetric encryption scope
+    VendorEncryptionParams vendor_params = 6;      // Vendor/custom scope
   }
   
   // Optional: User-provided context for audit trail enrichment.
@@ -118,19 +113,14 @@ message EncryptFinalResponse {
 
 message DecryptInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Scope-based operation parameters (must match encryption).
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_params = 3;                        // Simple symmetric
-    AeadEncryptParams aead_params = 4;             // AEAD scope
-    XtsEncryptParams xts_params = 5;               // Storage encryption scope
-    AsymmetricEncryptParams asymmetric_params = 6; // Asymmetric encryption scope
-    VendorEncryptionParams vendor_params = 7;      // Vendor/custom scope
+    NoParams no_params = 2;                        // Simple symmetric
+    AeadEncryptParams aead_params = 3;             // AEAD scope
+    XtsEncryptParams xts_params = 4;               // Storage encryption scope
+    AsymmetricEncryptParams asymmetric_params = 5; // Asymmetric encryption scope
+    VendorEncryptionParams vendor_params = 6;      // Vendor/custom scope
   }
 
   // Operation metadata from the encryption that produced the ciphertext
@@ -138,7 +128,7 @@ message DecryptInitRequest {
   // Contains key_version and provider_output with the system-generated
   // IV/nonce required to initialize decryption. Without this, the server
   // cannot recover the IV/nonce used during multi-part encryption.
-  OperationMetadata metadata = 8;
+  OperationMetadata metadata = 7;
 
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
@@ -172,19 +162,14 @@ message DecryptFinalResponse {
 // Message-based AEAD
 message EncryptMessageInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Scope-based operation parameters.
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_params = 3;
-    AeadEncryptParams aead_params = 4;
-    XtsEncryptParams xts_params = 5;
-    AsymmetricEncryptParams asymmetric_params = 6;
-    VendorEncryptionParams vendor_params = 7;
+    NoParams no_params = 2;
+    AeadEncryptParams aead_params = 3;
+    XtsEncryptParams xts_params = 4;
+    AsymmetricEncryptParams asymmetric_params = 5;
+    VendorEncryptionParams vendor_params = 6;
   }
   
   // Optional: User-provided context for audit trail enrichment.
@@ -262,19 +247,14 @@ message EncryptMessageFinalResponse {
 
 message DecryptMessageInitRequest {
   string key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
-  // Field 2 previously held a client-chosen operation_id. Operation IDs are
-  // now SERVER-GENERATED and returned in the Init response, preventing
-  // session-ID collision and hijacking. See the corresponding InitResponse.
-  reserved 2;
-
   // Scope-based operation parameters (must match encryption).
   oneof scope_params {
     option (buf.validate.oneof).required = true;
-    NoParams no_params = 3;
-    AeadEncryptParams aead_params = 4;
-    XtsEncryptParams xts_params = 5;
-    AsymmetricEncryptParams asymmetric_params = 6;
-    VendorEncryptionParams vendor_params = 7;
+    NoParams no_params = 2;
+    AeadEncryptParams aead_params = 3;
+    XtsEncryptParams xts_params = 4;
+    AsymmetricEncryptParams asymmetric_params = 5;
+    VendorEncryptionParams vendor_params = 6;
   }
   
   // Optional: User-provided context for audit trail enrichment.
