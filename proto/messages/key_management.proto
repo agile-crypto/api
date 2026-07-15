@@ -452,11 +452,11 @@ message TransformKeyRequest {
   // scope (ie. cryptographic intent) and properties that the template must satisfy.
   // If a template is explicitly provided, the scope specification must at least 
   // include the scope to be associated with the key.
-  ScopeSpecification scope_spec = 5;
+  ScopeSpecification scope_spec = 3;
   // Optional: explicit template ID. If set, it must match the scope specification
   // and be allowed by the policy. If not set, the template is determined based on
   // the scope specification and the policy.
-  optional string template_id = 6;
+  optional string template_id = 4;
 }
 
 message TransformKeyResponse {
@@ -761,6 +761,13 @@ message ValidateMigrateIntent {
 }
 
 // ValidateKeyOperationResponse - Feasibility report
+//
+// INTENT-DEPENDENT FIELDS: `options` and `recommended_strategy` are
+// MigrationStrategy-typed and are populated for MIGRATE intents. For
+// TRANSFORM intents, feasibility is reported via StrategyOption.feasible /
+// infeasibility_reason with strategy = MIGRATION_STRATEGY_UNSPECIFIED
+// (e.g., "retain_key_bytes not possible: key size changes"), and
+// recommended_strategy remains UNSPECIFIED.
 message ValidateKeyOperationResponse {
   // Current key state (for user's information)
   KeyState current_state = 1;
