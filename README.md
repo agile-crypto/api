@@ -1,141 +1,65 @@
 # Abstract Cryptographic API
 
-A Protocol Buffers-based cryptographic service API that separates cryptographic intent from implementation details.
+A transport-agnostic, provider-agnostic, policy-driven cryptographic API specification defined in Protocol Buffers. It separates cryptographic **intent** ("I need an authenticated-encryption key") from **implementation** ("use AES-256-GCM on this HSM"), so that algorithms can be governed and migrated centrally — including the transition to post-quantum cryptography — without rewriting application code.
+
+This repository contains the specification only. It is designed to be implemented in any language and deployed on-premise, in the cloud, or embedded in-process.
 
 ---
 
-## Overview
+## Core Concepts
 
-This API lets applications use cryptography without hardcoding algorithms. Specify *what* you need (digital signature, authenticated encryption), and policies control *how* it's done.
+The design rests on five architectural characteristics - abstraction, stability, temporal flexibility, separation, and extensibility. This is realized through four concepts:
 
-```protobuf
-// Traditional approach - algorithm hardcoded in application
-signer := ecdsa.GenerateKey(elliptic.P256())
-signature := ecdsa.Sign(signer, hash)
+- **Scopes** express cryptographic *intent* as a typed vocabulary (authenticated encryption, digital signature, key encapsulation, key derivation, MAC, key wrapping, …). A scope names *what* the caller needs and the parameter shape they must provide without needing to specify any algorithm.
 
-// This API - intent-based, algorithm controlled by policy
-CreateKey(name="signing-key", scope_spec={signature: {scope: SIGNATURE_SCOPE_STANDARD}})
-Sign(key_name="signing-key", input=message)
+- **Templates** are concrete algorithm configurations (e.g. `aes-256-gcm`, `ml-dsa-65`). Each template declares the scopes it satisfies plus properties (security strength, FIPS approval, quantum safety) used for discovery and matching. New algorithms are added to the catalog as data without changing the API or breaking existing clients.
+
+- **Policies** are an abstract governance object. A policy decides which templates are permitted for a scope and enforces requirements (minimum strength, FIPS-only, quantum-safe). The API treats the policy document opaquely, so deployments choose their own policy language.
+
+- **Named keys** are referenced by stable logical names. Key material is never exposed to clients, and a key's identity is preserved across rotation and algorithm change.
+
+**Cryptographic agility** enablers: `TransformKey` migrates a key to a new algorithm and `MigrateKey` moves it to a new provider, both while keeping the key identifier so that every existing call site keeps working without any code changes
+
+### The API shape
+
+Intent-based creation and use, expressed as request messages (algorithm never appears at the call site):
+
+```proto
+// Create a key by intent - the policy resolves the concrete algorithm.
+CreateKeyRequest {
+  name:   "contract-signing-key"
+  policy: "prod-signing"
+  scope_spec { signature { scope: SIGNATURE_SCOPE_STANDARD } }
+}
+// => policy selects e.g. ecdsa-p256-sha256; the key is used only by name.
+
+// Sign by name - no algorithm identifier in the request.
+SignRequest { key_name: "contract-signing-key", input: <bytes> }
+
+// Later, migrate to post-quantum without touching application code:
+TransformKeyRequest {
+  name: "contract-signing-key"
+  scope_spec { signature {
+    scope: SIGNATURE_SCOPE_STANDARD
+    security { quantum_safe: true }
+  } }
+}
+// => policy selects e.g. ml-dsa-65; existing Sign/Verify call sites are unchanged.
 ```
 
-**Result:** Security teams can upgrade algorithms (e.g., ECDSA → Ed25519 → ML-DSA) without any application code changes.
-
 ---
 
-## Why This API?
-
-| Audience | Benefit |
-|----------|---------|
-| **Developers** | Use crypto safely without understanding algorithm details. Keys by name, never exposed. |
-| **Security Teams** | Centralized policy control. Algorithm upgrades without code deployments. |
-| **Integrators** | Multi-transport support (gRPC, REST, SDKs). Universal compatibility. |
-
----
-
-## Key Capabilities
-
-| Capability | Description |
-|------------|-------------|
-| **Intent-Based** | Multiple cryptographic scopes (authenticated encryption, digital signature, etc.) |
-| **Named Keys** | Keys identified by logical names, never exposed to clients |
-| **Cryptographic Agility** | `TransformKey` migrates algorithms while preserving key identity |
-| **Runtime Discovery** | `ListTemplates()` discovers algorithms without API changes |
-| **Multi-Transport** | Single protobuf generates gRPC, REST, and SDKs for 10+ languages |
-| **Provider Pluggable** | Switch software/HSM/cloud KMS backends transparently |
-| **Policy-Driven** | Flexible policy integration (API abstracts policy details) |
-| **Extensible** | Map-based properties and runtime templates for future algorithms |
-
----
-
-## Design Strengths
-
-The API is designed for three critical requirements:
-
-### Cryptographic Agility
-- **Scope-based selection**: Applications specify intent, policy selects algorithm
-- **TransformKey operation**: Migrate to new algorithms without changing key names
-- **Property-based filtering**: Select algorithms by characteristics (security level, FIPS approval)
-
-### Extensibility Without API Changes
-- **Map-based properties**: Add new algorithm properties without schema changes
-- **Runtime templates**: Add new algorithms via configuration, not code
-- **Enum additions**: New scopes/mechanisms are backward-compatible
-
-### PKCS#11 v3.2 Compliance
-- **Full operation coverage**: Encrypt, Sign, Digest, MAC, Wrap, Derive, KEM
-- **Multi-part operations**: Init/Update/Final pattern for streaming
-- **Post-quantum KEMs**: Native Encapsulate/Decapsulate operations
-
----
-
-## Quick Start
-
-### 1. Generate Code
-
-```bash
-cd proto && ./build_proto.sh
-```
-
-**Output:**
-- `gen/go/` — Go code with gRPC stubs
-- `gen/go/services/*.pb.gw.go` — REST gateway
-- `gen/openapi/*.swagger.json` — OpenAPI specs
-
-### 2. API Surface
+## API Surface
 
 | Service | RPCs | Purpose |
 |---------|------|---------|
-| `KeyManagementService` | 11 | Key lifecycle — CRUD, rotate, transform, migrate, import/export |
-| `CryptoPolicyService` | 7 | Policy CRUD and evaluation (pre-flight checks) |
-| `CryptoService` | 12 | Single-shot operations — encrypt, sign, MAC, digest, random |
-| `StreamingCryptoService` | 43 | Multi-part and message-based stateful operations (PKCS#11 Init/Update/Final) |
-| `KeyEstablishmentService` | 6 | Key-to-key operations — wrap, unwrap, derive, agree, encapsulate, decapsulate |
+| `KeyManagementService` | 12 | Key lifecycle - CRUD, rotate, transform, migrate, state transitions, import/export |
+| `CryptoService` | 12 | Single-shot operations - encrypt, sign, MAC, digest, XOF, random |
+| `StreamingCryptoService` | 50 | Multi-part and message-based stateful operations (PKCS#11 Init/Update/Final) |
+| `KeyEstablishmentService` | 6 | Key-to-key operations - wrap, unwrap, derive, agree, encapsulate, decapsulate |
+| `CryptoPolicyService` | 7 | Policy CRUD and evaluation (pre-flight authorization checks) |
 | `AlgorithmDiscoveryService` | 3 | Template and scope discovery |
 | `ProviderService` | 8 | Provider catalog, instance management, and matching |
-
-### 3. Example Usage
-
-```go
-// Step 1: Create a signing key — policy selects the algorithm (e.g., ECDSA P-256)
-createResp := keyMgmt.CreateKey(&CreateKeyRequest{
-    Name:   "contract-signing-key",
-    Policy: "production-signing",
-    ScopeSpec: &ScopeSpecification{
-        Signature: &SignatureScopeSpec{
-            Scope:    SIGNATURE_SCOPE_STANDARD,
-            Security: &UniversalSecurityProperties{SecurityStrengthBits: 128},
-        },
-    },
-})
-// Policy selected: createResp.KeyMetadata.TemplateId (e.g., "ecdsa-p256-sha256-der")
-
-// Step 2: Sign data — algorithm determined by policy, key never exposed
-resp := crypto.Sign(&SignRequest{
-    KeyName:   "contract-signing-key",
-    Input:     document,
-    NoContext: &NoParams{},  // Classical signature (ECDSA)
-})
-
-// Response includes key version for verification replay
-fmt.Printf("Signed with key version: %d\n", resp.Metadata.KeyVersion)
-
-// Step 3: Later — migrate to post-quantum ML-DSA without changing key name
-keyMgmt.TransformKey(&TransformKeyRequest{
-    Name:           "contract-signing-key",
-    RetainKeyBytes: false,  // Must regenerate for algorithm family change
-    ScopeSpec: &ScopeSpecification{
-        Signature: &SignatureScopeSpec{
-            Scope:    SIGNATURE_SCOPE_STANDARD,
-            Security: &UniversalSecurityProperties{
-                SecurityStrengthBits: 192,
-                QuantumSafe:          true,
-            },
-        },
-    },
-})
-// Policy selects ML-DSA-65 (NIST Level 3, 192-bit strength)
-// All existing Sign() calls continue to work — zero code changes
-```
 
 ---
 
@@ -169,7 +93,7 @@ keyMgmt.TransformKey(&TransformKeyRequest{
          └───────────────────┬───────────────────┘
                              │
                    ┌─────────▼─────────┐
-                   │   Policy Engine   │ ◄── Policies (JSON/YAML/HCL)
+                   │   Policy Engine   │ ◄── Policies (abstract governance object)
                    └─────────┬─────────┘
                              │
                    ┌─────────▼─────────┐
@@ -181,11 +105,79 @@ keyMgmt.TransformKey(&TransformKeyRequest{
                    └───────────────────┘
 ```
 
-**Deployment Modes:**
-- **gRPC** — High-performance client-server
-- **REST** — Browser/curl/legacy integration
-- **Embedded** — Direct function calls, no RPC overhead
+**Deployment modes:** gRPC (high-performance client-server), REST (browser/curl/legacy via the generated gateway), and embedded (direct function calls, no RPC overhead).
 
 ---
 
-This specification is designed to be implemented in any language (Go, Java, Python, C++, etc.) and deployed across any infrastructure (on-premise, cloud, hybrid).
+## Standards Alignment
+
+- **Operation coverage:** PKCS#11 v3.x — encrypt, sign, digest, MAC, wrap, derive, KEM; single-shot, multi-part, and message-based flows.
+- **Post-quantum:** ML-KEM (FIPS 203), ML-DSA (FIPS 204), SLH-DSA (FIPS 205), and hybrid classical+PQ compositions.
+- **Classical:** FIPS 197/186, SP 800-38D (GCM), SP 800-56A (key agreement), SP 800-108 (KDF), IEEE 1619 (XTS), and the relevant IETF RFCs.
+- **Assurance:** FIPS 140-3 provider properties; NIST SP 800-57 key lifecycle; SP 800-131A algorithm transitions.
+- **Reporting:** CycloneDX v1.7 cryptographic bill of materials (CBOM) export.
+
+---
+
+## Repository Layout
+
+```
+proto/
+  api.proto                 # Barrel file importing all services and messages
+  types/                    # Scopes, templates, algorithm & operation parameters, providers
+  messages/                 # Request/response messages per operation family
+  services/                 # gRPC service definitions (+ REST annotations)
+  standard_algorithms.json  # Standard algorithm catalog (data, not schema)
+  build_proto.sh            # Code generation entry point
+gen/
+  go/                       # Generated Go gRPC stubs + REST gateway
+  openapi/                  # Generated OpenAPI (Swagger) specs
+```
+
+Protobuf package: `caas.crypto.v1`.
+
+### Generate code
+
+```bash
+cd proto && ./build_proto.sh    # runs buf generate
+```
+
+A single protobuf definition generates gRPC stubs, a REST gateway, OpenAPI specs, and client SDKs for any protobuf-supported language.
+
+---
+
+## Publications
+
+The peer-reviewed paper describing this work appeared at **MAgiCS 2026** — the Workshop on Migration and Agility in Cryptographic Systems, co-located with **EUROCRYPT 2026** (Rome, Italy) — with proceedings published by Springer in the *Communications in Computer and Information Science* (CCIS) series:
+
+> Navaneeth Rameshan and Grégoire Messmer.
+> **Cryptographic Agility for Applications: An Assessment Framework and Principled API Design.**
+> MAgiCS 2026 (co-located with EUROCRYPT 2026), Springer CCIS, 2026.
+> https://doi.org/10.1007/978-3-032-28946-9_9
+
+Extended versions with the full assessment framework and design rationale:
+
+- *An Assessment Framework for Application-Level Cryptographic Agility* — https://arxiv.org/abs/2606.13425
+- *Intent-Based Cryptographic API Design for Cryptographic Agility* — https://arxiv.org/abs/2606.13445
+
+### Citation
+
+```bibtex
+@inproceedings{rameshan2026cryptoagility,
+  author    = {Rameshan, Navaneeth and Messmer, Gr\'egoire},
+  title     = {Cryptographic Agility for Applications: An Assessment
+               Framework and Principled API Design},
+  booktitle = {Migration and Agility in Cryptographic Systems (MAgiCS 2026),
+               co-located with EUROCRYPT 2026},
+  series    = {Communications in Computer and Information Science},
+  publisher = {Springer},
+  year      = {2026},
+  doi       = {10.1007/978-3-032-28946-9_9}
+}
+```
+
+---
+
+## Status & License
+
+Specification version 0.1.0. Licensed under Apache-2.0 (`SPDX-License-Identifier: Apache-2.0`).
