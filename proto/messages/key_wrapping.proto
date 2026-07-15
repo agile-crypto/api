@@ -49,7 +49,10 @@ message UnwrapKeyRequest {
   string wrapping_key_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string unwrapped_key_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
   string unwrapped_key_template_id = 4;
-  WrapFormat format = 5;
+  // Encoding of the key material inside the wrapped blob.
+  // Must match the format used during wrapping. WRAP_FORMAT_UNSPECIFIED
+  // (default) = use the format recorded in the wrap response metadata.
+  WrapFormat format = 5 [(buf.validate.field).enum.defined_only = true];
   // Operation metadata from the wrap key response.
   // Contains key_version and provider_output from the wrapping operation.
   OperationMetadata metadata = 6;

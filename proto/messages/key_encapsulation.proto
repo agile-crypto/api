@@ -15,8 +15,16 @@ import "buf/validate/validate.proto";
 // ============================================================================
 
 message EncapsulateKeyRequest {
+  // Recipient's KEM public key (e.g., an ML-KEM key created via KemScope).
+  // Must support CRYPTO_OPERATION_ENCAPSULATE.
   string recipient_public_key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Name for the resulting shared secret key.
+  // Must be unique within the key namespace.
   string shared_secret_name = 2 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Optional: Template for the resulting shared secret key.
+  // If omitted, the public key's policy selects the appropriate output template.
   string shared_secret_template_id = 3;
   
   // Optional: User-provided context for audit trail enrichment.
@@ -41,9 +49,20 @@ message EncapsulateKeyResponse {
 }
 
 message DecapsulateKeyRequest {
+  // KEM private key corresponding to the encapsulation public key.
+  // Must support CRYPTO_OPERATION_DECAPSULATE.
   string private_key_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // KEM ciphertext from EncapsulateKeyResponse.ciphertext.
   bytes ciphertext = 2;
+
+  // Name for the recovered shared secret key.
+  // Must be unique within the key namespace.
   string shared_secret_name = 3 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+
+  // Optional: Template for the recovered shared secret key.
+  // Should match the template used on the encapsulating side so both parties
+  // derive identical keys. If omitted, the private key's policy selects it.
   string shared_secret_template_id = 4;
   // Operation metadata relayed from the encapsulate response.
   // Contains provider_output (ciphertext encoding) and api_version.
