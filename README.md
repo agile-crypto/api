@@ -148,17 +148,21 @@ A single protobuf definition generates gRPC stubs, a REST gateway, OpenAPI specs
 
 ## Publications
 
-The peer-reviewed paper describing this work appeared at **MAgiCS 2026** — the Workshop on Migration and Agility in Cryptographic Systems, co-located with **EUROCRYPT 2026** (Rome, Italy) — with proceedings published by Springer in the *Communications in Computer and Information Science* (CCIS) series:
+The condensed paper describing this work appeared at **MAgiCS 2026** — the Workshop on Migration and Agility in Cryptographic Systems, co-located with **EUROCRYPT 2026** (Rome, Italy) — with proceedings published in the *Communications in Computer and Information Science* (CCIS) series:
 
 > Navaneeth Rameshan and Grégoire Messmer.
 > **Cryptographic Agility for Applications: An Assessment Framework and Principled API Design.**
 > MAgiCS 2026 (co-located with EUROCRYPT 2026), Springer CCIS, 2026.
 > https://doi.org/10.1007/978-3-032-28946-9_9
 
-Extended versions with the full assessment framework and design rationale:
+### Extended versions with the full assessment framework and design rationale:
 
 - *An Assessment Framework for Application-Level Cryptographic Agility* — https://arxiv.org/abs/2606.13425
 - *Intent-Based Cryptographic API Design for Cryptographic Agility* — https://arxiv.org/abs/2606.13445
+
+### Conference talk:
+
+- Navaneeth Rameshan. *A Framework for Cryptographic Agility.* PKI Consortium PQC Conference, Kuala Lumpur, 2025. [Slides (PDF)](https://pkic.org/events/2025/pqc-conference-kuala-lumpur-my/WED_B_1200_navaneeth-rameshan_a-framework-for-cryptographic-agility_merged.pdf)
 
 ### Citation
 
