@@ -157,6 +157,48 @@ enum SignatureFormat {
 }
 
 // ============================================================================
+// Key Encodings
+// ============================================================================
+
+// KeyEncoding specifies how KEY MATERIAL is serialized.
+//
+// Distinct from SignatureFormat, which describes signature bytes: this
+// describes the key itself.  Providers declare the format they emit at
+// generation time so consumers select the right parser instead of inferring
+// it from the bytes — and because stored keys outlive the code that wrote
+// them, a format that was never recorded cannot be recovered retroactively.
+//
+// A typed enum rather than a free-form string so that independent provider
+// implementations cannot drift on spelling ("pkix" vs "PKIX" vs "spki") for
+// what must be the same value.
+//
+// The private and public halves of one key pair do NOT necessarily share an
+// encoding: an ECDSA private key is SEC1 or PKCS#8 while its public half is
+// PKIX SubjectPublicKeyInfo.
+enum KeyEncoding {
+  // Not recorded.  Consumers MUST fall back to their algorithm-appropriate
+  // default rather than reject — keys generated before this field existed
+  // carry no value here.
+  KEY_ENCODING_UNSPECIFIED = 0;
+
+  // Private key encodings
+  KEY_ENCODING_PKCS8 = 1;  // PKCS#8 PrivateKeyInfo DER (RFC 5958); self-describing via AlgorithmIdentifier OID
+  KEY_ENCODING_SEC1 = 2;   // SEC1 ECPrivateKey DER (RFC 5915); elliptic curve keys only
+
+  // Public key encodings
+  KEY_ENCODING_PKIX = 10;  // X.509 SubjectPublicKeyInfo DER (RFC 5280); the standard public key wrapper
+
+  // Algorithm-native encodings.
+  // Opaque fixed-length bytes defined by the algorithm itself rather than by
+  // an ASN.1 structure — e.g. ML-DSA keys, raw EC points.  Carries no
+  // embedded algorithm identifier, so parsing depends on AlgorithmDetails.
+  KEY_ENCODING_RAW = 20;
+
+  // Text encodings
+  KEY_ENCODING_PEM = 30;   // PEM-wrapped DER (RFC 7468)
+}
+
+// ============================================================================
 // Mask Generation Functions
 // ============================================================================
 
