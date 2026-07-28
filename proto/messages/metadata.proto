@@ -6,8 +6,6 @@ package caas.crypto.v1;
 
 option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
 
-import "types/algorithm_params.proto";
-
 // ============================================================================
 // Serialization Metadata
 // ============================================================================
@@ -300,22 +298,7 @@ message ProviderOutput {
   //
   // Values: "raw" (default), "der" (ASN.1), "jws" (JOSE), "cbor"
   // Different providers may use different encodings for the same algorithm.
-  //
-  // Scope: describes the OPERATION ARTIFACT, not key material.  When this
-  // ProviderOutput accompanies key bytes, use the typed key_encoding field
-  // below instead — key formats are a closed, standards-defined set and must
-  // not drift on spelling between provider implementations.
   string encoding = 1;
-
-  // Typed encoding of the KEY MATERIAL this output describes.
-  //
-  // Only meaningful when this ProviderOutput accompanies key bytes; leave
-  // KEY_ENCODING_UNSPECIFIED for signature/ciphertext outputs, which use the
-  // free-form `encoding` field above.
-  //
-  // Typed rather than a string so independent provider implementations
-  // declare the same format identically.
-  KeyEncoding key_encoding = 2;
 }
 
 message OperationMetadata {
