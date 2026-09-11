@@ -11,7 +11,11 @@ lint:
   except:
     # Allow legacy imports from google/api and google/protobuf
     - IMPORT_USED
+    # caas.crypto.v1 spans api.proto (root), messages/, services/, and types/
+    # by design, each with its own go_package for a separate Go import path.
     - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_SAME_DIRECTORY
+    - PACKAGE_SAME_GO_PACKAGE
 build:
   excludes:
     - google

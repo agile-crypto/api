@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package caas.crypto.v1;
 
-option go_package = "github.ibm.com/citius/api/gen/go/messages;messages";
+option go_package = "github.com/agile-crypto/citius-api-go/gen/go/messages;messages";
 
 import "messages/metadata.proto";
 import "types/operation_params.proto";
