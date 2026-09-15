@@ -1,0 +1,143 @@
+name: Publish citius-api-python
+
+# Generates Python protobuf and gRPC bindings and publishes them to the separate
+# github.com/agile-crypto/citius-api-python repository. The destination is
+# bootstrapped on its first publication; subsequent runs update a generated
+# branch and open a PR for review.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Generate and validate only; skip publishing to citius-api-python"
+        type: boolean
+        default: true
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout api
+        uses: actions/checkout@v6
+        with:
+          path: api
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: buf lint
+        working-directory: api/proto
+        run: buf lint
+
+      - name: Generate Python bindings
+        working-directory: api/proto
+        run: buf generate --template buf.gen.python.yaml
+
+      - name: Select package version
+        id: package
+        env:
+          SOURCE_REF: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "${SOURCE_REF}" == v* ]]; then
+            VERSION="${SOURCE_REF#v}"
+          else
+            VERSION="0.0.0.dev0+${SOURCE_SHA:0:12}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble distribution tree
+        env:
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+          SOURCE_REF: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          python api/scripts/package_python_bindings.py \
+            --generated-dir api/gen/python \
+            --license-file api/LICENSE \
+            --output-dir /tmp/citius-api-python-package \
+            --version "${PACKAGE_VERSION}" \
+            --source "agile-crypto/api@${SOURCE_SHA} (${SOURCE_REF})"
+
+      - name: Build and import generated wheel
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check build
+          python -m build --wheel --outdir /tmp/citius-api-python-dist /tmp/citius-api-python-package
+          python -m venv /tmp/citius-api-python-venv
+          /tmp/citius-api-python-venv/bin/pip install --disable-pip-version-check /tmp/citius-api-python-dist/*.whl
+          /tmp/citius-api-python-venv/bin/python - <<'PY'
+          from citius_api.buf.validate import validate_pb2
+          from citius_api.messages.encryption_pb2 import EncryptRequest
+          from citius_api.services.crypto_service_pb2_grpc import CryptoServiceStub
+          from citius_api.types.templates_pb2 import AlgorithmDetails
+
+          assert validate_pb2 is not None
+          assert EncryptRequest is not None
+          assert CryptoServiceStub is not None
+          assert AlgorithmDetails is not None
+          PY
+          /tmp/citius-api-python-venv/bin/pip check
+
+      - name: Publish generated repository
+        if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+        env:
+          GH_TOKEN: ${{ secrets.CITIUS_API_PYTHON_DEPLOY_TOKEN }}
+          SOURCE_REF: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git init citius-api-python
+          git -C citius-api-python remote add origin https://github.com/agile-crypto/citius-api-python.git
+
+          if git -C citius-api-python ls-remote --exit-code --heads origin refs/heads/main >/dev/null; then
+            git -C citius-api-python fetch origin main
+            git -C citius-api-python checkout -B main FETCH_HEAD
+            BOOTSTRAP=false
+          else
+            git -C citius-api-python checkout --orphan main
+            BOOTSTRAP=true
+          fi
+
+          find citius-api-python -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R /tmp/citius-api-python-package/. citius-api-python/
+          cd citius-api-python
+          git config user.name "citius-api-python-bot"
+          git config user.email "actions@github.com"
+
+          if [[ "${BOOTSTRAP}" == "true" ]]; then
+            git add -A
+            git commit -m "Generate from agile-crypto/api@${SOURCE_SHA} (${SOURCE_REF})"
+            git push origin main
+            echo "Bootstrapped citius-api-python main; later publications will open reviewed PRs."
+            exit 0
+          fi
+
+          BRANCH="generated/${SOURCE_REF}"
+          git checkout -B "${BRANCH}"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No generated-code changes for ${SOURCE_REF}; nothing to publish."
+            exit 0
+          fi
+          git commit -m "Regenerate from agile-crypto/api@${SOURCE_SHA} (${SOURCE_REF})"
+          git push origin "${BRANCH}" --force
+          gh pr create \
+            --repo agile-crypto/citius-api-python \
+            --base main \
+            --head "${BRANCH}" \
+            --title "Regenerate from agile-crypto/api ${SOURCE_REF}" \
+            --body "Generated from agile-crypto/api@${SOURCE_SHA}, ref ${SOURCE_REF}. Review the diff, then merge and tag ${SOURCE_REF} on citius-api-python." \
+            || echo "PR for ${BRANCH} may already exist; updated the branch above."
