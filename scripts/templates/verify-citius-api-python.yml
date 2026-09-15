@@ -1,0 +1,130 @@
+name: Verify generated bindings
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout generated bindings
+        uses: actions/checkout@v6
+        with:
+          path: generated
+
+      - name: Read and validate provenance
+        id: provenance
+        working-directory: generated
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+
+          with open("PROVENANCE.json", encoding="utf-8") as provenance_file:
+              provenance = json.load(provenance_file)
+
+          if provenance.get("format_version") != 1:
+              raise SystemExit("unsupported provenance format")
+          if provenance.get("source", {}).get("repository") != "agile-crypto/api":
+              raise SystemExit("unexpected source repository")
+
+          revision = provenance["source"]["revision"]
+          if not re.fullmatch(r"[0-9a-f]{40}", revision):
+              raise SystemExit("source revision is not a full Git SHA")
+
+          package_version = provenance["package"]["version"]
+          version_pattern = (
+              r"[0-9]+(?:\.[0-9]+)*(?:(?:a|b|rc)[0-9]+)?(?:\.post[0-9]+)?"
+              r"(?:\.dev[0-9]+)?(?:\+[a-z0-9]+(?:[.-][a-z0-9]+)*)?"
+          )
+          if not re.fullmatch(version_pattern, package_version):
+              raise SystemExit("package version is not PEP 440 compatible")
+
+          source_ref = provenance["source"]["ref"]
+          if (
+              not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._/-]*", source_ref)
+              or ".." in source_ref
+              or "//" in source_ref
+          ):
+              raise SystemExit("source ref is not safe")
+
+          values = {
+              "package_version": package_version,
+              "source_ref": source_ref,
+              "source_revision": revision,
+          }
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              for name, value in values.items():
+                  if not value or "\n" in value:
+                      raise SystemExit(f"invalid provenance value: {name}")
+                  output.write(f"{name}={value}\n")
+          PY
+
+      - name: Checkout recorded API revision
+        uses: actions/checkout@v6
+        with:
+          repository: agile-crypto/api
+          ref: ${{ steps.provenance.outputs.source_revision }}
+          path: api
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate recorded distribution
+        env:
+          PACKAGE_VERSION: ${{ steps.provenance.outputs.package_version }}
+          SOURCE_REF: ${{ steps.provenance.outputs.source_ref }}
+          SOURCE_SHA: ${{ steps.provenance.outputs.source_revision }}
+        run: |
+          set -euo pipefail
+          cd api/proto
+          buf lint
+          buf generate --template buf.gen.python.yaml
+          cd ../..
+          python api/scripts/package_python_bindings.py \
+            --generated-dir api/gen/python \
+            --schema-root api/proto \
+            --license-file api/LICENSE \
+            --verification-workflow api/scripts/templates/verify-citius-api-python.yml \
+            --output-dir /tmp/citius-api-python-expected \
+            --version "${PACKAGE_VERSION}" \
+            --source-repository agile-crypto/api \
+            --source-revision "${SOURCE_SHA}" \
+            --source-ref "${SOURCE_REF}"
+
+      - name: Reject generated-code drift
+        run: diff --recursive --unified --exclude=.git generated /tmp/citius-api-python-expected
+
+      - name: Build and import wheel
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check build
+          python -m build --wheel --outdir /tmp/citius-api-python-dist generated
+          python -m venv /tmp/citius-api-python-venv
+          /tmp/citius-api-python-venv/bin/pip install --disable-pip-version-check /tmp/citius-api-python-dist/*.whl
+          /tmp/citius-api-python-venv/bin/python - <<'PY'
+          from citius_api.buf.validate import validate_pb2
+          from citius_api.messages.encryption_pb2 import EncryptRequest
+          from citius_api.services.crypto_service_pb2_grpc import CryptoServiceStub
+          from citius_api.types.templates_pb2 import AlgorithmDetails
+
+          assert validate_pb2 is not None
+          assert EncryptRequest is not None
+          assert CryptoServiceStub is not None
+          assert AlgorithmDetails is not None
+          PY
+          /tmp/citius-api-python-venv/bin/pip check

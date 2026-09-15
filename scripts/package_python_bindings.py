@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import re
 import shutil
 from pathlib import Path
@@ -21,6 +23,9 @@ PEP440_VERSION = re.compile(
     r"^[0-9]+(?:\.[0-9]+)*(?:(?:a|b|rc)[0-9]+)?(?:\.post[0-9]+)?"
     r"(?:\.dev[0-9]+)?(?:\+[a-z0-9]+(?:[.-][a-z0-9]+)*)?$"
 )
+REPOSITORY = re.compile(r"^[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+$")
+REVISION = re.compile(r"^[0-9a-f]{40}$")
+SOURCE_REF = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._/-]*$")
 
 
 def rewrite_imports(source: str) -> str:
@@ -28,8 +33,29 @@ def rewrite_imports(source: str) -> str:
     return GENERATED_IMPORT.sub(rf"\1 {PACKAGE_NAME}.\2\3", source)
 
 
+def digest_files(root: Path, paths: list[Path]) -> str:
+    """Hash file names and contents in a stable order."""
+    digest = hashlib.sha256()
+    for path in sorted(paths):
+        relative_path = path.relative_to(root).as_posix().encode()
+        contents = path.read_bytes()
+        digest.update(len(relative_path).to_bytes(8, "big"))
+        digest.update(relative_path)
+        digest.update(len(contents).to_bytes(8, "big"))
+        digest.update(contents)
+    return digest.hexdigest()
+
+
 def assemble(
-    generated_dir: Path, output_dir: Path, license_file: Path, version: str, source: str
+    generated_dir: Path,
+    schema_root: Path,
+    output_dir: Path,
+    license_file: Path,
+    verification_workflow: Path,
+    version: str,
+    source_repository: str,
+    source_revision: str,
+    source_ref: str,
 ) -> None:
     if not PEP440_VERSION.fullmatch(version):
         raise ValueError(f"not a PEP 440 version: {version}")
@@ -37,6 +63,25 @@ def assemble(
         raise FileNotFoundError(f"generated bindings directory does not exist: {generated_dir}")
     if not license_file.is_file():
         raise FileNotFoundError(f"license file does not exist: {license_file}")
+    if not verification_workflow.is_file():
+        raise FileNotFoundError(
+            f"verification workflow does not exist: {verification_workflow}"
+        )
+    if not REPOSITORY.fullmatch(source_repository):
+        raise ValueError(f"not an owner/repository name: {source_repository}")
+    if not REVISION.fullmatch(source_revision):
+        raise ValueError(f"not a full Git revision: {source_revision}")
+    if not SOURCE_REF.fullmatch(source_ref) or ".." in source_ref or "//" in source_ref:
+        raise ValueError(f"not a safe Git ref name: {source_ref}")
+
+    schema_files = sorted(schema_root.rglob("*.proto"))
+    schema_files.extend(
+        path
+        for name in ("buf.yaml", "buf.lock", "buf.gen.python.yaml")
+        if (path := schema_root / name).is_file()
+    )
+    if not schema_files:
+        raise ValueError(f"no schema inputs found in {schema_root}")
 
     generated_files = sorted(
         path for path in generated_dir.rglob("*") if path.suffix in {".py", ".pyi"}
@@ -111,12 +156,16 @@ citius_api = ["py.typed", "**/*.pyi"]
         encoding="utf-8",
     )
     shutil.copy2(license_file, output_dir / "LICENSE")
+    workflow_destination = output_dir / ".github" / "workflows" / "verify-generated.yml"
+    workflow_destination.parent.mkdir(parents=True)
+    shutil.copy2(verification_workflow, workflow_destination)
     (output_dir / "README.md").write_text(
         f"""# citius-api-python
 
 Generated Python protobuf messages and gRPC service stubs for the Citius API.
 
-This repository is generated from `{source}`. Do not edit generated files here;
+This repository is generated from `{source_repository}@{source_revision}`
+(`{source_ref}`). Do not edit generated files here;
 make schema or generation changes in `agile-crypto/api` instead.
 
 ```python
@@ -126,17 +175,57 @@ from citius_api.messages.encryption_pb2 import EncryptRequest
 """,
         encoding="utf-8",
     )
+    provenance = {
+        "format_version": 1,
+        "generation": {
+            "buf_template_sha256": hashlib.sha256(
+                (schema_root / "buf.gen.python.yaml").read_bytes()
+            ).hexdigest(),
+            "generated_code_sha256": digest_files(
+                package_dir,
+                [path for path in package_dir.rglob("*") if path.is_file()],
+            ),
+            "packager_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+            "schema_sha256": digest_files(schema_root, schema_files),
+            "verification_workflow_sha256": hashlib.sha256(
+                verification_workflow.read_bytes()
+            ).hexdigest(),
+        },
+        "package": {"name": "citius-api-python", "version": version},
+        "source": {
+            "ref": source_ref,
+            "repository": source_repository,
+            "revision": source_revision,
+        },
+    }
+    (output_dir / "PROVENANCE.json").write_text(
+        json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--generated-dir", required=True, type=Path)
+    parser.add_argument("--schema-root", required=True, type=Path)
     parser.add_argument("--license-file", required=True, type=Path)
+    parser.add_argument("--verification-workflow", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--version", required=True)
-    parser.add_argument("--source", required=True)
+    parser.add_argument("--source-repository", required=True)
+    parser.add_argument("--source-revision", required=True)
+    parser.add_argument("--source-ref", required=True)
     args = parser.parse_args()
-    assemble(args.generated_dir, args.output_dir, args.license_file, args.version, args.source)
+    assemble(
+        args.generated_dir,
+        args.schema_root,
+        args.output_dir,
+        args.license_file,
+        args.verification_workflow,
+        args.version,
+        args.source_repository,
+        args.source_revision,
+        args.source_ref,
+    )
 
 
 if __name__ == "__main__":

@@ -65,10 +65,14 @@ jobs:
         run: |
           python api/scripts/package_python_bindings.py \
             --generated-dir api/gen/python \
+            --schema-root api/proto \
             --license-file api/LICENSE \
+            --verification-workflow api/scripts/templates/verify-citius-api-python.yml \
             --output-dir /tmp/citius-api-python-package \
             --version "${PACKAGE_VERSION}" \
-            --source "agile-crypto/api@${SOURCE_SHA} (${SOURCE_REF})"
+            --source-repository agile-crypto/api \
+            --source-revision "${SOURCE_SHA}" \
+            --source-ref "${SOURCE_REF}"
 
       - name: Build and import generated wheel
         run: |
