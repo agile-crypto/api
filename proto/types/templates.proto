@@ -316,9 +316,10 @@ message TemplateInfo {
     items: { string: { min_len: 1, max_len: 256 } }
   }];
   
-  // Full CycloneDX algorithm properties for CBOM (Cryptography Bill of Materials) export.
-  // This field provides direct mapping to CycloneDX v1.7 algorithmProperties
-  // for seamless interoperability without modifying existing CaaS fields.
+  // Citius projection of CycloneDX v1.7 algorithmProperties for CBOM export.
+  // Most fields map directly. `name` and `oid` are Citius conveniences and are
+  // not members of CycloneDX algorithmProperties; a CycloneDX exporter MUST
+  // filter them (and other absent/default fields) from algorithmProperties.
   CycloneDXAlgorithmProperties cyclonedx = 9;
   
   // NOTE: Security levels (classical_security_level, nist_quantum_security_level)
@@ -330,6 +331,17 @@ message TemplateInfo {
   // Provides fallback guarantees for single-scope templates where per-scope
   // overrides are unnecessary.
   SecurityGuarantees security_guarantees = 10;
+
+  // Key-material compatibility family used when deciding whether an existing
+  // key can be retained under another template. This is intentionally distinct
+  // from cyclonedx.algorithm_family: standards-defined algorithm families such
+  // as RSASSA-PSS, RSASSA-PKCS1, and RSAES-OAEP can share generic RSA material.
+  // Empty means that retained-material compatibility is not declared and must
+  // fail closed. Implementations must also compare typed key-shape parameters.
+  string key_material_family = 11 [(buf.validate.field).string = {
+    max_len: 64,
+    pattern: "^[A-Za-z0-9][A-Za-z0-9._+-]*$|^$"
+  }];
 
   // Cross-field validation: deprecation_notice required when status is DEPRECATED.
   // CEL note: 3 is the wire value for TEMPLATE_STATUS_DEPRECATED.
@@ -348,15 +360,15 @@ message TemplateInfo {
   };
 }
 
-// CycloneDXAlgorithmProperties provides full alignment with CycloneDX v1.7
+// CycloneDXAlgorithmProperties is Citius's projection of CycloneDX v1.7
 // algorithmProperties for CBOM (Cryptography Bill of Materials) export.
 // Reference: https://cyclonedx.org/docs/1.7/json/#algorithmProperties
 //
-// This message enables direct serialization to CycloneDX format while
-// allowing CaaS to maintain its own internal field naming conventions.
+// It is not directly serializable as CycloneDX algorithmProperties: `name` and
+// `oid` are Citius convenience fields and MUST be removed by an exporter.
 message CycloneDXAlgorithmProperties {
-  // CycloneDX-compliant algorithm name (e.g., "AES-256-GCM", "ML-DSA-65").
-  // Follows naming patterns from https://cyclonedx.org/schema/cryptography-defs.json
+  // Citius display name following CycloneDX registry naming patterns where
+  // applicable. Not a CycloneDX algorithmProperties member; exporters omit it.
   string name = 1 [(buf.validate.field).string.max_len = 256];
   
   // Cryptographic primitive type.
@@ -369,8 +381,9 @@ message CycloneDXAlgorithmProperties {
     ]
   }];
   
-  // Algorithm family identifier (introduced in CycloneDX v1.7).
-  // Examples: AES, RSA, RSASSA-PSS, ECDSA, ECDH, ML-DSA, ML-KEM, Ed25519, X25519
+  // Exact CycloneDX v1.7 algorithmFamiliesEnum value. Empty when the Citius
+  // template has no corresponding family in that registry (for example Argon2
+  // or a Citius hybrid construction).
   string algorithm_family = 3 [(buf.validate.field).string.max_len = 64];
   
   // Parameter set identifier (key size, security level parameter, etc.).
@@ -404,16 +417,13 @@ message CycloneDXAlgorithmProperties {
     ]}}
   }];
   
-  // Classical security level in bits.
-  // 0 = not applicable; 160 = SHA-1/3TDEA equivalent; 224 = Ed448/SHA-224/P-224.
-  uint32 classical_security_level = 9 [(buf.validate.field).uint32 = {
-    in: [0, 80, 112, 128, 160, 192, 224, 256]
-  }];
+  // Classical security level in bits. Exact source values are preserved; this
+  // is not restricted to a small set of buckets. 0 means absent/not applicable.
+  uint32 classical_security_level = 9;
   
-  // NIST post-quantum security level (1–5). 0 = not applicable / none met.
-  // NIST defines exactly levels 1–5; there is no level 6.
-  // Reference: https://csrc.nist.gov/projects/post-quantum-cryptography
-  uint32 nist_quantum_security_level = 10 [(buf.validate.field).uint32.lte = 5];
+  // CycloneDX NIST quantum security category. 0 = absent / none met.
+  // CycloneDX v1.7 permits values 0–6.
+  uint32 nist_quantum_security_level = 10 [(buf.validate.field).uint32.lte = 6];
   
   // Certification levels achieved.
   // Values: none, fips140-1-l1 through fips140-3-l4, cc-eal1 through cc-eal7+
@@ -430,8 +440,8 @@ message CycloneDXAlgorithmProperties {
   // Values: generic, x86_32, x86_64, armv7-a, armv8-a, armv9-a, s390x, ppc64, ppc64le, other, unknown
   string implementation_platform = 13 [(buf.validate.field).string.max_len = 32];
   
-  // Algorithm Object Identifier (OID).
-  // Examples: "2.16.840.1.101.3.4.1.46" for AES-256-GCM
+  // Citius convenience copy of AlgorithmDetails.oid. Not a CycloneDX
+  // algorithmProperties member; exporters omit it.
   string oid = 14 [(buf.validate.field).string.max_len = 128];
 }
 

@@ -1,7 +1,7 @@
 {
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CaaS Standard Algorithm Catalog - Merged from category files",
-  "lastUpdated": "2026-07-17T13:52:57Z",
+  "lastUpdated": "2026-09-23T00:00:00Z",
   "templates": {
     "hybrid-x25519-mlkem768-concat": {
       "templateId": "hybrid-x25519-mlkem768-concat",
@@ -89,7 +89,18 @@
       "standards": [
         "draft-ietf-tls-hybrid-design",
         "draft-ounsworth-pq-composite-kem"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "X25519+ML-KEM-768",
+        "primitive": "combiner",
+        "parameterSetIdentifier": "X25519-MLKEM768",
+        "cryptoFunctions": [
+          "decapsulate",
+          "encapsulate",
+          "keyderive"
+        ],
+        "oid": "1.3.6.1.4.1.22554.5.6.1"
+      }
     },
     "hybrid-x448-mlkem1024-concat": {
       "templateId": "hybrid-x448-mlkem1024-concat",
@@ -177,7 +188,18 @@
       "standards": [
         "draft-ietf-tls-hybrid-design",
         "draft-ounsworth-pq-composite-kem"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "X448+ML-KEM-1024",
+        "primitive": "combiner",
+        "parameterSetIdentifier": "X448-MLKEM1024",
+        "cryptoFunctions": [
+          "decapsulate",
+          "encapsulate",
+          "keyderive"
+        ],
+        "oid": "1.3.6.1.4.1.22554.5.6.5"
+      }
     },
     "hybrid-ecdsa-p256-mldsa65-concat": {
       "templateId": "hybrid-ecdsa-p256-mldsa65-concat",
@@ -250,7 +272,17 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "draft-ounsworth-pq-composite-sigs"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-P256+ML-DSA-65",
+        "primitive": "combiner",
+        "parameterSetIdentifier": "ECDSA-P256-MLDSA65",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "oid": "1.3.6.1.4.1.22554.5.6.2"
+      }
     },
     "hybrid-ed25519-mldsa65-concat": {
       "templateId": "hybrid-ed25519-mldsa65-concat",
@@ -322,7 +354,17 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "draft-ounsworth-pq-composite-sigs"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "Ed25519+ML-DSA-65",
+        "primitive": "combiner",
+        "parameterSetIdentifier": "ED25519-MLDSA65",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "oid": "1.3.6.1.4.1.22554.5.6.3"
+      }
     },
     "hybrid-rsa3072-mldsa65-concat": {
       "templateId": "hybrid-rsa3072-mldsa65-concat",
@@ -398,7 +440,17 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "draft-ounsworth-pq-composite-sigs"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-3072+ML-DSA-65",
+        "primitive": "combiner",
+        "parameterSetIdentifier": "RSA3072-MLDSA65",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "oid": "1.3.6.1.4.1.22554.5.6.4"
+      }
     },
     "hkdf-sha256": {
       "templateId": "hkdf-sha256",
@@ -443,7 +495,16 @@
       "standards": [
         "RFC 5869",
         "NIST SP 800-56C"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HKDF-SHA-256",
+        "primitive": "kdf",
+        "algorithmFamily": "HKDF",
+        "parameterSetIdentifier": "SHA-256",
+        "cryptoFunctions": [
+          "keyderive"
+        ]
+      }
     },
     "hkdf-sha384": {
       "templateId": "hkdf-sha384",
@@ -488,7 +549,16 @@
       "standards": [
         "RFC 5869",
         "NIST SP 800-56C"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HKDF-SHA-384",
+        "primitive": "kdf",
+        "algorithmFamily": "HKDF",
+        "parameterSetIdentifier": "SHA-384",
+        "cryptoFunctions": [
+          "keyderive"
+        ]
+      }
     },
     "hkdf-sha512": {
       "templateId": "hkdf-sha512",
@@ -533,7 +603,16 @@
       "standards": [
         "RFC 5869",
         "NIST SP 800-56C"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HKDF-SHA-512",
+        "primitive": "kdf",
+        "algorithmFamily": "HKDF",
+        "parameterSetIdentifier": "SHA-512",
+        "cryptoFunctions": [
+          "keyderive"
+        ]
+      }
     },
     "pbkdf2-sha256-600000-32": {
       "templateId": "pbkdf2-sha256-600000-32",
@@ -579,7 +658,17 @@
       "standards": [
         "RFC 8018",
         "NIST SP 800-132"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "PBKDF2-SHA256-600K",
+        "primitive": "kdf",
+        "algorithmFamily": "PBKDF2",
+        "parameterSetIdentifier": "SHA-256-600000-32",
+        "cryptoFunctions": [
+          "keyderive"
+        ],
+        "oid": "1.2.840.113549.1.5.12"
+      }
     },
     "pbkdf2-sha512-210000-64": {
       "templateId": "pbkdf2-sha512-210000-64",
@@ -625,7 +714,17 @@
       "standards": [
         "RFC 8018",
         "NIST SP 800-132"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "PBKDF2-SHA512-210K",
+        "primitive": "kdf",
+        "algorithmFamily": "PBKDF2",
+        "parameterSetIdentifier": "SHA-512-210000-64",
+        "cryptoFunctions": [
+          "keyderive"
+        ],
+        "oid": "1.2.840.113549.1.5.12"
+      }
     },
     "argon2id-65536-3-4": {
       "templateId": "argon2id-65536-3-4",
@@ -670,7 +769,15 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "RFC 9106"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "Argon2id-64M-3-4",
+        "primitive": "kdf",
+        "parameterSetIdentifier": "id-65536-3-4",
+        "cryptoFunctions": [
+          "keyderive"
+        ]
+      }
     },
     "argon2i-65536-4-4": {
       "templateId": "argon2i-65536-4-4",
@@ -715,7 +822,15 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "RFC 9106"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "Argon2i-64M-4-4",
+        "primitive": "kdf",
+        "parameterSetIdentifier": "i-65536-4-4",
+        "cryptoFunctions": [
+          "keyderive"
+        ]
+      }
     },
     "ml-kem-512": {
       "templateId": "ml-kem-512",
@@ -760,7 +875,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 203"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ML-KEM-512",
+        "primitive": "kem",
+        "algorithmFamily": "ML-KEM",
+        "parameterSetIdentifier": "512",
+        "cryptoFunctions": [
+          "decapsulate",
+          "encapsulate"
+        ],
+        "classicalSecurityLevel": 128,
+        "nistQuantumSecurityLevel": 1,
+        "oid": "2.16.840.1.101.3.4.4.1"
+      },
+      "keyMaterialFamily": "ML-KEM"
     },
     "ml-kem-768": {
       "templateId": "ml-kem-768",
@@ -805,7 +934,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 203"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ML-KEM-768",
+        "primitive": "kem",
+        "algorithmFamily": "ML-KEM",
+        "parameterSetIdentifier": "768",
+        "cryptoFunctions": [
+          "decapsulate",
+          "encapsulate"
+        ],
+        "classicalSecurityLevel": 192,
+        "nistQuantumSecurityLevel": 3,
+        "oid": "2.16.840.1.101.3.4.4.2"
+      },
+      "keyMaterialFamily": "ML-KEM"
     },
     "ml-kem-1024": {
       "templateId": "ml-kem-1024",
@@ -850,7 +993,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 203"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ML-KEM-1024",
+        "primitive": "kem",
+        "algorithmFamily": "ML-KEM",
+        "parameterSetIdentifier": "1024",
+        "cryptoFunctions": [
+          "decapsulate",
+          "encapsulate"
+        ],
+        "classicalSecurityLevel": 256,
+        "nistQuantumSecurityLevel": 5,
+        "oid": "2.16.840.1.101.3.4.4.3"
+      },
+      "keyMaterialFamily": "ML-KEM"
     },
     "x25519": {
       "templateId": "x25519",
@@ -885,7 +1042,19 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "RFC 7748"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "X25519",
+        "primitive": "key-agree",
+        "algorithmFamily": "ECDH",
+        "ellipticCurve": "other/Curve25519",
+        "cryptoFunctions": [
+          "keyderive"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "1.3.101.110"
+      },
+      "keyMaterialFamily": "X25519"
     },
     "x448": {
       "templateId": "x448",
@@ -920,7 +1089,19 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "RFC 7748"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "X448",
+        "primitive": "key-agree",
+        "algorithmFamily": "ECDH",
+        "ellipticCurve": "other/Curve448",
+        "cryptoFunctions": [
+          "keyderive"
+        ],
+        "classicalSecurityLevel": 224,
+        "oid": "1.3.101.111"
+      },
+      "keyMaterialFamily": "X448"
     },
     "aes-128-kw": {
       "templateId": "aes-128-kw",
@@ -965,7 +1146,21 @@
       "standards": [
         "RFC 3394",
         "NIST SP 800-38F"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-128-KW",
+        "primitive": "key-wrap",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "128",
+        "padding": "raw",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "2.16.840.1.101.3.4.1.5"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-192-kw": {
       "templateId": "aes-192-kw",
@@ -1010,7 +1205,21 @@
       "standards": [
         "RFC 3394",
         "NIST SP 800-38F"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-192-KW",
+        "primitive": "key-wrap",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "192",
+        "padding": "raw",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 192,
+        "oid": "2.16.840.1.101.3.4.1.25"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-256-kw": {
       "templateId": "aes-256-kw",
@@ -1055,7 +1264,21 @@
       "standards": [
         "RFC 3394",
         "NIST SP 800-38F"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-256-KW",
+        "primitive": "key-wrap",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "256",
+        "padding": "raw",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 256,
+        "oid": "2.16.840.1.101.3.4.1.45"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-128-kwp": {
       "templateId": "aes-128-kwp",
@@ -1100,7 +1323,21 @@
       "standards": [
         "RFC 5649",
         "NIST SP 800-38F"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-128-KWP",
+        "primitive": "key-wrap",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "128",
+        "padding": "other",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "2.16.840.1.101.3.4.1.8"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-192-kwp": {
       "templateId": "aes-192-kwp",
@@ -1145,7 +1382,21 @@
       "standards": [
         "RFC 5649",
         "NIST SP 800-38F"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-192-KWP",
+        "primitive": "key-wrap",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "192",
+        "padding": "other",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 192,
+        "oid": "2.16.840.1.101.3.4.1.28"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-256-kwp": {
       "templateId": "aes-256-kwp",
@@ -1190,7 +1441,21 @@
       "standards": [
         "RFC 5649",
         "NIST SP 800-38F"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-256-KWP",
+        "primitive": "key-wrap",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "256",
+        "padding": "other",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 256,
+        "oid": "2.16.840.1.101.3.4.1.48"
+      },
+      "keyMaterialFamily": "AES"
     },
     "hmac-sha256-256": {
       "templateId": "hmac-sha256-256",
@@ -1235,7 +1500,19 @@
       "standards": [
         "RFC 2104",
         "FIPS 198-1"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HMAC-SHA256",
+        "primitive": "mac",
+        "algorithmFamily": "HMAC",
+        "parameterSetIdentifier": "SHA-256",
+        "cryptoFunctions": [
+          "tag",
+          "verify"
+        ],
+        "oid": "1.2.840.113549.2.9"
+      },
+      "keyMaterialFamily": "HMAC"
     },
     "hmac-sha384-384": {
       "templateId": "hmac-sha384-384",
@@ -1280,7 +1557,19 @@
       "standards": [
         "RFC 2104",
         "FIPS 198-1"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HMAC-SHA384",
+        "primitive": "mac",
+        "algorithmFamily": "HMAC",
+        "parameterSetIdentifier": "SHA-384",
+        "cryptoFunctions": [
+          "tag",
+          "verify"
+        ],
+        "oid": "1.2.840.113549.2.10"
+      },
+      "keyMaterialFamily": "HMAC"
     },
     "hmac-sha512-512": {
       "templateId": "hmac-sha512-512",
@@ -1325,7 +1614,19 @@
       "standards": [
         "RFC 2104",
         "FIPS 198-1"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HMAC-SHA512",
+        "primitive": "mac",
+        "algorithmFamily": "HMAC",
+        "parameterSetIdentifier": "SHA-512",
+        "cryptoFunctions": [
+          "tag",
+          "verify"
+        ],
+        "oid": "1.2.840.113549.2.11"
+      },
+      "keyMaterialFamily": "HMAC"
     },
     "hmac-sha3-256-256": {
       "templateId": "hmac-sha3-256-256",
@@ -1370,7 +1671,19 @@
       "standards": [
         "FIPS 198-1",
         "FIPS 202"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HMAC-SHA3-256",
+        "primitive": "mac",
+        "algorithmFamily": "HMAC",
+        "parameterSetIdentifier": "SHA3-256",
+        "cryptoFunctions": [
+          "tag",
+          "verify"
+        ],
+        "oid": "2.16.840.1.101.3.4.2.14"
+      },
+      "keyMaterialFamily": "HMAC"
     },
     "kmac128-256": {
       "templateId": "kmac128-256",
@@ -1415,7 +1728,19 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "NIST SP 800-185"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "KMAC128-256",
+        "primitive": "mac",
+        "algorithmFamily": "KMAC",
+        "parameterSetIdentifier": "128-256",
+        "cryptoFunctions": [
+          "tag",
+          "verify"
+        ],
+        "oid": "2.16.840.1.101.3.4.2.19"
+      },
+      "keyMaterialFamily": "KMAC"
     },
     "kmac256-512": {
       "templateId": "kmac256-512",
@@ -1460,7 +1785,19 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "NIST SP 800-185"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "KMAC256-512",
+        "primitive": "mac",
+        "algorithmFamily": "KMAC",
+        "parameterSetIdentifier": "256-512",
+        "cryptoFunctions": [
+          "tag",
+          "verify"
+        ],
+        "oid": "2.16.840.1.101.3.4.2.20"
+      },
+      "keyMaterialFamily": "KMAC"
     },
     "ml-dsa-44": {
       "templateId": "ml-dsa-44",
@@ -1541,7 +1878,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 204"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ML-DSA-44",
+        "primitive": "signature",
+        "algorithmFamily": "ML-DSA",
+        "parameterSetIdentifier": "44",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "nistQuantumSecurityLevel": 2,
+        "oid": "2.16.840.1.101.3.4.3.17"
+      },
+      "keyMaterialFamily": "ML-DSA"
     },
     "ml-dsa-65": {
       "templateId": "ml-dsa-65",
@@ -1622,7 +1973,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 204"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ML-DSA-65",
+        "primitive": "signature",
+        "algorithmFamily": "ML-DSA",
+        "parameterSetIdentifier": "65",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 192,
+        "nistQuantumSecurityLevel": 3,
+        "oid": "2.16.840.1.101.3.4.3.18"
+      },
+      "keyMaterialFamily": "ML-DSA"
     },
     "ml-dsa-87": {
       "templateId": "ml-dsa-87",
@@ -1703,7 +2068,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 204"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ML-DSA-87",
+        "primitive": "signature",
+        "algorithmFamily": "ML-DSA",
+        "parameterSetIdentifier": "87",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 256,
+        "nistQuantumSecurityLevel": 5,
+        "oid": "2.16.840.1.101.3.4.3.19"
+      },
+      "keyMaterialFamily": "ML-DSA"
     },
     "slh-dsa-sha2-128s": {
       "templateId": "slh-dsa-sha2-128s",
@@ -1784,7 +2163,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 205"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "SLH-DSA-SHA2-128s",
+        "primitive": "signature",
+        "algorithmFamily": "SLH-DSA",
+        "parameterSetIdentifier": "SHA2-128S",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "nistQuantumSecurityLevel": 1,
+        "oid": "2.16.840.1.101.3.4.3.20"
+      },
+      "keyMaterialFamily": "SLH-DSA"
     },
     "slh-dsa-sha2-128f": {
       "templateId": "slh-dsa-sha2-128f",
@@ -1865,7 +2258,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 205"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "SLH-DSA-SHA2-128f",
+        "primitive": "signature",
+        "algorithmFamily": "SLH-DSA",
+        "parameterSetIdentifier": "SHA2-128F",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "nistQuantumSecurityLevel": 1,
+        "oid": "2.16.840.1.101.3.4.3.21"
+      },
+      "keyMaterialFamily": "SLH-DSA"
     },
     "slh-dsa-shake-256s": {
       "templateId": "slh-dsa-shake-256s",
@@ -1946,7 +2353,21 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 205"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "SLH-DSA-SHAKE-256s",
+        "primitive": "signature",
+        "algorithmFamily": "SLH-DSA",
+        "parameterSetIdentifier": "SHAKE-256S",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 256,
+        "nistQuantumSecurityLevel": 5,
+        "oid": "2.16.840.1.101.3.4.3.30"
+      },
+      "keyMaterialFamily": "SLH-DSA"
     },
     "hash-ml-dsa-44": {
       "templateId": "hash-ml-dsa-44",
@@ -2026,7 +2447,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 204"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HashML-DSA-44",
+        "primitive": "signature",
+        "algorithmFamily": "ML-DSA",
+        "parameterSetIdentifier": "44",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "nistQuantumSecurityLevel": 2
+      },
+      "keyMaterialFamily": "ML-DSA"
     },
     "hash-ml-dsa-65": {
       "templateId": "hash-ml-dsa-65",
@@ -2106,7 +2540,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 204"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HashML-DSA-65",
+        "primitive": "signature",
+        "algorithmFamily": "ML-DSA",
+        "parameterSetIdentifier": "65",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 192,
+        "nistQuantumSecurityLevel": 3
+      },
+      "keyMaterialFamily": "ML-DSA"
     },
     "hash-ml-dsa-87": {
       "templateId": "hash-ml-dsa-87",
@@ -2186,7 +2633,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 204"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HashML-DSA-87",
+        "primitive": "signature",
+        "algorithmFamily": "ML-DSA",
+        "parameterSetIdentifier": "87",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 256,
+        "nistQuantumSecurityLevel": 5
+      },
+      "keyMaterialFamily": "ML-DSA"
     },
     "hash-slh-dsa-sha2-128s": {
       "templateId": "hash-slh-dsa-sha2-128s",
@@ -2266,7 +2726,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 205"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HashSLH-DSA-SHA2-128s",
+        "primitive": "signature",
+        "algorithmFamily": "SLH-DSA",
+        "parameterSetIdentifier": "SHA2-128S",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "nistQuantumSecurityLevel": 1
+      },
+      "keyMaterialFamily": "SLH-DSA"
     },
     "hash-slh-dsa-sha2-128f": {
       "templateId": "hash-slh-dsa-sha2-128f",
@@ -2346,7 +2819,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 205"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HashSLH-DSA-SHA2-128f",
+        "primitive": "signature",
+        "algorithmFamily": "SLH-DSA",
+        "parameterSetIdentifier": "SHA2-128F",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "nistQuantumSecurityLevel": 1
+      },
+      "keyMaterialFamily": "SLH-DSA"
     },
     "hash-slh-dsa-shake-256s": {
       "templateId": "hash-slh-dsa-shake-256s",
@@ -2426,7 +2912,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "FIPS 205"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "HashSLH-DSA-SHAKE-256s",
+        "primitive": "signature",
+        "algorithmFamily": "SLH-DSA",
+        "parameterSetIdentifier": "SHAKE-256S",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 256,
+        "nistQuantumSecurityLevel": 5
+      },
+      "keyMaterialFamily": "SLH-DSA"
     },
     "ecdsa-p256-sha256-der": {
       "templateId": "ecdsa-p256-sha256-der",
@@ -2475,7 +2974,20 @@
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-P256-SHA256",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "nist/P-256",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "1.2.840.10045.4.3.2"
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "ecdsa-p384-sha384-der": {
       "templateId": "ecdsa-p384-sha384-der",
@@ -2524,7 +3036,20 @@
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-P384-SHA384",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "nist/P-384",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 192,
+        "oid": "1.2.840.10045.4.3.3"
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "ecdsa-p521-sha512-der": {
       "templateId": "ecdsa-p521-sha512-der",
@@ -2573,7 +3098,20 @@
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-P521-SHA512",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "nist/P-521",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 256,
+        "oid": "1.2.840.10045.4.3.4"
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "ecdsa-secp256k1-sha256-der": {
       "templateId": "ecdsa-secp256k1-sha256-der",
@@ -2619,7 +3157,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "SEC 2"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-secp256k1-SHA256",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "secg/secp256k1",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "1.2.840.10045.4.3.2"
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "ed25519": {
       "templateId": "ed25519",
@@ -2667,7 +3218,20 @@
       "standards": [
         "RFC 8032",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "Ed25519",
+        "primitive": "signature",
+        "algorithmFamily": "EdDSA",
+        "ellipticCurve": "other/Ed25519",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "1.3.101.112"
+      },
+      "keyMaterialFamily": "Ed25519"
     },
     "ed25519ph": {
       "templateId": "ed25519ph",
@@ -2714,7 +3278,19 @@
       "standards": [
         "RFC 8032",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "Ed25519ph",
+        "primitive": "signature",
+        "algorithmFamily": "EdDSA",
+        "ellipticCurve": "other/Ed25519",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128
+      },
+      "keyMaterialFamily": "Ed25519"
     },
     "ed25519ctx": {
       "templateId": "ed25519ctx",
@@ -2759,7 +3335,19 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "RFC 8032"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "Ed25519ctx",
+        "primitive": "signature",
+        "algorithmFamily": "EdDSA",
+        "ellipticCurve": "other/Ed25519",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128
+      },
+      "keyMaterialFamily": "Ed25519"
     },
     "ed448": {
       "templateId": "ed448",
@@ -2836,7 +3424,20 @@
       "standards": [
         "RFC 8032",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "Ed448",
+        "primitive": "signature",
+        "algorithmFamily": "EdDSA",
+        "ellipticCurve": "other/Ed448",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 224,
+        "oid": "1.3.101.113"
+      },
+      "keyMaterialFamily": "Ed448"
     },
     "rsa-pss-sha256-mgf1-32-2048": {
       "templateId": "rsa-pss-sha256-mgf1-32-2048",
@@ -2889,7 +3490,21 @@
         "PKCS#1 v2.2",
         "RFC 8017",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PSS-SHA-256-MGF1-32-2048",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PSS",
+        "parameterSetIdentifier": "2048",
+        "padding": "other",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 112,
+        "oid": "1.2.840.113549.1.1.10"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "rsa-pss-sha256-mgf1-32-3072": {
       "templateId": "rsa-pss-sha256-mgf1-32-3072",
@@ -2942,7 +3557,21 @@
         "PKCS#1 v2.2",
         "RFC 8017",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PSS-SHA-256-MGF1-32-3072",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PSS",
+        "parameterSetIdentifier": "3072",
+        "padding": "other",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "1.2.840.113549.1.1.10"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "rsa-pss-sha384-mgf1-48-4096": {
       "templateId": "rsa-pss-sha384-mgf1-48-4096",
@@ -2995,7 +3624,21 @@
         "PKCS#1 v2.2",
         "RFC 8017",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PSS-SHA-384-MGF1-48-4096",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PSS",
+        "parameterSetIdentifier": "4096",
+        "padding": "other",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 152,
+        "oid": "1.2.840.113549.1.1.10"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "rsa-pkcs1v15-sha256-2048": {
       "templateId": "rsa-pkcs1v15-sha256-2048",
@@ -3044,7 +3687,21 @@
       "standards": [
         "PKCS#1 v1.5",
         "RFC 8017"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PKCS1-1.5-SHA-256-2048",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PKCS1",
+        "parameterSetIdentifier": "2048",
+        "padding": "pkcs1v15",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 112,
+        "oid": "1.2.840.113549.1.1.11"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "ecdsa-p256-prehashed-der": {
       "templateId": "ecdsa-p256-prehashed-der",
@@ -3091,7 +3748,19 @@
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-P256-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "nist/P-256",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "ecdsa-p384-prehashed-der": {
       "templateId": "ecdsa-p384-prehashed-der",
@@ -3138,7 +3807,19 @@
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-P384-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "nist/P-384",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 192
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "ecdsa-p521-prehashed-der": {
       "templateId": "ecdsa-p521-prehashed-der",
@@ -3185,7 +3866,19 @@
       "standards": [
         "FIPS 186-5",
         "ANSI X9.62"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-P521-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "nist/P-521",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 256
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "ecdsa-secp256k1-prehashed-der": {
       "templateId": "ecdsa-secp256k1-prehashed-der",
@@ -3229,7 +3922,19 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "SEC 2"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ECDSA-secp256k1-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "ECDSA",
+        "ellipticCurve": "secg/secp256k1",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128
+      },
+      "keyMaterialFamily": "ECDSA"
     },
     "rsa-pss-2048-prehashed": {
       "templateId": "rsa-pss-2048-prehashed",
@@ -3280,7 +3985,21 @@
         "PKCS#1 v2.2",
         "RFC 8017",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PSS-2048-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PSS",
+        "parameterSetIdentifier": "2048",
+        "padding": "other",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 112,
+        "oid": "1.2.840.113549.1.1.10"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "rsa-pss-3072-prehashed": {
       "templateId": "rsa-pss-3072-prehashed",
@@ -3331,7 +4050,21 @@
         "PKCS#1 v2.2",
         "RFC 8017",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PSS-3072-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PSS",
+        "parameterSetIdentifier": "3072",
+        "padding": "other",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "1.2.840.113549.1.1.10"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "rsa-pss-4096-prehashed": {
       "templateId": "rsa-pss-4096-prehashed",
@@ -3382,7 +4115,21 @@
         "PKCS#1 v2.2",
         "RFC 8017",
         "FIPS 186-5"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PSS-4096-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PSS",
+        "parameterSetIdentifier": "4096",
+        "padding": "other",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 152,
+        "oid": "1.2.840.113549.1.1.10"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "rsa-pkcs1v15-2048-prehashed": {
       "templateId": "rsa-pkcs1v15-2048-prehashed",
@@ -3430,7 +4177,21 @@
       "standards": [
         "PKCS#1 v1.5",
         "RFC 8017"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "RSA-PKCS1-1.5-2048-Prehashed",
+        "primitive": "signature",
+        "algorithmFamily": "RSASSA-PKCS1",
+        "parameterSetIdentifier": "2048",
+        "padding": "pkcs1v15",
+        "cryptoFunctions": [
+          "sign",
+          "verify"
+        ],
+        "classicalSecurityLevel": 112,
+        "oid": "1.2.840.113549.1.1.1"
+      },
+      "keyMaterialFamily": "RSA"
     },
     "aes-128-gcm-128-96": {
       "templateId": "aes-128-gcm-128-96",
@@ -3486,7 +4247,21 @@
       "standards": [
         "NIST SP 800-38D",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-128-GCM-128-96",
+        "primitive": "ae",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "128",
+        "mode": "gcm",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "2.16.840.1.101.3.4.1.6"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-192-gcm-128-96": {
       "templateId": "aes-192-gcm-128-96",
@@ -3542,7 +4317,21 @@
       "standards": [
         "NIST SP 800-38D",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-192-GCM-128-96",
+        "primitive": "ae",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "192",
+        "mode": "gcm",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 192,
+        "oid": "2.16.840.1.101.3.4.1.26"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-256-gcm-128-96": {
       "templateId": "aes-256-gcm-128-96",
@@ -3598,7 +4387,21 @@
       "standards": [
         "NIST SP 800-38D",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-256-GCM-128-96",
+        "primitive": "ae",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "256",
+        "mode": "gcm",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 256,
+        "oid": "2.16.840.1.101.3.4.1.46"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-128-cbc-pkcs7-128": {
       "templateId": "aes-128-cbc-pkcs7-128",
@@ -3646,7 +4449,22 @@
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-128-CBC-PKCS7",
+        "primitive": "block-cipher",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "128",
+        "mode": "cbc",
+        "padding": "pkcs7",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 128,
+        "oid": "2.16.840.1.101.3.4.1.2"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-192-cbc-pkcs7-128": {
       "templateId": "aes-192-cbc-pkcs7-128",
@@ -3694,7 +4512,22 @@
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-192-CBC-PKCS7",
+        "primitive": "block-cipher",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "192",
+        "mode": "cbc",
+        "padding": "pkcs7",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 192,
+        "oid": "2.16.840.1.101.3.4.1.22"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-256-cbc-pkcs7-128": {
       "templateId": "aes-256-cbc-pkcs7-128",
@@ -3742,7 +4575,22 @@
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-256-CBC-PKCS7",
+        "primitive": "block-cipher",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "256",
+        "mode": "cbc",
+        "padding": "pkcs7",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 256,
+        "oid": "2.16.840.1.101.3.4.1.42"
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-128-ctr": {
       "templateId": "aes-128-ctr",
@@ -3788,7 +4636,20 @@
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-128-CTR",
+        "primitive": "stream-cipher",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "128",
+        "mode": "ctr",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 128
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-192-ctr": {
       "templateId": "aes-192-ctr",
@@ -3834,7 +4695,20 @@
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-192-CTR",
+        "primitive": "stream-cipher",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "192",
+        "mode": "ctr",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 192
+      },
+      "keyMaterialFamily": "AES"
     },
     "aes-256-ctr": {
       "templateId": "aes-256-ctr",
@@ -3880,7 +4754,20 @@
       "standards": [
         "NIST SP 800-38A",
         "FIPS 197"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "AES-256-CTR",
+        "primitive": "stream-cipher",
+        "algorithmFamily": "AES",
+        "parameterSetIdentifier": "256",
+        "mode": "ctr",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 256
+      },
+      "keyMaterialFamily": "AES"
     },
     "chacha20-poly1305": {
       "templateId": "chacha20-poly1305",
@@ -3931,7 +4818,20 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "RFC 8439"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "ChaCha20-Poly1305",
+        "primitive": "ae",
+        "algorithmFamily": "ChaCha20",
+        "parameterSetIdentifier": "256",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 256,
+        "oid": "1.2.840.113549.1.9.16.3.18"
+      },
+      "keyMaterialFamily": "ChaCha20"
     },
     "xchacha20-poly1305": {
       "templateId": "xchacha20-poly1305",
@@ -3982,8 +4882,298 @@
       "status": "TEMPLATE_STATUS_ACTIVE",
       "standards": [
         "draft-irtf-cfrg-xchacha-03 (expired IETF draft; never standardized)"
-      ]
+      ],
+      "cyclonedx": {
+        "name": "XChaCha20-Poly1305",
+        "primitive": "ae",
+        "algorithmFamily": "ChaCha20",
+        "parameterSetIdentifier": "256",
+        "cryptoFunctions": [
+          "decrypt",
+          "encrypt"
+        ],
+        "classicalSecurityLevel": 256
+      },
+      "keyMaterialFamily": "ChaCha20"
     }
   },
-  "families": []
+  "families": [
+    {
+      "family": "AES",
+      "displayName": "Advanced Encryption Standard",
+      "description": "CycloneDX AES algorithm family represented by this catalog.",
+      "primitive": "other",
+      "standards": [
+        "FIPS 197",
+        "NIST SP 800-38A",
+        "NIST SP 800-38D",
+        "NIST SP 800-38F",
+        "RFC 3394",
+        "RFC 5649"
+      ],
+      "templateIds": [
+        "aes-128-kw",
+        "aes-192-kw",
+        "aes-256-kw",
+        "aes-128-kwp",
+        "aes-192-kwp",
+        "aes-256-kwp",
+        "aes-128-gcm-128-96",
+        "aes-192-gcm-128-96",
+        "aes-256-gcm-128-96",
+        "aes-128-cbc-pkcs7-128",
+        "aes-192-cbc-pkcs7-128",
+        "aes-256-cbc-pkcs7-128",
+        "aes-128-ctr",
+        "aes-192-ctr",
+        "aes-256-ctr"
+      ],
+      "defaultTemplateId": "aes-256-gcm-128-96",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 128
+    },
+    {
+      "family": "ChaCha20",
+      "displayName": "ChaCha20",
+      "description": "CycloneDX ChaCha20 algorithm family represented by this catalog.",
+      "primitive": "ae",
+      "standards": [
+        "RFC 8439",
+        "draft-irtf-cfrg-xchacha-03 (expired IETF draft; never standardized)"
+      ],
+      "templateIds": [
+        "chacha20-poly1305",
+        "xchacha20-poly1305"
+      ],
+      "defaultTemplateId": "chacha20-poly1305",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 256
+    },
+    {
+      "family": "ECDH",
+      "displayName": "Elliptic Curve Diffie-Hellman",
+      "description": "CycloneDX ECDH algorithm family represented by this catalog.",
+      "primitive": "key-agree",
+      "standards": [
+        "RFC 7748"
+      ],
+      "templateIds": [
+        "x25519",
+        "x448"
+      ],
+      "defaultTemplateId": "x25519",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 128
+    },
+    {
+      "family": "ECDSA",
+      "displayName": "Elliptic Curve Digital Signature Algorithm",
+      "description": "CycloneDX ECDSA algorithm family represented by this catalog.",
+      "primitive": "signature",
+      "standards": [
+        "ANSI X9.62",
+        "FIPS 186-5",
+        "SEC 2"
+      ],
+      "templateIds": [
+        "ecdsa-p256-sha256-der",
+        "ecdsa-p384-sha384-der",
+        "ecdsa-p521-sha512-der",
+        "ecdsa-secp256k1-sha256-der",
+        "ecdsa-p256-prehashed-der",
+        "ecdsa-p384-prehashed-der",
+        "ecdsa-p521-prehashed-der",
+        "ecdsa-secp256k1-prehashed-der"
+      ],
+      "defaultTemplateId": "ecdsa-p256-sha256-der",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 128
+    },
+    {
+      "family": "EdDSA",
+      "displayName": "Edwards-Curve Digital Signature Algorithm",
+      "description": "CycloneDX EdDSA algorithm family represented by this catalog.",
+      "primitive": "signature",
+      "standards": [
+        "FIPS 186-5",
+        "RFC 8032"
+      ],
+      "templateIds": [
+        "ed25519",
+        "ed25519ph",
+        "ed25519ctx",
+        "ed448"
+      ],
+      "defaultTemplateId": "ed25519",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 128
+    },
+    {
+      "family": "HKDF",
+      "displayName": "HMAC-based Extract-and-Expand Key Derivation Function",
+      "description": "CycloneDX HKDF algorithm family represented by this catalog.",
+      "primitive": "kdf",
+      "standards": [
+        "NIST SP 800-56C",
+        "RFC 5869"
+      ],
+      "templateIds": [
+        "hkdf-sha256",
+        "hkdf-sha384",
+        "hkdf-sha512"
+      ],
+      "defaultTemplateId": "hkdf-sha256",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 256
+    },
+    {
+      "family": "HMAC",
+      "displayName": "Hash-based Message Authentication Code",
+      "description": "CycloneDX HMAC algorithm family represented by this catalog.",
+      "primitive": "mac",
+      "standards": [
+        "FIPS 198-1",
+        "FIPS 202",
+        "RFC 2104"
+      ],
+      "templateIds": [
+        "hmac-sha256-256",
+        "hmac-sha384-384",
+        "hmac-sha512-512",
+        "hmac-sha3-256-256"
+      ],
+      "defaultTemplateId": "hmac-sha256-256",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 256
+    },
+    {
+      "family": "KMAC",
+      "displayName": "Keccak Message Authentication Code",
+      "description": "CycloneDX KMAC algorithm family represented by this catalog.",
+      "primitive": "mac",
+      "standards": [
+        "NIST SP 800-185"
+      ],
+      "templateIds": [
+        "kmac128-256",
+        "kmac256-512"
+      ],
+      "defaultTemplateId": "kmac128-256",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 128
+    },
+    {
+      "family": "ML-DSA",
+      "displayName": "Module-Lattice-Based Digital Signature Algorithm",
+      "description": "CycloneDX ML-DSA algorithm family represented by this catalog.",
+      "primitive": "signature",
+      "standards": [
+        "FIPS 204"
+      ],
+      "templateIds": [
+        "ml-dsa-44",
+        "ml-dsa-65",
+        "ml-dsa-87",
+        "hash-ml-dsa-44",
+        "hash-ml-dsa-65",
+        "hash-ml-dsa-87"
+      ],
+      "defaultTemplateId": "ml-dsa-65",
+      "hasPqcVariants": true,
+      "minSecurityLevel": 128
+    },
+    {
+      "family": "ML-KEM",
+      "displayName": "Module-Lattice-Based Key-Encapsulation Mechanism",
+      "description": "CycloneDX ML-KEM algorithm family represented by this catalog.",
+      "primitive": "kem",
+      "standards": [
+        "FIPS 203"
+      ],
+      "templateIds": [
+        "ml-kem-512",
+        "ml-kem-768",
+        "ml-kem-1024"
+      ],
+      "defaultTemplateId": "ml-kem-768",
+      "hasPqcVariants": true,
+      "minSecurityLevel": 128
+    },
+    {
+      "family": "PBKDF2",
+      "displayName": "Password-Based Key Derivation Function 2",
+      "description": "CycloneDX PBKDF2 algorithm family represented by this catalog.",
+      "primitive": "kdf",
+      "standards": [
+        "NIST SP 800-132",
+        "RFC 8018"
+      ],
+      "templateIds": [
+        "pbkdf2-sha256-600000-32",
+        "pbkdf2-sha512-210000-64"
+      ],
+      "defaultTemplateId": "pbkdf2-sha256-600000-32",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 256
+    },
+    {
+      "family": "RSASSA-PKCS1",
+      "displayName": "RSA Signature Scheme with PKCS #1 v1.5",
+      "description": "CycloneDX RSASSA-PKCS1 algorithm family represented by this catalog.",
+      "primitive": "signature",
+      "standards": [
+        "PKCS#1 v1.5",
+        "RFC 8017"
+      ],
+      "templateIds": [
+        "rsa-pkcs1v15-sha256-2048",
+        "rsa-pkcs1v15-2048-prehashed"
+      ],
+      "defaultTemplateId": "rsa-pkcs1v15-sha256-2048",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 112
+    },
+    {
+      "family": "RSASSA-PSS",
+      "displayName": "RSA Signature Scheme with Probabilistic Signature Scheme",
+      "description": "CycloneDX RSASSA-PSS algorithm family represented by this catalog.",
+      "primitive": "signature",
+      "standards": [
+        "FIPS 186-5",
+        "PKCS#1 v2.2",
+        "RFC 8017"
+      ],
+      "templateIds": [
+        "rsa-pss-sha256-mgf1-32-2048",
+        "rsa-pss-sha256-mgf1-32-3072",
+        "rsa-pss-sha384-mgf1-48-4096",
+        "rsa-pss-2048-prehashed",
+        "rsa-pss-3072-prehashed",
+        "rsa-pss-4096-prehashed"
+      ],
+      "defaultTemplateId": "rsa-pss-sha256-mgf1-32-3072",
+      "hasPqcVariants": false,
+      "minSecurityLevel": 112
+    },
+    {
+      "family": "SLH-DSA",
+      "displayName": "Stateless Hash-Based Digital Signature Algorithm",
+      "description": "CycloneDX SLH-DSA algorithm family represented by this catalog.",
+      "primitive": "signature",
+      "standards": [
+        "FIPS 205"
+      ],
+      "templateIds": [
+        "slh-dsa-sha2-128s",
+        "slh-dsa-sha2-128f",
+        "slh-dsa-shake-256s",
+        "hash-slh-dsa-sha2-128s",
+        "hash-slh-dsa-sha2-128f",
+        "hash-slh-dsa-shake-256s"
+      ],
+      "defaultTemplateId": "slh-dsa-sha2-128s",
+      "hasPqcVariants": true,
+      "minSecurityLevel": 128
+    }
+  ]
 }
