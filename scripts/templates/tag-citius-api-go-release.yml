@@ -1,0 +1,50 @@
+name: Tag generated release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    if: >-
+      github.event.pull_request.merged == true &&
+      startsWith(github.event.pull_request.head.ref, 'generated/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout merged commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          fetch-depth: 0
+
+      - name: Tag merged release
+        env:
+          GENERATED_BRANCH: ${{ github.event.pull_request.head.ref }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          set -euo pipefail
+          TAG="${GENERATED_BRANCH#generated/}"
+          if [[ ! "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid release tag: ${TAG}"
+            exit 1
+          fi
+
+          if git fetch --no-tags origin "refs/tags/${TAG}:refs/tags/${TAG}" 2>/dev/null; then
+            EXISTING_SHA="$(git rev-list -n 1 "${TAG}")"
+            if [[ "${EXISTING_SHA}" == "${MERGE_SHA}" ]]; then
+              echo "Tag ${TAG} already points to ${MERGE_SHA}."
+              exit 0
+            fi
+            echo "::error::Tag ${TAG} already exists at ${EXISTING_SHA}."
+            exit 1
+          fi
+
+          git config user.name "citius-release-bot"
+          git config user.email "actions@github.com"
+          git tag -a "${TAG}" "${MERGE_SHA}" -m "${TAG}"
+          git push origin "refs/tags/${TAG}"

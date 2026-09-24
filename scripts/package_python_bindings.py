@@ -52,6 +52,7 @@ def assemble(
     output_dir: Path,
     license_file: Path,
     verification_workflow: Path,
+    release_workflow: Path,
     version: str,
     source_repository: str,
     source_revision: str,
@@ -67,6 +68,8 @@ def assemble(
         raise FileNotFoundError(
             f"verification workflow does not exist: {verification_workflow}"
         )
+    if not release_workflow.is_file():
+        raise FileNotFoundError(f"release workflow does not exist: {release_workflow}")
     if not REPOSITORY.fullmatch(source_repository):
         raise ValueError(f"not an owner/repository name: {source_repository}")
     if not REVISION.fullmatch(source_revision):
@@ -159,6 +162,10 @@ citius_api = ["py.typed", "**/*.pyi"]
     workflow_destination = output_dir / ".github" / "workflows" / "verify-generated.yml"
     workflow_destination.parent.mkdir(parents=True)
     shutil.copy2(verification_workflow, workflow_destination)
+    shutil.copy2(
+        release_workflow,
+        workflow_destination.parent / "tag-generated-release.yml",
+    )
     (output_dir / "README.md").write_text(
         f"""# citius-api-python
 
@@ -190,6 +197,9 @@ from citius_api.messages.encryption_pb2 import EncryptRequest
             "verification_workflow_sha256": hashlib.sha256(
                 verification_workflow.read_bytes()
             ).hexdigest(),
+            "release_workflow_sha256": hashlib.sha256(
+                release_workflow.read_bytes()
+            ).hexdigest(),
         },
         "package": {"name": "citius-api-python", "version": version},
         "source": {
@@ -209,6 +219,7 @@ def main() -> None:
     parser.add_argument("--schema-root", required=True, type=Path)
     parser.add_argument("--license-file", required=True, type=Path)
     parser.add_argument("--verification-workflow", required=True, type=Path)
+    parser.add_argument("--release-workflow", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--version", required=True)
     parser.add_argument("--source-repository", required=True)
@@ -221,6 +232,7 @@ def main() -> None:
         args.output_dir,
         args.license_file,
         args.verification_workflow,
+        args.release_workflow,
         args.version,
         args.source_repository,
         args.source_revision,

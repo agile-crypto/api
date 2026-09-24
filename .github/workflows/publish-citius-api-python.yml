@@ -69,6 +69,7 @@ jobs:
             --schema-root api/proto \
             --license-file api/LICENSE \
             --verification-workflow api/scripts/templates/verify-citius-api-python.yml \
+            --release-workflow api/scripts/templates/tag-citius-api-python-release.yml \
             --output-dir /tmp/citius-api-python-package \
             --version "${PACKAGE_VERSION}" \
             --source-repository agile-crypto/api \

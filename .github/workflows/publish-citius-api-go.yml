@@ -63,6 +63,9 @@ jobs:
           set -euo pipefail
           mkdir -p /tmp/citius-api-go-dryrun/gen
           cp -r api/gen/go /tmp/citius-api-go-dryrun/gen/go
+          mkdir -p /tmp/citius-api-go-dryrun/.github/workflows
+          cp api/scripts/templates/tag-citius-api-go-release.yml \
+            /tmp/citius-api-go-dryrun/.github/workflows/tag-generated-release.yml
           cat > /tmp/citius-api-go-dryrun/go.mod <<'EOF'
           module github.com/agile-crypto/citius-api-go
 
@@ -89,6 +92,9 @@ jobs:
           rm -rf citius-api-go/gen
           mkdir -p citius-api-go/gen
           cp -r api/gen/go citius-api-go/gen/go
+          mkdir -p citius-api-go/.github/workflows
+          cp api/scripts/templates/tag-citius-api-go-release.yml \
+            citius-api-go/.github/workflows/tag-generated-release.yml
           cat > citius-api-go/go.mod <<'EOF'
           module github.com/agile-crypto/citius-api-go
 
