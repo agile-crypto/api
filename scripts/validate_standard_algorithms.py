@@ -48,9 +48,9 @@ KEY_FAMILY_BY_KIND = {
     "ed25519": "Ed25519", "ed448": "Ed448", "rsaPss": "RSA",
     "rsaPkcs1v15": "RSA", "rsaOaep": "RSA", "mlDsa": "ML-DSA",
     "slhDsa": "SLH-DSA", "mlKem": "ML-KEM", "ecdh": "ECDH",
-    "x25519": "X25519", "x448": "X448", "hmac": "HMAC", "kmac": "KMAC",
+    "x25519": "X25519", "x448": "X448",
 }
-NO_KEY_FAMILY = {"hkdf", "pbkdf2", "argon2", "hybrid"}
+NO_KEY_FAMILY = {"hkdf", "pbkdf2", "argon2", "hmac", "kmac", "hybrid"}
 CYCLONEDX_FAMILY_BY_KIND = {
     "aesGcm": "AES", "aesCbc": "AES", "aesCtr": "AES", "aesXts": "AES",
     "aesKeyWrap": "AES", "chacha20Poly1305": "ChaCha20", "ecdsa": "ECDSA",

@@ -197,8 +197,6 @@ def key_material_family(kind: str) -> str:
         "ecdh": "ECDH",
         "x25519": "X25519",
         "x448": "X448",
-        "hmac": "HMAC",
-        "kmac": "KMAC",
     }.get(kind, "")
 
 
@@ -256,7 +254,7 @@ def metadata(template_id: str, template: dict[str, Any]) -> tuple[str | None, di
 
 def main() -> None:
     catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-    catalog["version"] = "0.2.0"
+    catalog["version"] = "0.2.1"
     catalog["lastUpdated"] = "2026-09-23T00:00:00Z"
     grouped: dict[str, list[str]] = {}
     for template_id, template in catalog["templates"].items():

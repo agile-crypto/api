@@ -62,13 +62,19 @@ class StandardAlgorithmCatalogTest(unittest.TestCase):
 
     def test_rejects_key_family_missing_on_retained_material_template(self) -> None:
         catalog = copy.deepcopy(self.catalog)
-        del catalog["templates"]["hmac-sha256-256"]["keyMaterialFamily"]
+        del catalog["templates"]["aes-256-gcm-128-96"]["keyMaterialFamily"]
         self.assertTrue(any("retained-material" in error for error in validator.validate(catalog)))
 
-    def test_rejects_key_family_on_kdf(self) -> None:
-        catalog = copy.deepcopy(self.catalog)
-        catalog["templates"]["hkdf-sha256"]["keyMaterialFamily"] = "HMAC"
-        self.assertTrue(any("must not declare" in error for error in validator.validate(catalog)))
+    def test_rejects_key_family_without_typed_key_size(self) -> None:
+        for template_id, family in (
+            ("hkdf-sha256", "HMAC"),
+            ("hmac-sha256-256", "HMAC"),
+            ("kmac128-256", "KMAC"),
+        ):
+            with self.subTest(template_id=template_id):
+                catalog = copy.deepcopy(self.catalog)
+                catalog["templates"][template_id]["keyMaterialFamily"] = family
+                self.assertTrue(any("must not declare" in error for error in validator.validate(catalog)))
 
     def test_rejects_security_claim_for_password_template(self) -> None:
         catalog = copy.deepcopy(self.catalog)

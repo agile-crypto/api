@@ -1,5 +1,5 @@
 {
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "CaaS Standard Algorithm Catalog - Merged from category files",
   "lastUpdated": "2026-09-23T00:00:00Z",
   "templates": {
@@ -1511,8 +1511,7 @@
           "verify"
         ],
         "oid": "1.2.840.113549.2.9"
-      },
-      "keyMaterialFamily": "HMAC"
+      }
     },
     "hmac-sha384-384": {
       "templateId": "hmac-sha384-384",
@@ -1568,8 +1567,7 @@
           "verify"
         ],
         "oid": "1.2.840.113549.2.10"
-      },
-      "keyMaterialFamily": "HMAC"
+      }
     },
     "hmac-sha512-512": {
       "templateId": "hmac-sha512-512",
@@ -1625,8 +1623,7 @@
           "verify"
         ],
         "oid": "1.2.840.113549.2.11"
-      },
-      "keyMaterialFamily": "HMAC"
+      }
     },
     "hmac-sha3-256-256": {
       "templateId": "hmac-sha3-256-256",
@@ -1682,8 +1679,7 @@
           "verify"
         ],
         "oid": "2.16.840.1.101.3.4.2.14"
-      },
-      "keyMaterialFamily": "HMAC"
+      }
     },
     "kmac128-256": {
       "templateId": "kmac128-256",
@@ -1739,8 +1735,7 @@
           "verify"
         ],
         "oid": "2.16.840.1.101.3.4.2.19"
-      },
-      "keyMaterialFamily": "KMAC"
+      }
     },
     "kmac256-512": {
       "templateId": "kmac256-512",
@@ -1796,8 +1791,7 @@
           "verify"
         ],
         "oid": "2.16.840.1.101.3.4.2.20"
-      },
-      "keyMaterialFamily": "KMAC"
+      }
     },
     "ml-dsa-44": {
       "templateId": "ml-dsa-44",
