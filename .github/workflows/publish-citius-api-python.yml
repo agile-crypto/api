@@ -94,6 +94,9 @@ jobs:
           assert AlgorithmDetails is not None
           PY
           /tmp/citius-api-python-venv/bin/pip check
+          rm -rf \
+            /tmp/citius-api-python-package/build \
+            /tmp/citius-api-python-package/src/*.egg-info
 
       - name: Verify citius-api-python deploy token
         if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
