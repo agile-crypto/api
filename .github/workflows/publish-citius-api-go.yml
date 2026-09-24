@@ -9,6 +9,7 @@ name: Publish citius-api-go
 # main branch directly.
 on:
   push:
+    branches: ["main"]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -45,6 +46,16 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+
+      - name: Verify citius-api-go deploy token
+        if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+        env:
+          DEPLOY_TOKEN: ${{ secrets.CITIUS_API_GO_DEPLOY_TOKEN }}
+        run: |
+          if [[ -z "${DEPLOY_TOKEN}" ]]; then
+            echo "::error::Repository secret CITIUS_API_GO_DEPLOY_TOKEN is required to publish generated Go bindings."
+            exit 1
+          fi
 
       - name: Assemble citius-api-go module tree (dry run only)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
@@ -116,5 +127,5 @@ jobs:
             --base main \
             --head "$BRANCH" \
             --title "Regenerate from agile-crypto/api ${SOURCE_REF}" \
-            --body "Generated from agile-crypto/api@${SOURCE_SHA}, tag ${SOURCE_REF}. Review the diff, then merge and tag ${SOURCE_REF} on citius-api-go." \
+            --body "Generated from agile-crypto/api@${SOURCE_SHA}, ref ${SOURCE_REF}. Review the diff, then merge the generated update." \
             || echo "PR for ${BRANCH} may already exist; updated the branch above."

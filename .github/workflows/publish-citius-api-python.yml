@@ -6,6 +6,7 @@ name: Publish citius-api-python
 # branch and open a PR for review.
 on:
   push:
+    branches: ["main"]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
@@ -93,6 +94,16 @@ jobs:
           assert AlgorithmDetails is not None
           PY
           /tmp/citius-api-python-venv/bin/pip check
+
+      - name: Verify citius-api-python deploy token
+        if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
+        env:
+          DEPLOY_TOKEN: ${{ secrets.CITIUS_API_PYTHON_DEPLOY_TOKEN }}
+        run: |
+          if [[ -z "${DEPLOY_TOKEN}" ]]; then
+            echo "::error::Repository secret CITIUS_API_PYTHON_DEPLOY_TOKEN is required to publish generated Python bindings."
+            exit 1
+          fi
 
       - name: Publish generated repository
         if: ${{ github.event_name == 'push' || inputs.dry_run == false }}
