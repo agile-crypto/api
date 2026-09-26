@@ -87,6 +87,11 @@ message DigestSignRequest {
   // PKCS#11 Reference: CKM_ECDSA (prehashed) vs CKM_ECDSA_SHA256 (hash-then-sign)
   HashAlgorithm hash_algorithm = 6 [(buf.validate.field).enum = {defined_only: true, not_in: [0, 200]}];
 
+  // Removed: the hash OID (only meaningful for HASH_ALGORITHM_OTHER, which no
+  // key accepts).
+  reserved 7;
+  reserved "hash_algorithm_oid";
+
   // Optional: User-provided context for audit trail enrichment.
   map<string, string> user_context = 15;
 }
@@ -105,6 +110,10 @@ message DigestVerifyRequest {
   // digest. There is no separate hash argument, so the verifier cannot
   // disagree with what was signed.
   OperationMetadata metadata = 4 [(buf.validate.field).required = true];
+
+  // Removed: the digest hash now comes from metadata.digest_hash.
+  reserved 8, 9;
+  reserved "hash_algorithm", "hash_algorithm_oid";
   
   // Must match scope used during signing.
   oneof scope_params {
