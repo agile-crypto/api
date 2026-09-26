@@ -6,6 +6,8 @@ package caas.crypto.v1;
 
 option go_package = "github.com/agile-crypto/citius-api-go/gen/go/messages;messages";
 
+import "types/algorithm_params.proto";
+
 // ============================================================================
 // Serialization Metadata
 // ============================================================================
@@ -88,7 +90,9 @@ option go_package = "github.com/agile-crypto/citius-api-go/gen/go/messages;messa
 //
 // Algorithm identity (template, hash, salt lengths, hybrid composition) is
 // NOT repeated here — it is defined by the key's template
-// (ReadKey → key_metadata.template_id → AlgorithmDetails).
+// (ReadKey → key_metadata.template_id → AlgorithmDetails). The one exception
+// is digest_hash: a prehashed template accepts several digest hashes, so the
+// hash of a DigestSign operation is recorded per operation.
 //
 // IMPLEMENTATION GUIDANCE:
 // ========================
@@ -339,4 +343,13 @@ message OperationMetadata {
   // This field is NOT cryptographically authenticated — it is for audit/logging only.
   // For application-level authenticated data, use AEAD's associated_data field.
   map<string, string> user_context = 4;
+
+  // Hash that produced the digest of a DigestSign operation. Set by the
+  // service, never by the caller; unset for every other operation.
+  // DigestVerify takes the hash from here, and it is part of the audit trail.
+  // This is the one piece of algorithm identity carried here rather than
+  // derived from the template: a prehashed template accepts several hashes
+  // (TemplateInfo scope accepted_digest_hashes), so the template alone does
+  // not say which one produced a given signature.
+  HashAlgorithm digest_hash = 5;
 }
