@@ -7,6 +7,7 @@ package caas.crypto.v1;
 option go_package = "github.com/agile-crypto/citius-api-go/gen/go/types;types";
 
 import "buf/validate/validate.proto";
+import "types/algorithm_params.proto";
 
 // ============================================================================
 // Per-Primitive Scope Enums - Define Operational Interface
@@ -285,10 +286,37 @@ message SignatureScopeSpec {
   // Deterministic: Same input always produces same signature.
   // Relevant for: Reproducibility, testing, side-channel resistance.
   optional bool deterministic = 4;
-  
+
+  // Digest hashes accepted by a PREHASHED or PREHASHED_WITH_CONTEXT scope, in
+  // order of preference: the first entry is the preferred hash.
+  //   Template: hashes the template can sign without weakening its advertised
+  //             security. Required (non-empty) on every prehashed scope; the
+  //             catalog validator and the service's catalog loader enforce it.
+  //   Request:  a requirement. The selected template must accept every entry.
+  //             Empty means no requirement.
+  //   Key:      hashes this key version accepts. Always non-empty for a
+  //             prehashed version: CreateKey and TransformKey store the
+  //             request's list, or the template's list when it is empty.
+  // Applications hash with accepted_digest_hashes[0] of the key's scope spec
+  // (ReadKey), so the hash can change without code changes.
+  // Must be empty for STANDARD and WITH_CONTEXT scopes.
+  repeated HashAlgorithm accepted_digest_hashes = 5 [(buf.validate.field).repeated = {
+    unique: true,
+    items: { enum: { defined_only: true, not_in: [0, 200] } }
+  }];
+
   // Extensibility: Additional properties not covered by typed fields.
   // Use for vendor-specific, compliance, or future requirements.
   map<string, string> additional_properties = 15;
+
+  // Digest hashes only apply to scopes whose input is a digest.
+  // CEL note: 3 and 4 are the wire values of SIGNATURE_SCOPE_PREHASHED and
+  // SIGNATURE_SCOPE_PREHASHED_WITH_CONTEXT.
+  option (buf.validate.message).cel = {
+    id: "accepted_digest_hashes_prehashed_only"
+    message: "accepted_digest_hashes is only allowed on prehashed signature scopes"
+    expression: "this.accepted_digest_hashes.size() == 0 || this.scope == 3 || this.scope == 4"
+  };
 }
 
 // AeadScopeSpec specifies AEAD scope with typed properties.
