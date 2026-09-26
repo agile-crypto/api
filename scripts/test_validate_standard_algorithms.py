@@ -86,6 +86,60 @@ class StandardAlgorithmCatalogTest(unittest.TestCase):
         del catalog["templates"]["aes-256-gcm-128-96"]["cyclonedx"]["mode"]
         self.assertTrue(any("stale" in error for error in validator.validate(catalog)))
 
+    def test_prehashed_scopes_list_expected_digest_hashes(self) -> None:
+        sha256, sha384, sha512 = (f"HASH_ALGORITHM_{name}" for name in ("SHA256", "SHA384", "SHA512"))
+        expected = {
+            "ecdsa-p256-prehashed-der": [sha256, sha384, sha512],
+            "ecdsa-p384-prehashed-der": [sha384, sha512],
+            "ecdsa-p521-prehashed-der": [sha512],
+            "rsa-pss-2048-prehashed": [sha256, sha384, sha512],
+            "rsa-pss-4096-prehashed": [sha384, sha512],
+            "ed25519ph": [sha512],
+            "hash-ml-dsa-65": [sha384, sha512],
+        }
+        for template_id, hashes in expected.items():
+            with self.subTest(template_id=template_id):
+                for capability in self.catalog["templates"][template_id]["scopedCapabilities"]:
+                    self.assertEqual(hashes, capability["scope"]["signature"]["acceptedDigestHashes"])
+
+    def test_rejects_prehashed_scope_without_digest_hashes(self) -> None:
+        catalog = copy.deepcopy(self.catalog)
+        del catalog["templates"]["ecdsa-p256-prehashed-der"]["scopedCapabilities"][0]["scope"]["signature"][
+            "acceptedDigestHashes"
+        ]
+        self.assertTrue(any("required on prehashed scopes" in error for error in validator.validate(catalog)))
+
+    def test_rejects_digest_hash_weaker_than_scope(self) -> None:
+        catalog = copy.deepcopy(self.catalog)
+        signature = catalog["templates"]["ecdsa-p384-prehashed-der"]["scopedCapabilities"][0]["scope"]["signature"]
+        signature["acceptedDigestHashes"] = ["HASH_ALGORITHM_SHA256", "HASH_ALGORITHM_SHA384"]
+        self.assertTrue(any("weaker than" in error for error in validator.validate(catalog)))
+
+    def test_rejects_unsupported_or_duplicate_digest_hashes(self) -> None:
+        for hashes, message in (
+            (["HASH_ALGORITHM_SHA1"], "unsupported digest hash"),
+            (["HASH_ALGORITHM_SHA256", "HASH_ALGORITHM_SHA256"], "duplicate entries"),
+        ):
+            with self.subTest(hashes=hashes):
+                catalog = copy.deepcopy(self.catalog)
+                signature = catalog["templates"]["ecdsa-p256-prehashed-der"]["scopedCapabilities"][0]["scope"][
+                    "signature"
+                ]
+                signature["acceptedDigestHashes"] = hashes
+                self.assertTrue(any(message in error for error in validator.validate(catalog)))
+
+    def test_rejects_ed25519ph_hash_other_than_sha512(self) -> None:
+        catalog = copy.deepcopy(self.catalog)
+        signature = catalog["templates"]["ed25519ph"]["scopedCapabilities"][0]["scope"]["signature"]
+        signature["acceptedDigestHashes"] = ["HASH_ALGORITHM_SHA256", "HASH_ALGORITHM_SHA512"]
+        self.assertTrue(any("RFC 8032" in error for error in validator.validate(catalog)))
+
+    def test_rejects_digest_hashes_on_message_scope(self) -> None:
+        catalog = copy.deepcopy(self.catalog)
+        signature = catalog["templates"]["ecdsa-p256-sha256-der"]["scopedCapabilities"][0]["scope"]["signature"]
+        signature["acceptedDigestHashes"] = ["HASH_ALGORITHM_SHA256"]
+        self.assertTrue(any("only allowed on prehashed scopes" in error for error in validator.validate(catalog)))
+
     def test_rejects_every_mutated_family_field(self) -> None:
         mutations = {
             "displayName": "Wrong name",

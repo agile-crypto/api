@@ -2380,7 +2380,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2411,7 +2416,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2473,7 +2483,11 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2504,7 +2518,11 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2566,7 +2584,10 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2597,7 +2618,10 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2659,7 +2683,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2690,7 +2719,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2752,7 +2786,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2783,7 +2822,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2845,7 +2889,10 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -2876,7 +2923,10 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -3242,7 +3292,10 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": true
+              "deterministic": true,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -3712,7 +3765,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": false,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -3771,7 +3829,11 @@
                 "fipsApproved": true
               },
               "nonMalleable": false,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -3830,7 +3892,10 @@
                 "fipsApproved": true
               },
               "nonMalleable": false,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -3887,7 +3952,12 @@
                 "securityStrengthBits": 128
               },
               "nonMalleable": false,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -3945,7 +4015,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -4010,7 +4085,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -4075,7 +4155,11 @@
                 "fipsApproved": true
               },
               "nonMalleable": true,
-              "deterministic": false
+              "deterministic": false,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [
@@ -4140,7 +4224,12 @@
                 "fipsApproved": true
               },
               "nonMalleable": false,
-              "deterministic": true
+              "deterministic": true,
+              "acceptedDigestHashes": [
+                "HASH_ALGORITHM_SHA256",
+                "HASH_ALGORITHM_SHA384",
+                "HASH_ALGORITHM_SHA512"
+              ]
             }
           },
           "operations": [

@@ -200,6 +200,43 @@ def key_material_family(kind: str) -> str:
     }.get(kind, "")
 
 
+PREHASHED_SCOPES = frozenset({"SIGNATURE_SCOPE_PREHASHED", "SIGNATURE_SCOPE_PREHASHED_WITH_CONTEXT"})
+
+# Digest hashes that every provider supports for digest signing, with their
+# collision strength in bits (half the output size), weakest first.
+DIGEST_HASH_COLLISION_BITS = (
+    ("HASH_ALGORITHM_SHA256", 128),
+    ("HASH_ALGORITHM_SHA384", 192),
+    ("HASH_ALGORITHM_SHA512", 256),
+)
+
+
+def accepted_digest_hashes(kind: str, params: dict[str, Any], strength: int) -> list[str]:
+    """Hashes a prehashed scope accepts, preferred (weakest sufficient) first.
+
+    A hash is accepted when its collision strength is at least the scope's
+    securityStrengthBits, so a digest never weakens the template's advertised
+    security. Ed25519ph is the exception: RFC 8032 fixes PH = SHA-512.
+    """
+    if kind == "ed25519" and params.get("variant") == "ED25519_VARIANT_PH":
+        return ["HASH_ALGORITHM_SHA512"]
+    return [name for name, bits in DIGEST_HASH_COLLISION_BITS if bits >= strength]
+
+
+def populate_accepted_digest_hashes(template: dict[str, Any]) -> None:
+    algorithm = template["algorithm"]
+    kind = algorithm_kind(algorithm)
+    for capability in template["scopedCapabilities"]:
+        signature = capability["scope"].get("signature")
+        if signature is None:
+            continue
+        if signature["scope"] in PREHASHED_SCOPES:
+            strength = signature.get("security", {}).get("securityStrengthBits", 0)
+            signature["acceptedDigestHashes"] = accepted_digest_hashes(kind, algorithm[kind], strength)
+        else:
+            signature.pop("acceptedDigestHashes", None)
+
+
 def metadata(template_id: str, template: dict[str, Any]) -> tuple[str | None, dict[str, Any]]:
     algorithm = template["algorithm"]
     kind = algorithm_kind(algorithm)
@@ -259,6 +296,7 @@ def main() -> None:
     grouped: dict[str, list[str]] = {}
     for template_id, template in catalog["templates"].items():
         family, template["cyclonedx"] = metadata(template_id, template)
+        populate_accepted_digest_hashes(template)
         material_family = key_material_family(algorithm_kind(template["algorithm"]))
         if material_family:
             template["keyMaterialFamily"] = material_family

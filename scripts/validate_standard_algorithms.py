@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
 import sys
@@ -105,6 +106,55 @@ FAMILY_DEFAULT_TEMPLATE = {
 }
 
 
+PREHASHED_SCOPES = frozenset({"SIGNATURE_SCOPE_PREHASHED", "SIGNATURE_SCOPE_PREHASHED_WITH_CONTEXT"})
+# Independent policy: collision strength (bits) of the hashes a prehashed
+# scope may accept. A hash below the scope's securityStrengthBits would weaken
+# the template's advertised security.
+DIGEST_HASH_COLLISION_BITS = {
+    "HASH_ALGORITHM_SHA256": 128,
+    "HASH_ALGORITHM_SHA384": 192,
+    "HASH_ALGORITHM_SHA512": 256,
+}
+
+
+def validate_accepted_digest_hashes(template: dict[str, Any], prefix: str, errors: list[str]) -> None:
+    """Prehashed scopes must list sufficient digest hashes; others list none."""
+    capabilities = template.get("scopedCapabilities")
+    if not isinstance(capabilities, list):
+        return
+    algorithm = template.get("algorithm") if isinstance(template.get("algorithm"), dict) else {}
+    ed25519 = algorithm.get("ed25519") if isinstance(algorithm.get("ed25519"), dict) else None
+    is_ed25519ph = ed25519 is not None and ed25519.get("variant") == "ED25519_VARIANT_PH"
+    for index, capability in enumerate(capabilities):
+        if not isinstance(capability, dict) or not isinstance(capability.get("scope"), dict):
+            continue
+        signature = capability["scope"].get("signature")
+        if not isinstance(signature, dict):
+            continue
+        field_prefix = f"{prefix}.scopedCapabilities[{index}].scope.signature.acceptedDigestHashes"
+        hashes = signature.get("acceptedDigestHashes")
+        if signature.get("scope") not in PREHASHED_SCOPES:
+            if hashes:
+                errors.append(f"{field_prefix}: only allowed on prehashed scopes")
+            continue
+        if not isinstance(hashes, list) or not hashes:
+            errors.append(f"{field_prefix}: required on prehashed scopes")
+            continue
+        if len(hashes) != len(set(map(str, hashes))):
+            errors.append(f"{field_prefix}: duplicate entries")
+        security = signature.get("security") if isinstance(signature.get("security"), dict) else {}
+        strength = security.get("securityStrengthBits", 0)
+        strength = strength if isinstance(strength, int) and not isinstance(strength, bool) else 0
+        for value in hashes:
+            bits = DIGEST_HASH_COLLISION_BITS.get(value) if isinstance(value, str) else None
+            if bits is None:
+                errors.append(f"{field_prefix}: unsupported digest hash {value!r}")
+            elif bits < strength:
+                errors.append(f"{field_prefix}: {value} is weaker than securityStrengthBits {strength}")
+        if is_ed25519ph and hashes != ["HASH_ALGORITHM_SHA512"]:
+            errors.append(f"{field_prefix}: Ed25519ph accepts exactly HASH_ALGORITHM_SHA512 (RFC 8032)")
+
+
 def algorithm_kind(template: dict[str, Any]) -> str | None:
     algorithm = template.get("algorithm")
     if not isinstance(algorithm, dict):
@@ -183,6 +233,7 @@ def validate(catalog: Any) -> list[str]:
             errors.append(f"{prefix}: must be an object")
             continue
         strengths, has_pqc = scoped_security(template, prefix, errors)
+        validate_accepted_digest_hashes(template, prefix, errors)
         if template.get("templateId") != template_id:
             errors.append(f"{prefix}: map key and templateId differ")
         kind = algorithm_kind(template)
@@ -323,6 +374,14 @@ def validate(catalog: Any) -> list[str]:
         else:
             if cyclonedx != expected_cyclonedx:
                 errors.append(f"templates.{template_id}: generated CycloneDX projection is stale")
+        try:
+            regenerated = copy.deepcopy(template)
+            metadata_generator.populate_accepted_digest_hashes(regenerated)
+        except Exception as error:
+            errors.append(f"templates.{template_id}: digest hash generation failed: {error}")
+        else:
+            if regenerated.get("scopedCapabilities") != template.get("scopedCapabilities"):
+                errors.append(f"templates.{template_id}: generated acceptedDigestHashes are stale")
     return errors
 
 
