@@ -282,3 +282,21 @@ message BatchEvaluatePolicyResponse {
   int32 allowed_count = 2;
   int32 denied_count = 3;
 }
+
+message ListAllowedAlgorithmsRequest {
+  // Policy to evaluate against. Required.
+  string policy_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  optional ScopeSpecification filters = 2; // Optional: filter universe of algorithms
+}
+
+message AllowedAlgorithmResult {
+  string template_id = 1;
+  repeated CryptoOperation operation = 2 [(buf.validate.field).enum = {
+    defined_only: true,
+    not_in: [0]
+  }];
+}
+message ListAllowedAlgorithmsResponse {
+  // List of algorithm templates allowed by the policy (after filtering)
+  repeated AllowedAlgorithmResult allowed_algorithms = 1;
+}
