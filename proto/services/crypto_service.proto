@@ -128,4 +128,15 @@ service CryptoService {
       body: "*"
     };
   }
+
+  // ============== Stateless Signature Verification =================
+
+  // Stateless signature verification using a public key (no key management required).
+  // The public key is provided in the request, and the signature is verified against the provided data.
+  rpc VerifyWithPublicKey(VerifyWithPublicKeyRequest) returns (VerifyWithPublicKeyResponse) {
+    option (google.api.http) = {
+      post: "/v1/verify/publickey"
+      body: "*"
+    };
+  }
 }
