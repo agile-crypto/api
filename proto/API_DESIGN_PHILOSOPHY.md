@@ -230,6 +230,7 @@ A CreateKey for `quantum_safe: true` that resolves to ML-DSA-65 therefore shows 
 
 - An operation request may omit `key_version`; the server then uses the key's current version. Every response that used a key version reports it in `OperationMetadata.key_version`, so a verify or decrypt result always names the version it was checked against.
 - A crypto policy is version 1 when created and one more on each update. A policy stored before versions were recorded reads as version 0 (unset), and its first update makes it version 1. `expected_version` on UpdateCryptoPolicy is honored: a mismatch fails with `FAILED_PRECONDITION`.
+  - **Known race:** the server reads the stored version and writes the new policy in two separate store calls, so the check is not atomic with the write. Two concurrent updates sent with the same `expected_version` can both pass the check; both succeed, the later write wins, and both callers are told the same new version. A stale `expected_version` is always refused, but concurrent writers are not serialized until the policy store offers a compare-and-put.
 - `OperationMetadata.api_version` is empty, which the field defines as the initial version, "1.0". `OperationMetadata.user_context` is the request's `user_context`, passed through unchanged.
 
 ### Clients
