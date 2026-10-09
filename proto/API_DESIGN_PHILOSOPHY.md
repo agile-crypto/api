@@ -11,9 +11,10 @@ This document explains the design principles behind the Abstract Cryptographic A
 1. [True Identity: What This Work Actually Is](#true-identity-what-this-work-actually-is)
 2. [Cryptographic Agility](#cryptographic-agility)
 3. [Extensibility Without API Changes](#extensibility-without-api-changes)
-4. [PKCS#11 Coverage](#pkcs11-coverage)
-5. [Post-Quantum Readiness](#post-quantum-readiness)
-6. [Security Design](#security-design)
+4. [Response Fields and Presence](#response-fields-and-presence)
+5. [PKCS#11 Coverage](#pkcs11-coverage)
+6. [Post-Quantum Readiness](#post-quantum-readiness)
+7. [Security Design](#security-design)
 
 ---
 
@@ -197,6 +198,47 @@ templates := ListTemplates(ListTemplatesRequest{
   AllowedStatuses: [TEMPLATE_STATUS_ACTIVE],
 })
 ```
+
+---
+
+## Response Fields and Presence
+
+A response says what the server knows, and nothing it does not. The server fills every response field it has a source for; a field it has no source for stays unset. It never fills a field with a guessed or default value.
+
+### What proto3 can and cannot say
+
+Message fields, `optional` scalars and `oneof` members have presence: unset and zero are different. Plain scalars (`bool`, numbers, `string`, enums) do not: on the wire and in canonical JSON, zero *is* unset. The API uses each kind for one purpose:
+
+| Kind | Used for | Reading it |
+|------|----------|------------|
+| `optional bool` | Tri-state properties: `security.quantum_safe`, `security.fips_approved`, `non_malleable`, ... | Unset means "not stated", `false` means "stated false". The server never turns unset into `false`. |
+| Plain scalar where zero is never a valid value | Enums (`*_UNSPECIFIED = 0`), names, IDs, `security_strength_bits`, versions | Zero means unset: not stated, not recorded, or not applicable. |
+| Plain scalar the server always sets | `success`, `valid`, `extractable`, `feasible` | Zero is the real value: `valid: false` is a failed verification, not a missing answer. |
+
+A plain scalar that fits neither row would need `optional`; adding one is a schema change.
+
+### Requested versus chosen
+
+Key metadata carries both the caller's intent and the server's choice:
+
+- `scope_spec` is what the key was requested with. It states only what the caller stated; an unstated property is unset there.
+- `template_info` is the template the server chose. What the key actually provides, such as its security strength or quantum safety, is read from `template_info`, not from `scope_spec`.
+
+A CreateKey for `quantum_safe: true` that resolves to ML-DSA-65 therefore shows `scope_spec.signature.security` with only `quantum_safe: true`, while `template_info.scoped_capabilities[].scope` states the template's 192-bit strength.
+
+### Versions
+
+- An operation request may omit `key_version`; the server then uses the key's current version. Every response that used a key version reports it in `OperationMetadata.key_version`, so a verify or decrypt result always names the version it was checked against.
+- A crypto policy is version 1 when created and one more on each update. A policy stored before versions were recorded reads as version 0 (unset), and its first update makes it version 1. `expected_version` on UpdateCryptoPolicy is honored: a mismatch fails with `FAILED_PRECONDITION`.
+- `OperationMetadata.api_version` is empty, which the field defines as the initial version, "1.0". `OperationMetadata.user_context` is the request's `user_context`, passed through unchanged.
+
+### Clients
+
+Show responses as canonical proto3 JSON, which omits unset fields. Printing proto defaults for absent fields turns "not stated" into a false claim (for example `quantum_safe: false` or `security_strength_bits: 0`).
+
+### Data written before this rule
+
+Keys created before the server kept presence may carry `quantum_safe: false` or `fips_approved: false` in their stored `scope_spec` although the caller never stated them. Such values are artifacts of the earlier encoding, not stated intent.
 
 ---
 
