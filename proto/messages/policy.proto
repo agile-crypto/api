@@ -282,3 +282,19 @@ message BatchEvaluatePolicyResponse {
   int32 allowed_count = 2;
   int32 denied_count = 3;
 }
+
+message ListAllowedAlgorithmsRequest {
+  // Policy to evaluate against. Required.
+  string policy_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 256}];
+  optional ScopeSpecification filters = 2; // Optional: filter universe of algorithms
+}
+
+message ListAllowedAlgorithmsResponse {
+  string policy_name = 1;
+  int32 policy_version = 2;
+  // List of algorithm templates allowed by the policy (after filtering)
+  repeated string allowed_templates = 3;
+  // Deprecated: legacy template IDs for backward compatibility. Allow for recipient-usage only (eg. decryption, signature verification). 
+  // Do not use for new operations.
+  repeated string legacy_templates = 4; 
+}

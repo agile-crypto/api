@@ -10,6 +10,8 @@ import "messages/metadata.proto";
 import "types/algorithm_params.proto";
 import "types/common.proto";
 import "types/operation_params.proto";
+import "types/implementation.proto";
+import "types/templates.proto";
 import "buf/validate/validate.proto";
 
 // ============================================================================
@@ -379,4 +381,39 @@ message VerifyMessageFinalRequest {
 
 message VerifyMessageFinalResponse {
   bool success = 1;
+}
+
+// ============================================================================
+// Stateless Verification Request/Response
+// ============================================================================
+
+message VerifyWithPublicKeyRequest {
+    bytes public_key = 1;
+    KeyFormat public_key_format = 2;
+    bytes input = 3;
+    bytes signature = 4;
+    
+    // Additional operation parameters used to compute the signature
+    oneof scope_params {
+        option (buf.validate.oneof).required = true;
+        NoParams no_context = 5;                      // Classical signatures
+        SignatureDomainContext domain_context = 6;     // Context-bearing signatures
+        VendorSignatureContext vendor_context = 7;     // Vendor/custom scope
+    }
+
+    string template_id = 8; // Template of the algorithm used to sign the input, required
+    
+    string policy_name = 9; // Name of the policy authorizing the operation, required.
+    optional string provider_id = 10; // Optional provider ID to use for verification. If not provided, the system will select a provider.
+    map<string, string> provider_configuration = 11; // Optional provider configuration for the provider selected for verification. If not provided, the system will use the default configuration for the provider.
+    optional ProviderRequirements provider_requirements = 12; // Optional provider requirements for the provider selected for verification. If not provided, the system will use the default requirements for the provider.
+
+    // Optional: User-provided context for audit trail enrichment.
+    map<string, string> user_context = 20;
+}
+
+message VerifyWithPublicKeyResponse {
+    bool valid = 1;
+    string template_id = 2;
+    string provider_id = 3;
 }
